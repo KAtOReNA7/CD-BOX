@@ -97,16 +97,20 @@ export function extractFirstJsonObject(text: string) {
   throw new Error("Unclosed JSON object in model output.");
 }
 
-export function parseReleaseResearchResponse(text: string): ReleaseResearchResult {
+export function parseReleaseResearchResponse(
+  text: string,
+  options: { applyQualityGates?: boolean } = {},
+): ReleaseResearchResult {
   const jsonText = extractFirstJsonObject(text);
   const json = JSON.parse(jsonText);
   const parsed = resultSchema.parse(json);
-
-  return applyResearchQualityGates({
+  const result = {
     ...parsed,
     releases: parsed.releases.map((release, index) => ({
       ...release,
       id: `candidate-${index + 1}`,
     })),
-  });
+  };
+
+  return options.applyQualityGates === false ? result : applyResearchQualityGates(result);
 }

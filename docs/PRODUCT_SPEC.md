@@ -71,7 +71,12 @@ Duplicate handling:
 
 ## GPT Release Research Workflow
 
-The `/ai-search` page lets a signed-in user research an artist's physical CD releases before importing anything into the formal collection library.
+The `/ai-search` page lets a signed-in user create release candidates before importing anything into the formal collection library.
+
+It has two modes:
+
+- Online search
+- Pasted source structuring
 
 Inputs:
 
@@ -93,6 +98,21 @@ AI requirements:
 - User-started searches set `tool_choice: "required"` to force web search.
 - If the relay does not support Responses API or `web_search`, online release research is blocked and the UI asks the user to run `npm run probe:ai`.
 - Chat Completions fallback may only be used for non-search text tasks. It must not be used to fabricate online search results.
+
+## Pasted Source Structuring
+
+When `web_search` is unavailable, users can paste source material from official sites, labels, retailers, CD databases, MusicBrainz, VGMdb, or CSV/table text. This mode is called "Pasted source structuring"; it is not search and must not claim network access.
+
+Rules:
+
+- All calls still go through `src/lib/ai/client.ts`.
+- Structuring logic lives in `src/lib/ai/release-structure.ts`.
+- Parser logic lives in `src/lib/ai/release-structure-parser.ts`.
+- Sources may only come from URLs explicitly present in pasted text or the optional user-provided source URL.
+- If no source URL exists, candidates keep empty `sources`, are downgraded by quality gates, and are marked pending review.
+- `coverImageUrl` may only be kept when it matches an explicit user-provided cover URL. The model must not invent cover art.
+- Missing fields remain `null`; the model must not guess catalog numbers or dates.
+- The same candidate preview, quality gates, and import path are reused.
 
 Persistence:
 

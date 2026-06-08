@@ -3,13 +3,15 @@
 import { Fragment, useMemo, useState } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Bot, ChevronDown, ChevronRight, ExternalLink, Search } from "lucide-react";
+import { AlertCircle, Bot, ChevronDown, ChevronRight, ExternalLink, FileText, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -64,6 +66,9 @@ export function AiSearchClient({
   const [excludeReissues, setExcludeReissues] = useState(true);
   const [includeCollaborations, setIncludeCollaborations] = useState(true);
   const [includeLiveRemixBest, setIncludeLiveRemixBest] = useState(true);
+  const [sourceText, setSourceText] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [defaultCoverSourceUrl, setDefaultCoverSourceUrl] = useState("");
   const [task, setTask] = useState<AiSearchTaskView | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -122,6 +127,63 @@ export function AiSearchClient({
     if (!response.ok) {
       setTask(null);
       setMessage(payload.error ?? "Search failed.");
+      return;
+    }
+
+    setTask(payload);
+
+    const nextSelected = new Set<string>();
+    const nextExcluded = new Set<string>();
+    const nextPending = new Set<string>();
+
+    for (const release of payload.parsedResult?.releases ?? []) {
+      if (isSafeByDefault(release)) nextSelected.add(release.id);
+      if (release.isExcludedByDefault) nextExcluded.add(release.id);
+      if (isPendingReview(release)) nextPending.add(release.id);
+    }
+
+    setSelectedIds(nextSelected);
+    setExcludedIds(nextExcluded);
+    setPendingIds(nextPending);
+    setImportArtistName(payload.parsedResult?.artist?.name ?? artistName);
+  }
+
+  async function structureNotes() {
+    setLoading(true);
+    setMessage(null);
+    setTask({
+      id: "pending",
+      status: "pending",
+      query: "",
+      model: "",
+      errorMessage: null,
+      rawResult: null,
+      parsedResult: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const response = await fetch("/api/ai-search/structure-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        artistName,
+        country,
+        target,
+        excludeReissues,
+        includeCollaborations,
+        includeLiveRemixBest,
+        sourceText,
+        sourceUrl: sourceUrl.trim() || null,
+        defaultCoverSourceUrl: defaultCoverSourceUrl.trim() || null,
+      }),
+    });
+    const payload = await response.json();
+    setLoading(false);
+
+    if (!response.ok) {
+      setTask(null);
+      setMessage(payload.error ?? "Pasted source structuring failed.");
       return;
     }
 
@@ -203,7 +265,7 @@ export function AiSearchClient({
         <p className="text-sm font-medium text-muted-foreground">AI Research</p>
         <h1 className="mt-2 text-3xl font-semibold">GPT-5.5 Release Research</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Search real physical CD release data with Responses API and web_search. Candidates must be reviewed before import.
+          Use online search when the relay supports web_search, or structure user-pasted source material without claiming network access.
         </p>
       </div>
 
@@ -214,44 +276,6 @@ export function AiSearchClient({
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Bot className="size-5" />
-            Search Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-5 lg:grid-cols-3">
-          <Field label="Artist name">
-            <Input value={artistName} onChange={(event) => setArtistName(event.target.value)} />
-          </Field>
-          <Field label="Country / region">
-            <Input value={country} onChange={(event) => setCountry(event.target.value)} />
-          </Field>
-          <Field label="Collection scope">
-            <Select value={target} onValueChange={(value) => setTarget(value as CollectionScopeTarget)}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ORIGINAL_CD">Original old CD</SelectItem>
-                <SelectItem value="ALL_CD">All CD</SelectItem>
-                <SelectItem value="ALL_PHYSICAL">All physical</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <CheckField label="Exclude reissues" checked={excludeReissues} onChange={setExcludeReissues} />
-          <CheckField label="Include collaborations" checked={includeCollaborations} onChange={setIncludeCollaborations} />
-          <CheckField label="Include Live / Remix / Best" checked={includeLiveRemixBest} onChange={setIncludeLiveRemixBest} />
-          <div className="lg:col-span-3">
-            <Button onClick={startSearch} disabled={loading || !artistName.trim() || !capabilities.webSearchSupported} className="gap-2">
-              <Search className="size-4" />
-              Search Releases
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -269,6 +293,101 @@ export function AiSearchClient({
           ) : null}
         </CardContent>
       </Card>
+
+      <Tabs defaultValue="online-search">
+        <TabsList>
+          <TabsTrigger value="online-search">联网搜索</TabsTrigger>
+          <TabsTrigger value="pasted-structure">粘贴资料整理</TabsTrigger>
+        </TabsList>
+        <TabsContent value="online-search" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Bot className="size-5" />
+                Online Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-5 lg:grid-cols-3">
+              <SharedSettings
+                artistName={artistName}
+                setArtistName={setArtistName}
+                country={country}
+                setCountry={setCountry}
+                target={target}
+                setTarget={setTarget}
+                excludeReissues={excludeReissues}
+                setExcludeReissues={setExcludeReissues}
+                includeCollaborations={includeCollaborations}
+                setIncludeCollaborations={setIncludeCollaborations}
+                includeLiveRemixBest={includeLiveRemixBest}
+                setIncludeLiveRemixBest={setIncludeLiveRemixBest}
+              />
+              {!capabilities.webSearchSupported ? (
+                <Alert variant="destructive" className="lg:col-span-3">
+                  <AlertCircle className="size-4" />
+                  <AlertTitle>web_search unavailable</AlertTitle>
+                  <AlertDescription>
+                    当前中转站不支持 web_search，无法执行联网发行资料搜索。请运行 npm run probe:ai 或检查中转站能力。
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <div className="lg:col-span-3">
+                <Button onClick={startSearch} disabled={loading || !artistName.trim() || !capabilities.webSearchSupported} className="gap-2">
+                  <Search className="size-4" />
+                  Search Releases
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="pasted-structure" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="size-5" />
+                粘贴资料整理
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-5 lg:grid-cols-3">
+              <SharedSettings
+                artistName={artistName}
+                setArtistName={setArtistName}
+                country={country}
+                setCountry={setCountry}
+                target={target}
+                setTarget={setTarget}
+                excludeReissues={excludeReissues}
+                setExcludeReissues={setExcludeReissues}
+                includeCollaborations={includeCollaborations}
+                setIncludeCollaborations={setIncludeCollaborations}
+                includeLiveRemixBest={includeLiveRemixBest}
+                setIncludeLiveRemixBest={setIncludeLiveRemixBest}
+              />
+              <Field label="Source URL (optional)">
+                <Input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://example.com/discography" />
+              </Field>
+              <Field label="Default cover source URL (optional)">
+                <Input value={defaultCoverSourceUrl} onChange={(event) => setDefaultCoverSourceUrl(event.target.value)} placeholder="https://example.com/cover-source" />
+              </Field>
+              <div className="grid gap-2 lg:col-span-3">
+                <Label>Pasted source text</Label>
+                <Textarea
+                  value={sourceText}
+                  onChange={(event) => setSourceText(event.target.value)}
+                  rows={10}
+                  placeholder="Paste official, label, retailer, database, table, or CSV text here. This mode only structures pasted facts and does not browse."
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <Button onClick={structureNotes} disabled={loading || !artistName.trim() || !sourceText.trim()} className="gap-2">
+                  <FileText className="size-4" />
+                  整理为候选清单
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {task ? (
         <section className="grid gap-4">
@@ -396,6 +515,60 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label>{label}</Label>
       {children}
     </div>
+  );
+}
+
+function SharedSettings({
+  artistName,
+  setArtistName,
+  country,
+  setCountry,
+  target,
+  setTarget,
+  excludeReissues,
+  setExcludeReissues,
+  includeCollaborations,
+  setIncludeCollaborations,
+  includeLiveRemixBest,
+  setIncludeLiveRemixBest,
+}: {
+  artistName: string;
+  setArtistName: (value: string) => void;
+  country: string;
+  setCountry: (value: string) => void;
+  target: CollectionScopeTarget;
+  setTarget: (value: CollectionScopeTarget) => void;
+  excludeReissues: boolean;
+  setExcludeReissues: (value: boolean) => void;
+  includeCollaborations: boolean;
+  setIncludeCollaborations: (value: boolean) => void;
+  includeLiveRemixBest: boolean;
+  setIncludeLiveRemixBest: (value: boolean) => void;
+}) {
+  return (
+    <>
+      <Field label="Artist name">
+        <Input value={artistName} onChange={(event) => setArtistName(event.target.value)} />
+      </Field>
+      <Field label="Country / region">
+        <Input value={country} onChange={(event) => setCountry(event.target.value)} />
+      </Field>
+      <Field label="Collection scope">
+        <Select value={target} onValueChange={(value) => setTarget(value as CollectionScopeTarget)}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ORIGINAL_CD">Original old CD</SelectItem>
+            <SelectItem value="ALL_CD">All CD</SelectItem>
+            <SelectItem value="ALL_PHYSICAL">All physical</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <CheckField label="Exclude reissues" checked={excludeReissues} onChange={setExcludeReissues} />
+      <CheckField label="Include collaborations" checked={includeCollaborations} onChange={setIncludeCollaborations} />
+      <CheckField label="Include Live / Remix / Best" checked={includeLiveRemixBest} onChange={setIncludeLiveRemixBest} />
+    </>
   );
 }
 

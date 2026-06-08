@@ -43,6 +43,28 @@ export async function createWebSearchResponse(input: {
   } as Parameters<typeof client.responses.create>[0]);
 }
 
+export async function createTextResponse(input: {
+  systemPrompt: string;
+  userPrompt: string;
+}) {
+  requireRelayBaseUrl();
+  const client = createAiClient();
+
+  return client.responses.create({
+    model: textModel,
+    input: [
+      {
+        role: "system",
+        content: input.systemPrompt,
+      },
+      {
+        role: "user",
+        content: input.userPrompt,
+      },
+    ],
+  });
+}
+
 export async function runStructuredReleaseSearch(input: {
   artistName: string;
   query: string;

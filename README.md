@@ -129,6 +129,18 @@ npm run smoke:real-ai-search
 
 If `webSearchSupported=false`, release research is blocked. CD-BOX does not fallback to a normal chat completion and pretend it searched the web.
 
+### Pasted Source Structuring
+
+When `web_search` is unavailable, use the `/ai-search` "Pasted source structuring" tab.
+
+- Paste text, tables, or CSV copied from official sites, labels, Tower Records, HMV, CDJapan, CDJournal, ORICON, MusicBrainz, VGMdb, or similar sources.
+- Optionally provide a source URL and a cover source URL.
+- The AI structures only the pasted facts. It does not browse and does not claim search.
+- Sources are only taken from explicit URLs in the pasted text or source URL field.
+- If no source URL is present, candidates are downgraded and marked pending review.
+- Cover URLs are not invented.
+- Candidates reuse the same preview, quality gates, duplicate checks, and import flow as AI release research.
+
 ## Validation
 
 ```bash

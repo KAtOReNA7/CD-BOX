@@ -2,6 +2,19 @@
 
 ## 2026-06-08
 
+### Phase 3.7
+
+- Added "Pasted source structuring" mode to `/ai-search` for relay environments where `web_search` is unavailable.
+- Added API route `POST /api/ai-search/structure-notes`.
+- Added structuring service, parser, and types:
+  - `src/lib/ai/release-structure.ts`
+  - `src/lib/ai/release-structure-parser.ts`
+  - `src/lib/ai/release-structure-types.ts`
+- Reused the existing candidate preview, quality gates, duplicate protection, and import workflow.
+- Added tests in `tests/release-structure-parser.test.ts`.
+- Enforced that sources can only come from explicit URLs in pasted text or user-provided source URL.
+- Enforced that cover image URLs are not invented and are only preserved when explicitly provided.
+
 ### Phase 3.6
 
 - Made OpenAI-compatible relay configuration explicit.
