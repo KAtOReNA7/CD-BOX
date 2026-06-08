@@ -66,14 +66,8 @@ The import workflow is available at `/import`.
 - Choose a new artist or an existing artist library.
 - Preview parsed rows before writing to the database.
 - Confirm import with a duplicate strategy: skip, update existing, or create as new.
-- `来源 URL` is saved to `ReleaseSource.url`.
-- `封面图` is saved to `Release.coverImageUrl`.
-
-Supported sheets:
-
-- `A_原创专辑原版CD`
-- `B_单曲原版CD`
-- `C_精选现场混音`
+- Source URLs are saved to `ReleaseSource.url`.
+- Cover image URLs are saved to `Release.coverImageUrl`.
 
 Create the local sample workbook:
 
@@ -83,13 +77,7 @@ npm run sample:excel
 
 The sample file is written to `sample-data/cd-box-import-sample.xlsx`.
 
-To smoke test the real local workbook, place it at:
-
-```text
-sample-data/中山美穂_原版CD收藏清单.xlsx
-```
-
-Then run:
+To smoke test the real local workbook, place it at `sample-data/中山美穂_原版CD收藏清单.xlsx`, then run:
 
 ```bash
 npm run smoke:real-import
@@ -97,9 +85,31 @@ npm run smoke:real-import
 
 The real workbook is intentionally ignored by git. Commit tests should use generated fixtures instead of checking in private or large source workbooks.
 
+## AI Release Research
+
+The release research workflow is available at `/ai-search`.
+
+- Enter an artist name, country or region, collection scope, and inclusion rules.
+- Searches use the OpenAI Responses API with the `web_search` tool.
+- User-started searches force web search with `tool_choice: "required"`.
+- Results are saved to `AiSearchTask.rawResult` and `AiSearchTask.parsedResult`.
+- Candidates must be previewed, selected, and confirmed before they are imported to `Release`.
+- Candidate sources are imported to `ReleaseSource`.
+- Missing catalog numbers are marked low confidence and pending review.
+- AI-generated images are not used as real CD covers.
+
+Required environment variables:
+
+```bash
+OPENAI_API_KEY=
+OPENAI_BASE_URL=
+OPENAI_TEXT_MODEL=gpt-5.5
+```
+
 ## Validation
 
 ```bash
+npx prisma generate
 npm run test:import
 npm run lint
 npm run build

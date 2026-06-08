@@ -2,12 +2,27 @@
 
 ## 2026-06-08
 
+### Phase 3
+
+- Added GPT-5.5 release research workflow for `/ai-search`.
+- Implemented OpenAI Responses API web search through `src/lib/ai/client.ts` with `tools: [{ type: "web_search" }]` and forced `tool_choice: "required"` for user-started searches.
+- Added release research services and types:
+  - `src/lib/ai/release-research.ts`
+  - `src/lib/ai/release-research-parser.ts`
+  - `src/lib/ai/release-research-types.ts`
+- Added API routes:
+  - `POST /api/ai-search/release-research`
+  - `GET /api/ai-search/tasks/[id]`
+  - `POST /api/ai-search/tasks/[id]/import`
+- Expanded `AiSearchTask` with `rawResult`, `parsedResult`, and `errorMessage`.
+- Added candidate preview, category/confidence filters, selection, exclusion marking, pending-review marking, expandable sources and warnings, and candidate import.
+- Added parser tests for normal JSON, markdown code blocks, wrapped JSON, missing catalog numbers, empty sources, and reissue exclusion defaults.
+
 ### Phase 2.5
 
-- Ran a smoke parse against the real local workbook `sample-data/中山美穂_原版CD收藏清单.xlsx`.
-- Confirmed only `A_原创专辑原版CD`, `B_单曲原版CD`, and `C_精选现场混音` are parsed.
-- Confirmed instruction sheets are skipped: `总览`, `收藏口径`, `术语与排除项`, and `选项`.
-- Enhanced header compatibility for real workbook headers: `原版CD发行日`, `原版CD品番`, and compact source URL headers.
+- Ran a smoke parse against the real local workbook.
+- Confirmed only the A/B/C release sheets are parsed and instruction sheets are skipped.
+- Enhanced header compatibility for real workbook headers including compact original CD date/catalog/source URL headers.
 - Normalized Excel `Date` cells by local year/month/day to avoid date drift from timezone conversion.
 - Added real-template header fixture coverage in `tests/import-real-template.test.ts`.
 - Added `npm run smoke:real-import` for local smoke testing with a non-committed real workbook.
@@ -20,7 +35,7 @@ Smoke result:
 - Importable rows: 81
 - Error rows: 0
 - Source URL recognized: 81
-- Cover image recognized: 0 because the real workbook does not include a `封面图` column
+- Cover image recognized: 0 because the real workbook does not include a cover image column
 
 ### Phase 2
 
@@ -29,7 +44,7 @@ Smoke result:
 - Added API routes: `POST /api/import/preview` and `POST /api/import/confirm`.
 - Reworked `/import` into a drag-and-drop upload, preview, duplicate strategy, and confirm workflow.
 - Added `/releases/[id]` to show release details and `ReleaseSource` URLs outside the main collection table.
-- Added support for `来源 URL` to `ReleaseSource.url` and `封面图` to `Release.coverImageUrl`.
+- Added support for source URL to `ReleaseSource.url` and cover image to `Release.coverImageUrl`.
 - Added `EXCLUDED`, `BEST`, and `COLLECTION` enum values for import compatibility.
 - Added `sample-data/cd-box-import-sample.xlsx` plus parser test coverage through `npm run test:import`.
 
@@ -45,5 +60,5 @@ Smoke result:
 ## Next
 
 - Add authentication provider credentials and database migration in the target deployment environment.
-- Add richer import review controls and row-level edit corrections before confirm.
-- Implement AI-assisted release research and deduplication through `src/lib/ai/client.ts`.
+- Add async/background execution for long-running AI search tasks.
+- Add row-level edit controls before candidate import.

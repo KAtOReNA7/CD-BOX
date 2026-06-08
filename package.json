@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:import": "tsx tests/import-parser.test.ts && tsx tests/import-real-template.test.ts",
+    "test:import": "tsx tests/import-parser.test.ts && tsx tests/import-real-template.test.ts && tsx tests/release-research-parser.test.ts",
     "smoke:real-import": "tsx scripts/smoke-real-excel-import.mjs",
     "sample:excel": "node scripts/create-sample-excel.mjs"
   },
@@ -27,7 +27,8 @@
     "react-dom": "19.2.4",
     "shadcn": "^4.10.0",
     "tailwind-merge": "^3.6.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

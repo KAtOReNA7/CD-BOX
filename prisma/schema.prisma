@@ -15,6 +15,7 @@ enum ReleaseCategory {
   LIVE
   REMIX
   BOX
+  EP
   OTHER
 }
 
@@ -212,8 +213,9 @@ model AiSearchTask {
   query       String             @db.Text
   model       String
   status      AiSearchTaskStatus @default(QUEUED)
-  resultJson  Json?
-  error       String?            @db.Text
+  rawResult   Json?
+  parsedResult Json?
+  errorMessage String?           @db.Text
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   artist      Artist?            @relation(fields: [artistId], references: [id], onDelete: SetNull)
   createdAt   DateTime           @default(now())
