@@ -88,6 +88,19 @@ npm run smoke:real-import
 
 The real workbook is intentionally ignored by git. Commit tests should use generated fixtures instead of checking in private or large source workbooks.
 
+## Collection Library
+
+The artist library page at `/artists/[id]` is the main workspace for collection management.
+
+- Inline edit release metadata, including cover image URL.
+- Edit per-user collection status, priority, owned condition, and owned notes directly from the table.
+- Bulk update selected releases by status, priority, or default exclusion.
+- Filter by keyword, category, status, confidence, missing metadata, pending review, and decade/year range.
+- View ownership and metadata stats, including completion rates by category.
+- Export all rows or the current filtered result as Excel from `/api/artists/[id]/export`.
+
+The main table's final column remains cover image. Source URLs are available on release detail pages and in Excel export, but are not restored as the main table's final column.
+
 ## AI Release Research
 
 The release research workflow is available at `/ai-search`.

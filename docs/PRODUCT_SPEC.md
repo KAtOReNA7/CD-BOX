@@ -43,6 +43,8 @@ The artist detail table displays these fields in order:
 
 `coverImageUrl` is the final visible column. Source URLs are not discarded; they are persisted in `ReleaseSource`.
 
+The artist library page supports inline release editing, direct user collection status editing, bulk actions, filters, ownership stats, category completion rates, and Excel export. Release detail pages support cover URL editing and manual `ReleaseSource` add/delete. Source URLs remain outside the main table's final column.
+
 ## Excel Import Workflow
 
 The `/import` page supports drag-and-drop `.xlsx` upload, choosing an existing artist library, or creating a new artist by name. Uploading a workbook only creates a preview; database writes happen after the user clicks confirm.

@@ -21,10 +21,13 @@ enum ReleaseCategory {
 
 enum CollectionStatus {
   WANT
+  WANTED
   ORDERED
   OWNED
+  NOT_OWNED
   SKIP
   EXCLUDED
+  PENDING_REVIEW
   UNKNOWN
 }
 
@@ -147,7 +150,13 @@ model Release {
   format              ReleaseFormat       @default(CD)
   originalCatalogNo   String?
   label               String?
+  originalPrice       String?
+  editionType         String?
   isReissue           Boolean             @default(false)
+  isRemaster          Boolean             @default(false)
+  isExcludedByDefault Boolean             @default(false)
+  confidence          String?
+  warnings            Json?
   notes               String?             @db.Text
   coverImageUrl       String?             @db.Text
   sources             ReleaseSource[]
@@ -179,6 +188,8 @@ model UserReleaseStatus {
   releaseId String
   status    CollectionStatus @default(UNKNOWN)
   priority  Int              @default(3)
+  ownedCondition String?
+  ownedNotes String?          @db.Text
   notes     String?          @db.Text
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   release   Release          @relation(fields: [releaseId], references: [id], onDelete: Cascade)

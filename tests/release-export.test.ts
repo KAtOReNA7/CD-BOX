@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import { releaseExportRows, exportFileName } from "@/lib/releases/release-export";
+
+const rows = releaseExportRows([
+  {
+    id: "r1",
+    artistId: "a1",
+    category: "SINGLE",
+    title: "世界中の誰よりきっと",
+    originalReleaseDate: "1992-10-28",
+    format: "CD",
+    originalCatalogNo: "KIDS-111",
+    label: "King Records",
+    originalPrice: "971円",
+    editionType: "8cmCD",
+    isReissue: false,
+    isRemaster: false,
+    isExcludedByDefault: false,
+    confidence: "HIGH",
+    warnings: [],
+    notes: "Artist credit: 中山美穂 & WANDS",
+    coverImageUrl: null,
+    sources: [
+      { id: "s1", url: "https://tower.example/release", label: null, description: null },
+      { id: "s2", url: "https://label.example/release", label: null, description: null },
+    ],
+    userStatus: { id: "u1", status: "OWNED", priority: 1, ownedCondition: "VG+", ownedNotes: "obi", notes: null },
+  },
+]);
+
+assert.equal(rows[0]["收藏状态"], "OWNED");
+assert.equal(rows[0]["原版品番"], "KIDS-111");
+assert.equal(rows[0]["来源 URL"], "https://tower.example/release\nhttps://label.example/release");
+assert.equal(rows[0]["拥有状态备注"], "obi");
+assert.equal(exportFileName("A/B", new Date("2026-06-08T00:00:00.000Z")), "CD-BOX_A_B_20260608.xlsx");
+
+console.log("Release export test passed.");

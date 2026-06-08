@@ -2,6 +2,24 @@
 
 ## 2026-06-08
 
+### Phase 3.9
+
+- Enhanced `/artists/[id]` into the core collection management workspace.
+- Added release service modules:
+  - `src/lib/releases/release-service.ts`
+  - `src/lib/releases/release-types.ts`
+  - `src/lib/releases/release-filters.ts`
+  - `src/lib/releases/release-stats.ts`
+  - `src/lib/releases/release-export.ts`
+- Added inline release editing for title, category, date, format, catalog number, label, price, edition type, reissue/remaster flags, default exclusion, cover URL, and notes.
+- Added direct per-user collection status editing with automatic `UserReleaseStatus` creation.
+- Added multi-select bulk updates for status, priority, and `isExcludedByDefault`, scoped to the current artist.
+- Added filter panel for keyword, category, status, confidence, flags, missing cover/source/catalog, pending review, and decade/year ranges.
+- Added collection stats cards and category completion rates.
+- Added Excel export for all rows or current filtered rows.
+- Enhanced release detail pages with cover URL editing, source URL add/delete, user status display, return link, and exclusion reason.
+- Added tests for release filters, stats, export rows, and bulk update validation.
+
 ### Phase 3.8.1
 
 - Calibrated pasted-source confidence scoring so complete, sourced CD rows are not stuck at LOW.

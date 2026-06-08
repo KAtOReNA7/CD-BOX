@@ -1,70 +1,61 @@
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
+import { ArtistStatsCards } from "@/components/app/artist-stats-cards";
+import { ReleaseFilterPanel } from "@/components/app/release-filter-panel";
 import { ReleaseTable } from "@/components/app/release-table";
 import { Badge } from "@/components/ui/badge";
-import { getArtistWithReleases } from "@/lib/services/artists";
+import { getCurrentUserId } from "@/lib/auth/current-user";
+import { getArtistLibrary } from "@/lib/releases/release-service";
+import type { ReleaseFilters } from "@/lib/releases/release-types";
 
 export const dynamic = "force-dynamic";
 
+function normalizeSearchParams(params: Record<string, string | string[] | undefined>): ReleaseFilters {
+  return Object.fromEntries(
+    Object.entries(params).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]).filter(([, value]) => value),
+  ) as ReleaseFilters;
+}
+
 export default async function ArtistDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  const artist = await getArtistWithReleases(id);
+  const filters = normalizeSearchParams(await searchParams);
+  const userId = await getCurrentUserId();
+  const library = await getArtistLibrary(id, userId, filters);
 
-  if (!artist) {
+  if (!library) {
     notFound();
   }
-
-  const sources = artist.releases.flatMap((release) =>
-    release.sources.map((source) => ({ ...source, releaseTitle: release.title })),
-  );
 
   return (
     <AppShell>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground">Artist Library</p>
-          <h1 className="mt-2 text-3xl font-semibold">{artist.name}</h1>
+          <h1 className="mt-2 text-3xl font-semibold">{library.artist.name}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {artist.description ?? "该艺人库已准备好管理实体 CD 发行、真实封面 URL 和用户收藏状态。"}
+            {library.artist.description ??
+              "管理实体 CD 发行、收藏状态、真实封面 URL 和来源 URL。来源 URL 保留在详情页，不作为主表最后一列。"}
           </p>
         </div>
-        <Badge variant="secondary">{artist.releases.length} releases</Badge>
+        <Badge variant="secondary">{library.releases.length} releases</Badge>
       </div>
 
-      <ReleaseTable releases={artist.releases} />
-
-      <section className="mt-8 border bg-white p-6">
-        <h2 className="text-lg font-semibold">来源 URL</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          来源不在主表最后一列展示，但作为 ReleaseSource 独立保存，并在详情页集中查看。
-        </p>
-        <div className="mt-4 grid gap-3">
-          {sources.length === 0 ? (
-            <p className="text-sm text-muted-foreground">暂无来源 URL。</p>
-          ) : (
-            sources.map((source) => (
-              <a
-                key={source.id}
-                href={source.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between gap-4 border p-3 text-sm hover:bg-stone-100"
-              >
-                <span>
-                  <span className="font-medium">{source.releaseTitle}</span>
-                  <span className="ml-2 text-muted-foreground">{source.label ?? source.url}</span>
-                </span>
-                <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-              </a>
-            ))
-          )}
-        </div>
-      </section>
+      <div className="grid gap-6">
+        <ArtistStatsCards stats={library.stats} />
+        <ReleaseFilterPanel
+          artistId={library.artist.id}
+          filters={filters}
+          filteredCount={library.filteredReleases.length}
+          totalCount={library.releases.length}
+        />
+        <ReleaseTable artistId={library.artist.id} releases={library.filteredReleases} totalCount={library.releases.length} />
+      </div>
     </AppShell>
   );
 }
