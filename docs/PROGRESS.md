@@ -2,6 +2,26 @@
 
 ## 2026-06-08
 
+### Phase 2.5
+
+- Ran a smoke parse against the real local workbook `sample-data/中山美穂_原版CD收藏清单.xlsx`.
+- Confirmed only `A_原创专辑原版CD`, `B_单曲原版CD`, and `C_精选现场混音` are parsed.
+- Confirmed instruction sheets are skipped: `总览`, `收藏口径`, `术语与排除项`, and `选项`.
+- Enhanced header compatibility for real workbook headers: `原版CD发行日`, `原版CD品番`, and compact source URL headers.
+- Normalized Excel `Date` cells by local year/month/day to avoid date drift from timezone conversion.
+- Added real-template header fixture coverage in `tests/import-real-template.test.ts`.
+- Added `npm run smoke:real-import` for local smoke testing with a non-committed real workbook.
+
+Smoke result:
+
+- A sheet rows: 22
+- B sheet rows: 39
+- C sheet rows: 20
+- Importable rows: 81
+- Error rows: 0
+- Source URL recognized: 81
+- Cover image recognized: 0 because the real workbook does not include a `封面图` column
+
 ### Phase 2
 
 - Added Excel import parsing with `xlsx` in `src/lib/import/excel-parser.ts`.

@@ -7,15 +7,15 @@ const ignoredSheets = new Set(["总览", "收藏口径", "术语与排除项", "
 const headerAliases = {
   type: ["分类", "类型"],
   title: ["标题"],
-  releaseDate: ["原版发行日", "发行日"],
+  releaseDate: ["原版发行日", "发行日", "原版CD发行日", "原版 CD 发行日"],
   format: ["格式"],
-  catalogNo: ["原版品番", "品番", "应找原版 CD 品番"],
+  catalogNo: ["原版品番", "品番", "应找原版 CD 品番", "原版CD品番", "原版 CD 品番"],
   label: ["厂牌"],
   isReissue: ["是否再版"],
   notes: ["备注"],
   coverImageUrl: ["封面图"],
   sourceUrl: ["来源 URL", "来源URL", "来源 url", "Source URL"],
-  priority: ["优先级"],
+  priority: ["优先级", "优先度"],
   status: ["收集状态", "收藏状态"],
   included: ["是否纳入"],
 } satisfies Record<string, string[]>;
@@ -53,7 +53,7 @@ export function parseDateValue(value: unknown): Date | null {
   }
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value;
+    return new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
   }
 
   if (typeof value === "number") {
@@ -154,7 +154,16 @@ function parseFormat(value: unknown): ReleaseFormat {
 }
 
 function parsePriority(value: unknown) {
-  const priority = Number.parseInt(cellText(value), 10);
+  const text = cellText(value);
+  if (["必收", "最高", "high"].includes(text.toLowerCase())) {
+    return 1;
+  }
+
+  if (["候补", "低", "low"].includes(text.toLowerCase())) {
+    return 5;
+  }
+
+  const priority = Number.parseInt(text, 10);
   return Number.isFinite(priority) ? Math.max(1, Math.min(priority, 9)) : 3;
 }
 

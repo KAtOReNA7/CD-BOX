@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:import": "tsx tests/import-parser.test.ts",
+    "test:import": "tsx tests/import-parser.test.ts && tsx tests/import-real-template.test.ts",
+    "smoke:real-import": "tsx scripts/smoke-real-excel-import.mjs",
     "sample:excel": "node scripts/create-sample-excel.mjs"
   },
   "dependencies": {

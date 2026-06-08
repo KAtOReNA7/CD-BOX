@@ -83,6 +83,20 @@ npm run sample:excel
 
 The sample file is written to `sample-data/cd-box-import-sample.xlsx`.
 
+To smoke test the real local workbook, place it at:
+
+```text
+sample-data/中山美穂_原版CD收藏清单.xlsx
+```
+
+Then run:
+
+```bash
+npm run smoke:real-import
+```
+
+The real workbook is intentionally ignored by git. Commit tests should use generated fixtures instead of checking in private or large source workbooks.
+
 ## Validation
 
 ```bash

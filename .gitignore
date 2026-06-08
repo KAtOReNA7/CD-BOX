@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/tests/fixtures/
+
+# local real workbooks
+/sample-data/*_原版CD收藏清单.xlsx
 
 # next.js
 /.next/
