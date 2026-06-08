@@ -141,11 +141,20 @@ When `web_search` is unavailable, use the `/ai-search` "Pasted source structurin
 - Cover URLs are not invented.
 - Candidates reuse the same preview, quality gates, duplicate checks, and import flow as AI release research.
 
+Real pasted-source smoke fixtures live in `sample-data/pasted-sources/`. Run the smoke after configuring AI environment variables:
+
+```bash
+npm run smoke:pasted-structure
+```
+
+The smoke does not use `web_search`; it reports candidate counts, confidence, missing fields, default exclusions, invented cover/source checks, and accidental online-search claims.
+
 ## Validation
 
 ```bash
 npx prisma generate
 npm run test:import
+npm run smoke:pasted-structure
 npm run lint
 npm run build
 ```

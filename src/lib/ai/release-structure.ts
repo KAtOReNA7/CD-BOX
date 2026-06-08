@@ -27,12 +27,15 @@ function toTaskView(task: AiSearchTask): AiSearchTaskView {
 }
 
 function outputTextFromResponse(response: unknown) {
-  const maybe = response as { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> };
+  const maybe = response as {
+    output_text?: string;
+    output?: Array<{ content?: Array<{ text?: string; output_text?: string; refusal?: string; content?: string }> }>;
+  };
   if (maybe.output_text) return maybe.output_text;
   return (
     maybe.output
       ?.flatMap((item) => item.content ?? [])
-      .map((content) => content.text)
+      .map((content) => content.text ?? content.output_text ?? content.content ?? content.refusal)
       .filter(Boolean)
       .join("\n") ?? ""
   );
@@ -56,6 +59,8 @@ User-provided source URL: ${input.sourceUrl ?? "none"}
 User-provided cover source URL: ${input.defaultCoverSourceUrl ?? "none"}
 
 Hard rules:
+- Return one JSON object only. The first non-whitespace character must be "{" and the last must be "}".
+- Do not wrap JSON in markdown. Do not add prose before or after JSON.
 - Only structure facts present in the pasted text or explicit source URL fields.
 - Do not browse the web. Do not claim online search.
 - Do not invent source URLs.
@@ -64,9 +69,16 @@ Hard rules:
 - Do not guess catalogNumber.
 - Do not guess releaseDate.
 - Preserve collaboration credits.
+- Include every release-like row found in the pasted text, including reissues, remasters, LP, Vinyl, DVD, Blu-ray, and other non-CD rows.
+- When a row is outside the collection scope, keep it as a candidate and set isExcludedByDefault=true with a warning instead of omitting it.
 - If title is the same but catalogNumber differs, keep separate releases.
 - If catalogNumber is the same but title differs, add a duplicate warning. Do not merge.
+- artist must be an object, collectionScope must be an object, and every release must include artistCredit.
 - Recognize Japanese physical CD clues: 発売日, 品番, 規格品番, CD, 8cmCD, CDシングル, 税込価格, レーベル, 初回限定盤, 通常盤, 再発, 復刻, リマスター, 廃盤.
+- "廃盤" means out of print. It is not reissue/remaster by itself.
+- "COLLECTION", "Best", "ベスト", "精选", and "合集" should be BEST or COLLECTION, not SINGLE.
+- "8cmCD", "CDシングル", and "single" indicate SINGLE unless the title/source says COLLECTION, Best, Live, Remix, or Box.
+- LP, Vinyl, レコード, Cassette, Tape, DVD, and Blu-ray are non-CD formats.
 
 Return strict JSON matching the release research schema, plus:
 {
@@ -95,22 +107,16 @@ export async function createAndRunReleaseStructureTask(input: ReleaseStructureRe
   });
 
   try {
-    const response = await createTextResponse({
-      systemPrompt:
-        "You structure pasted release source material. You do not browse, search, or invent facts. Return strict JSON only.",
-      userPrompt: buildPrompt(input),
-    });
-    const rawText = outputTextFromResponse(response);
-    const parsed = parseReleaseStructureResponse(rawText, input);
+    const structured = await structurePastedSourceText(input);
     const done = await prisma.aiSearchTask.update({
       where: { id: task.id },
       data: {
         status: "SUCCEEDED",
         rawResult: {
-          outputText: rawText,
-          response: toJsonSafe(response),
+          outputText: structured.rawText,
+          response: toJsonSafe(structured.response),
         } satisfies Prisma.InputJsonObject,
-        parsedResult: toJsonSafe(parsed),
+        parsedResult: toJsonSafe(structured.parsed),
       },
     });
 
@@ -126,4 +132,26 @@ export async function createAndRunReleaseStructureTask(input: ReleaseStructureRe
 
     return toTaskView(failed);
   }
+}
+
+export async function structurePastedSourceText(input: ReleaseStructureRequest) {
+  const response = await createTextResponse({
+    systemPrompt:
+      "You structure pasted release source material. You do not browse, search, or invent facts. Return strict JSON only.",
+    userPrompt: buildPrompt(input),
+  });
+  const rawText = outputTextFromResponse(response);
+  let parsed;
+  try {
+    parsed = parseReleaseStructureResponse(rawText, input);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to parse pasted source structuring response.";
+    throw new Error(`${message} Raw output preview: ${rawText.slice(0, 500) || "<empty>"}`);
+  }
+
+  return {
+    response,
+    rawText,
+    parsed,
+  };
 }

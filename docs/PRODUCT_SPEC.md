@@ -113,6 +113,16 @@ Rules:
 - `coverImageUrl` may only be kept when it matches an explicit user-provided cover URL. The model must not invent cover art.
 - Missing fields remain `null`; the model must not guess catalog numbers or dates.
 - The same candidate preview, quality gates, and import path are reused.
+- The parser keeps release-like rows even when they are outside scope, then marks reissues, remasters, LP, record, cassette, tape, DVD, and Blu-ray rows as excluded by default where applicable.
+- `廃盤` means out of print and is not treated as a reissue by itself.
+- `COLLECTION`, `Best`, `ベスト`, `精选`, and `合集` are classified as `BEST` or `COLLECTION`, not `SINGLE`.
+- `8cmCD`, `CDシングル`, and single rows are classified as `SINGLE` unless the source says collection, best, live, remix, or box.
+
+Smoke fixtures:
+
+- Real pasted-source smoke snippets live in `sample-data/pasted-sources/`.
+- `npm run smoke:pasted-structure` calls the pasted-source structuring workflow without `web_search`.
+- Smoke output reports candidate counts, confidence counts, missing fields, missing sources, default exclusions, invented cover URLs, invented source URLs, and accidental online-search claims.
 
 Persistence:
 

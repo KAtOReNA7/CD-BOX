@@ -2,6 +2,30 @@
 
 ## 2026-06-08
 
+### Phase 3.8
+
+- Added real pasted-source smoke fixtures in `sample-data/pasted-sources/` for official label, retailer, and CD database style snippets.
+- Added `scripts/smoke-pasted-structure.mjs` and `npm run smoke:pasted-structure`.
+- Smoke test uses `OPENAI_TEXT_MODEL`, calls the pasted-source structuring service, and does not use `web_search`.
+- Hardened pasted-source parsing for partial model JSON, explicit source-only URL preservation, explicit cover-only preservation, category inference, reissue inference, and non-CD format gates.
+- Expanded response text extraction to handle relay Responses API content variants.
+- Added `tests/release-structure-real-fixture.test.ts`.
+
+Real pasted-source smoke result:
+
+- Fixtures: 3
+- Candidates: 8
+- Confidence: HIGH 0 / MEDIUM 0 / LOW 8
+- Missing catalog numbers: 0
+- Missing release dates: 0
+- Missing sources: 0
+- Default excluded: 2
+- Invented source URLs: no
+- Invented cover image URLs: no
+- Claimed online search: no
+- `COLLECTION 2015 復刻` and `COLLECTION LP` were retained as candidates and excluded by default.
+- `中山美穂 & WANDS` artist credit was preserved.
+
 ### Phase 3.7
 
 - Added "Pasted source structuring" mode to `/ai-search` for relay environments where `web_search` is unavailable.

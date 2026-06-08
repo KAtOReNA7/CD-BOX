@@ -5,7 +5,8 @@ import type {
   ResearchConfidence,
 } from "@/lib/ai/release-research-types";
 
-const nonCdFormatPattern = /\b(lp|vinyl|cassette|tape|dvd|blu[-\s]?ray)\b|レコード/i;
+const nonCdFormatPattern =
+  /\b(lp|vinyl|cassette|tape|dvd|blu[-\s]?ray)\b|レコード|カセット|テープ|ブルーレイ/i;
 
 function capConfidence(confidence: ResearchConfidence, max: ResearchConfidence): ResearchConfidence {
   const rank = { LOW: 1, MEDIUM: 2, HIGH: 3 };

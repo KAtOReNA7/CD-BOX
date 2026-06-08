@@ -1,0 +1,31 @@
+Source URL: https://artist.cdjournal.com/a/nakayama-miho/120195
+Source type: database product field excerpt
+
+Artist: 中山美穂
+Category: ベスト / COLLECTION
+
+Title: COLLECTION
+Format: CD
+発売日: 1987-11-15
+品番: K32X-200
+Label: King Records
+Notes: 廃盤
+
+Title: COLLECTION II
+Format: CD
+発売日: 1990-11-21
+品番: KICS-60
+Label: King Records
+
+Title: COLLECTION 2015 復刻
+Format: CD
+発売日: 2015-10-14
+品番: KICS-3260
+Label: King Records
+Notes: 復刻 / リマスター / 再発
+
+Title: COLLECTION LP
+Format: LP レコード
+発売日: 1987-11-15
+品番: K28A-800
+Label: King Records
