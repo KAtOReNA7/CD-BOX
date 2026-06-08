@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./load-local-env.mjs";
@@ -41,7 +41,7 @@ if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_BASE_URL || !process.env.
 
 let probeSummary;
 try {
-  const output = execFileSync("npm", ["run", "probe:ai"], {
+  const output = execSync("npm run probe:ai", {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
