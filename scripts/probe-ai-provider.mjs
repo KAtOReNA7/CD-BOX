@@ -1,3 +1,6 @@
+import { loadLocalEnv } from "./load-local-env.mjs";
+
+const envDebug = loadLocalEnv();
 const env = process.env;
 
 function redact(value) {
@@ -77,6 +80,7 @@ const config = {
 };
 
 logProbe("config", config);
+logProbe("debug", envDebug);
 
 const summary = {
   baseUrlConfigured: config.baseUrlConfigured,

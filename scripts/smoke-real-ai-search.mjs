@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { loadLocalEnv } from "./load-local-env.mjs";
+
+const envDebug = loadLocalEnv();
 
 function parseProbeSummary(output) {
   const matches = [...output.matchAll(/\{\s*"baseUrlConfigured"[\s\S]*?\n\}/g)];
@@ -16,6 +19,7 @@ if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_BASE_URL || !process.env.
       {
         skipped: true,
         reason: "Missing OPENAI_API_KEY, OPENAI_BASE_URL, or OPENAI_TEXT_MODEL. Run npm run probe:ai after configuring the relay.",
+        debug: envDebug,
         probeSummary: {
           baseUrlConfigured: Boolean(process.env.OPENAI_BASE_URL),
           textModel: process.env.OPENAI_TEXT_MODEL ?? null,
