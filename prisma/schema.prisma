@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ReleaseCategory {
+  ORIGINAL_ALBUM
+  SINGLE
+  COMPILATION
+  LIVE
+  REMIX
+  BOX
+  OTHER
+}
+
+enum CollectionStatus {
+  WANT
+  ORDERED
+  OWNED
+  SKIP
+  UNKNOWN
+}
+
+enum ReleaseFormat {
+  CD
+  SHM_CD
+  BLU_SPEC_CD
+  SACD
+  HYBRID_SACD
+  CD_DVD
+  BOX_SET
+  OTHER
+}
+
+enum ImportBatchStatus {
+  DRAFT
+  IMPORTED
+  FAILED
+}
+
+enum AiSearchTaskStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum UiAssetKind {
+  EMPTY_STATE
+  DECORATION
+  PLACEHOLDER
+}
+
+model User {
+  id            String              @id @default(cuid())
+  name          String?
+  email         String?             @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  followed      UserArtistFollow[]
+  releaseStatus UserReleaseStatus[]
+  importBatches ImportBatch[]
+  aiSearchTasks AiSearchTask[]
+  uiAssets      UiAsset[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Artist {
+  id          String             @id @default(cuid())
+  name        String
+  sortName    String?
+  country     String?
+  description String?            @db.Text
+  follows     UserArtistFollow[]
+  releases    Release[]
+  importBatches ImportBatch[]
+  aiSearchTasks AiSearchTask[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([name])
+}
+
+model UserArtistFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  artistId  String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist    Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+}
+
+model Release {
+  id                  String              @id @default(cuid())
+  artistId            String
+  category            ReleaseCategory
+  title               String
+  originalReleaseDate DateTime?
+  format              ReleaseFormat       @default(CD)
+  originalCatalogNo   String?
+  label               String?
+  isReissue           Boolean             @default(false)
+  notes               String?             @db.Text
+  coverImageUrl       String?             @db.Text
+  sources             ReleaseSource[]
+  userStatus          UserReleaseStatus[]
+  artist              Artist              @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  importBatchId       String?
+  importBatch         ImportBatch?         @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([artistId, category])
+  @@index([title])
+}
+
+model ReleaseSource {
+  id          String   @id @default(cuid())
+  releaseId   String
+  url         String   @db.Text
+  label       String?
+  description String?  @db.Text
+  release     Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserReleaseStatus {
+  id        String           @id @default(cuid())
+  userId    String
+  releaseId String
+  status    CollectionStatus @default(UNKNOWN)
+  priority  Int              @default(3)
+  notes     String?          @db.Text
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  release   Release          @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, releaseId])
+  @@index([userId, status])
+}
+
+model ImportBatch {
+  id          String            @id @default(cuid())
+  userId      String
+  artistId    String?
+  fileName    String?
+  sourceType  String            @default("excel")
+  status      ImportBatchStatus @default(DRAFT)
+  rowCount    Int               @default(0)
+  importedAt  DateTime?
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist      Artist?           @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  releases    Release[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model AiSearchTask {
+  id          String             @id @default(cuid())
+  userId      String
+  artistId    String?
+  query       String             @db.Text
+  model       String
+  status      AiSearchTaskStatus @default(QUEUED)
+  resultJson  Json?
+  error       String?            @db.Text
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist      Artist?            @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model UiAsset {
+  id        String      @id @default(cuid())
+  userId    String?
+  kind      UiAssetKind
+  prompt    String      @db.Text
+  model     String
+  imageUrl  String?     @db.Text
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
