@@ -95,8 +95,10 @@ The release research workflow is available at `/ai-search`.
 - Results are saved to `AiSearchTask.rawResult` and `AiSearchTask.parsedResult`.
 - Candidates must be previewed, selected, and confirmed before they are imported to `Release`.
 - Candidate sources are imported to `ReleaseSource`.
-- Missing catalog numbers are marked low confidence and pending review.
+- Missing catalog numbers are capped at medium confidence and marked pending review.
 - AI-generated images are not used as real CD covers.
+- Low-quality candidates are gated before import: missing sources force LOW confidence, wiki-only sources are capped at MEDIUM, and non-CD physical formats are excluded under original-old-CD scope.
+- Duplicate `title + catalogNumber` candidates for the same artist are skipped instead of overwriting existing releases.
 
 Required environment variables:
 
@@ -104,6 +106,12 @@ Required environment variables:
 OPENAI_API_KEY=
 OPENAI_BASE_URL=
 OPENAI_TEXT_MODEL=gpt-5.5
+```
+
+Run the real AI smoke test after configuring the OpenAI environment:
+
+```bash
+npm run smoke:real-ai-search
 ```
 
 ## Validation

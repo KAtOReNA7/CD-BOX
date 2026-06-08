@@ -105,4 +105,10 @@ Import rules:
 - Users select candidates, mark exclusions, and mark pending-review rows before import.
 - Sources are saved to `ReleaseSource`.
 - Cover image URLs are only saved when a real source provides them. AI-generated CD covers remain forbidden.
-- Missing catalog numbers are downgraded to `LOW` confidence and marked with a `PENDING_REVIEW` warning.
+- Missing catalog numbers are capped at `MEDIUM` confidence and marked with a `PENDING_REVIEW` warning.
+- Missing sources force `LOW` confidence and must be pending review.
+- Wikipedia-only sources cap confidence at `MEDIUM` and must include an `only wiki source` warning.
+- Non-CD physical formats are excluded by default under original-old-CD scope.
+- Reissues are excluded by default when the user asks to exclude reissues.
+- Existing manually curated data is protected: candidate imports skip duplicate `title + catalogNumber` rows for the same artist instead of overwriting them.
+- By default, only HIGH confidence candidates with catalog numbers, sources, and no default exclusion are selected for import.

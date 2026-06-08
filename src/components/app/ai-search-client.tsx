@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { summarizeResearchQuality } from "@/lib/ai/release-research-quality";
 import type {
   AiSearchTaskView,
   CollectionScopeTarget,
@@ -40,9 +41,17 @@ type ArtistOption = {
 const categories = ["ALL", "ORIGINAL_ALBUM", "SINGLE", "BEST", "COLLECTION", "LIVE", "REMIX", "BOX", "EP", "OTHER"];
 const confidences = ["ALL", "HIGH", "MEDIUM", "LOW"];
 
+function isSafeByDefault(release: ReleaseResearchCandidate) {
+  return release.confidence === "HIGH" && !release.isExcludedByDefault && release.sources.length > 0 && Boolean(release.catalogNumber);
+}
+
+function isPendingReview(release: ReleaseResearchCandidate) {
+  return release.confidence !== "HIGH" || !release.catalogNumber || release.sources.length === 0 || release.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
+}
+
 export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
   const router = useRouter();
-  const [artistName, setArtistName] = useState("中山美穂");
+  const [artistName, setArtistName] = useState("Miho Nakayama");
   const [country, setCountry] = useState("Japan");
   const [target, setTarget] = useState<CollectionScopeTarget>("ORIGINAL_CD");
   const [excludeReissues, setExcludeReissues] = useState(true);
@@ -59,20 +68,18 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
   const [confidenceFilter, setConfidenceFilter] = useState("ALL");
   const [artistMode, setArtistMode] = useState<"create" | "existing">("create");
   const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
-  const [importArtistName, setImportArtistName] = useState("中山美穂");
+  const [importArtistName, setImportArtistName] = useState("Miho Nakayama");
 
+  const releases = useMemo(() => task?.parsedResult?.releases ?? [], [task?.parsedResult?.releases]);
+  const summary = useMemo(() => summarizeResearchQuality(releases), [releases]);
   const visibleReleases = useMemo(
-    () => {
-      const releases = task?.parsedResult?.releases ?? [];
-      return (
+    () =>
       releases.filter((release) => {
         const categoryOk = categoryFilter === "ALL" || release.category === categoryFilter;
         const confidenceOk = confidenceFilter === "ALL" || release.confidence === confidenceFilter;
         return categoryOk && confidenceOk;
-      })
-      );
-    },
-    [categoryFilter, confidenceFilter, task?.parsedResult?.releases],
+      }),
+    [categoryFilter, confidenceFilter, releases],
   );
 
   async function startSearch() {
@@ -107,31 +114,37 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
 
     if (!response.ok) {
       setTask(null);
-      setMessage(payload.error ?? "搜索失败");
+      setMessage(payload.error ?? "Search failed.");
       return;
     }
 
     setTask(payload);
-    const defaultSelected = new Set<string>();
-    const defaultExcluded = new Set<string>();
-    const defaultPending = new Set<string>();
+
+    const nextSelected = new Set<string>();
+    const nextExcluded = new Set<string>();
+    const nextPending = new Set<string>();
 
     for (const release of payload.parsedResult?.releases ?? []) {
-      defaultSelected.add(release.id);
-      if (release.isExcludedByDefault) defaultExcluded.add(release.id);
-      if (release.confidence === "LOW" || release.warnings.some((warning: string) => warning.includes("PENDING_REVIEW"))) {
-        defaultPending.add(release.id);
-      }
+      if (isSafeByDefault(release)) nextSelected.add(release.id);
+      if (release.isExcludedByDefault) nextExcluded.add(release.id);
+      if (isPendingReview(release)) nextPending.add(release.id);
     }
 
-    setSelectedIds(defaultSelected);
-    setExcludedIds(defaultExcluded);
-    setPendingIds(defaultPending);
+    setSelectedIds(nextSelected);
+    setExcludedIds(nextExcluded);
+    setPendingIds(nextPending);
     setImportArtistName(payload.parsedResult?.artist?.name ?? artistName);
   }
 
   async function importCandidates() {
     if (!task || task.id === "pending") return;
+
+    const selected = releases.filter((release) => selectedIds.has(release.id));
+    const skipped = releases.length - selected.length;
+    const pending = selected.filter((release) => pendingIds.has(release.id) || isPendingReview(release)).length;
+
+    const ok = window.confirm(`Import ${selected.length} candidates, skip ${skipped}, with ${pending} pending review rows?`);
+    if (!ok) return;
 
     setLoading(true);
     setMessage(null);
@@ -152,10 +165,13 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
     setLoading(false);
 
     if (!response.ok) {
-      setMessage(payload.error ?? "导入候选失败");
+      setMessage(payload.error ?? "Candidate import failed.");
       return;
     }
 
+    setMessage(
+      `Created ${payload.imported}, skipped duplicates ${payload.skippedDuplicates}, pending review ${payload.pendingReview}, excluded ${payload.excluded}.`,
+    );
     router.push(`/artists/${payload.artistId}`);
   }
 
@@ -178,16 +194,16 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
     <div className="grid gap-8">
       <div>
         <p className="text-sm font-medium text-muted-foreground">AI Research</p>
-        <h1 className="mt-2 text-3xl font-semibold">GPT-5.5 发行资料搜索</h1>
+        <h1 className="mt-2 text-3xl font-semibold">GPT-5.5 Release Research</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          使用 Responses API + web_search 检索真实实体 CD 发行资料。候选不会直接入库，必须预览、勾选后导入。
+          Search real physical CD release data with Responses API and web_search. Candidates must be reviewed before import.
         </p>
       </div>
 
       {message ? (
-        <Alert variant="destructive">
+        <Alert variant={message.startsWith("Created") ? "default" : "destructive"}>
           <AlertCircle className="size-4" />
-          <AlertTitle>提示</AlertTitle>
+          <AlertTitle>Result</AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}
@@ -196,35 +212,35 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bot className="size-5" />
-            搜索条件
+            Search Settings
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5 lg:grid-cols-3">
-          <Field label="艺人名">
+          <Field label="Artist name">
             <Input value={artistName} onChange={(event) => setArtistName(event.target.value)} />
           </Field>
-          <Field label="国家/地区">
+          <Field label="Country / region">
             <Input value={country} onChange={(event) => setCountry(event.target.value)} />
           </Field>
-          <Field label="收藏口径">
+          <Field label="Collection scope">
             <Select value={target} onValueChange={(value) => setTarget(value as CollectionScopeTarget)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ORIGINAL_CD">老原版 CD</SelectItem>
-                <SelectItem value="ALL_CD">所有 CD</SelectItem>
-                <SelectItem value="ALL_PHYSICAL">全实体</SelectItem>
+                <SelectItem value="ORIGINAL_CD">Original old CD</SelectItem>
+                <SelectItem value="ALL_CD">All CD</SelectItem>
+                <SelectItem value="ALL_PHYSICAL">All physical</SelectItem>
               </SelectContent>
             </Select>
           </Field>
-          <CheckField label="排除再版" checked={excludeReissues} onChange={setExcludeReissues} />
-          <CheckField label="包含合作名义" checked={includeCollaborations} onChange={setIncludeCollaborations} />
-          <CheckField label="包含 Live / Remix / Best" checked={includeLiveRemixBest} onChange={setIncludeLiveRemixBest} />
+          <CheckField label="Exclude reissues" checked={excludeReissues} onChange={setExcludeReissues} />
+          <CheckField label="Include collaborations" checked={includeCollaborations} onChange={setIncludeCollaborations} />
+          <CheckField label="Include Live / Remix / Best" checked={includeLiveRemixBest} onChange={setIncludeLiveRemixBest} />
           <div className="lg:col-span-3">
             <Button onClick={startSearch} disabled={loading || !artistName.trim()} className="gap-2">
               <Search className="size-4" />
-              搜索发行资料
+              Search Releases
             </Button>
           </div>
         </CardContent>
@@ -235,7 +251,7 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
           <div className="flex flex-wrap items-center gap-3 border bg-white p-4">
             <Badge variant={task.status === "failed" ? "destructive" : "secondary"}>{task.status}</Badge>
             <span className="text-sm text-muted-foreground">model: {task.model || "pending"}</span>
-            {loading ? <span className="text-sm text-muted-foreground">搜索中...</span> : null}
+            {loading ? <span className="text-sm text-muted-foreground">Searching...</span> : null}
           </div>
           {task.status === "failed" ? (
             <pre className="max-h-72 overflow-auto border bg-white p-4 text-xs">
@@ -247,6 +263,15 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
 
       {task?.parsedResult ? (
         <section className="grid gap-4">
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <Metric label="Candidates" value={summary.total} />
+            <Metric label="Safe import" value={summary.safeToImport} />
+            <Metric label="Pending review" value={summary.pendingReview} />
+            <Metric label="Missing catalog" value={summary.missingCatalog} />
+            <Metric label="Missing source" value={summary.missingSources} />
+            <Metric label="Default excluded" value={summary.defaultExcluded} />
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3 border bg-white p-4">
             <div className="flex flex-wrap gap-3">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -275,8 +300,8 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
               </Select>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={bulkExclude}>批量排除</Button>
-              <Button variant="outline" onClick={bulkMarkPending}>批量待核对</Button>
+              <Button variant="outline" onClick={bulkExclude}>Bulk exclude</Button>
+              <Button variant="outline" onClick={bulkMarkPending}>Bulk pending review</Button>
             </div>
           </div>
 
@@ -294,26 +319,26 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">导入候选</CardTitle>
+              <CardTitle className="text-lg">Import Candidates</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-3">
-              <Field label="导入目标">
+              <Field label="Import target">
                 <Select value={artistMode} onValueChange={(value) => setArtistMode(value as "create" | "existing")}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="create">新建 Artist</SelectItem>
-                    <SelectItem value="existing">已有 Artist</SelectItem>
+                    <SelectItem value="create">Create Artist</SelectItem>
+                    <SelectItem value="existing">Existing Artist</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
               {artistMode === "create" ? (
-                <Field label="Artist 名称">
+                <Field label="Artist name">
                   <Input value={importArtistName} onChange={(event) => setImportArtistName(event.target.value)} />
                 </Field>
               ) : (
-                <Field label="已有 Artist">
+                <Field label="Existing Artist">
                   <Select value={artistId} onValueChange={setArtistId}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -330,7 +355,7 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
               )}
               <div className="flex items-end">
                 <Button onClick={importCandidates} disabled={loading || selectedIds.size === 0}>
-                  导入 {selectedIds.size} 条
+                  Import {selectedIds.size}
                 </Button>
               </div>
             </CardContent>
@@ -367,6 +392,15 @@ function CheckField({
   );
 }
 
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border bg-white p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
 function ReleaseCandidateTable({
   releases,
   selectedIds,
@@ -393,19 +427,20 @@ function ReleaseCandidateTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10">选</TableHead>
-            <TableHead>置信度</TableHead>
-            <TableHead>分类</TableHead>
-            <TableHead className="min-w-56">标题</TableHead>
-            <TableHead className="min-w-40">艺人名义</TableHead>
-            <TableHead>发行日</TableHead>
-            <TableHead>格式</TableHead>
-            <TableHead>品番</TableHead>
-            <TableHead>厂牌</TableHead>
-            <TableHead>再版</TableHead>
-            <TableHead>封面图</TableHead>
-            <TableHead>来源</TableHead>
-            <TableHead>警告</TableHead>
+            <TableHead className="w-10">Select</TableHead>
+            <TableHead>Confidence</TableHead>
+            <TableHead>Flags</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead className="min-w-56">Title</TableHead>
+            <TableHead className="min-w-40">Artist credit</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Format</TableHead>
+            <TableHead>Catalog</TableHead>
+            <TableHead>Label</TableHead>
+            <TableHead>Reissue</TableHead>
+            <TableHead>Cover</TableHead>
+            <TableHead>Sources</TableHead>
+            <TableHead>Warnings</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -413,12 +448,15 @@ function ReleaseCandidateTable({
             const expanded = expandedIds.has(release.id);
             return (
               <Fragment key={release.id}>
-                <TableRow>
+                <TableRow className={release.confidence === "LOW" ? "bg-red-50/60" : undefined}>
                   <TableCell>
                     <input type="checkbox" checked={selectedIds.has(release.id)} onChange={() => toggleSelected(release.id)} />
                   </TableCell>
                   <TableCell>
                     <Badge variant={confidenceVariant(release.confidence)}>{release.confidence}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <QualityFlags release={release} />
                   </TableCell>
                   <TableCell>{release.category}</TableCell>
                   <TableCell>
@@ -436,23 +474,23 @@ function ReleaseCandidateTable({
                   <TableCell>{release.format ?? "-"}</TableCell>
                   <TableCell>{release.catalogNumber ?? "-"}</TableCell>
                   <TableCell>{release.label ?? "-"}</TableCell>
-                  <TableCell>{release.isReissue ? "是" : "否"}</TableCell>
-                  <TableCell>{release.coverImageUrl ? "已填写" : "-"}</TableCell>
+                  <TableCell>{release.isReissue ? "Yes" : "No"}</TableCell>
+                  <TableCell>{release.coverImageUrl ? "Yes" : "-"}</TableCell>
                   <TableCell>{release.sources.length}</TableCell>
                   <TableCell>{release.warnings.length}</TableCell>
                 </TableRow>
                 {expanded ? (
-                <TableRow>
-                    <TableCell colSpan={13} className="bg-stone-50">
+                  <TableRow>
+                    <TableCell colSpan={14} className="bg-stone-50">
                       <div className="grid gap-3 text-sm">
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-4">
                           <label className="flex items-center gap-2">
                             <input type="checkbox" checked={excludedIds.has(release.id)} onChange={() => toggleExcluded(release.id)} />
-                            是否纳入：否
+                            Excluded
                           </label>
                           <label className="flex items-center gap-2">
                             <input type="checkbox" checked={pendingIds.has(release.id)} onChange={() => togglePending(release.id)} />
-                            待核对
+                            Pending review
                           </label>
                         </div>
                         {release.warnings.length ? (
@@ -469,7 +507,7 @@ function ReleaseCandidateTable({
                           <p className="font-medium">Sources</p>
                           <div className="mt-2 grid gap-2">
                             {release.sources.length === 0 ? (
-                              <p className="text-muted-foreground">暂无来源。</p>
+                              <p className="text-muted-foreground">No source URL.</p>
                             ) : (
                               release.sources.map((source) => (
                                 <a
@@ -495,6 +533,20 @@ function ReleaseCandidateTable({
           })}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function QualityFlags({ release }: { release: ReleaseResearchCandidate }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {!release.catalogNumber ? <Badge variant="destructive">no catalog</Badge> : null}
+      {release.sources.length === 0 ? <Badge variant="destructive">no source</Badge> : null}
+      {release.isExcludedByDefault ? <Badge variant="outline">excluded</Badge> : null}
+      {release.isReissue ? <Badge variant="outline">reissue</Badge> : null}
+      {release.warnings.some((warning) => warning.includes("only wiki source")) ? (
+        <Badge variant="outline">wiki only</Badge>
+      ) : null}
     </div>
   );
 }

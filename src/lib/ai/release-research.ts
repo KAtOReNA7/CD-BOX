@@ -29,10 +29,13 @@ Search strategy:
 
 Rules:
 - Return only JSON matching the requested schema. No markdown.
-- Preserve collaboration credits such as "中山美穂 & WANDS" in artistCredit.
+- Preserve collaboration credits such as "Miho Nakayama & WANDS" in artistCredit.
 - Do not invent catalog numbers, dates, covers, or source URLs.
 - coverImageUrl may only be filled when a real source explicitly provides the cover image URL.
-- If catalogNumber is missing, set confidence to LOW and include a warning.
+- If catalogNumber is missing, set confidence no higher than MEDIUM and include a warning.
+- If sources are missing, set confidence to LOW and include a warning.
+- If all sources are Wikipedia or wiki-derived, set confidence no higher than MEDIUM and include a warning.
+- Under ORIGINAL_CD scope, LP, Vinyl, record, cassette, tape, DVD, and Blu-ray formats must be excluded by default.
 - If a release is a reissue and excludeReissues is true, set isExcludedByDefault to true.
 - Each release should include at least one source when possible.
 
@@ -263,10 +266,37 @@ export async function importReleaseResearchCandidates(
   const excluded = new Set(input.excludedCandidateIds);
   const pendingReview = new Set(input.pendingReviewCandidateIds);
   let imported = 0;
+  let skippedDuplicates = 0;
+  let pendingReviewCount = 0;
+  let excludedCount = 0;
 
   for (const candidate of parsed.releases) {
     if (!selected.has(candidate.id)) {
       continue;
+    }
+
+    const forcedPendingReview =
+      pendingReview.has(candidate.id) ||
+      candidate.confidence !== "HIGH" ||
+      !candidate.catalogNumber ||
+      candidate.sources.length === 0 ||
+      candidate.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
+    const forcedExcluded = excluded.has(candidate.id) || candidate.isExcludedByDefault;
+
+    if (candidate.catalogNumber) {
+      const duplicate = await prisma.release.findFirst({
+        where: {
+          artistId: artist.id,
+          title: candidate.title,
+          originalCatalogNo: candidate.catalogNumber,
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        skippedDuplicates += 1;
+        continue;
+      }
     }
 
     const release = await prisma.release.create({
@@ -279,7 +309,7 @@ export async function importReleaseResearchCandidates(
         originalCatalogNo: candidate.catalogNumber,
         label: candidate.label,
         isReissue: candidate.isReissue ?? false,
-        notes: candidateNotes(candidate, pendingReview.has(candidate.id)),
+        notes: candidateNotes(candidate, forcedPendingReview),
         coverImageUrl: candidate.coverImageUrl,
       },
     });
@@ -288,9 +318,9 @@ export async function importReleaseResearchCandidates(
       data: {
         userId,
         releaseId: release.id,
-        status: excluded.has(candidate.id) || candidate.isExcludedByDefault ? "EXCLUDED" : "UNKNOWN",
+        status: forcedExcluded ? "EXCLUDED" : "UNKNOWN",
         priority: candidate.confidence === "HIGH" ? 2 : candidate.confidence === "MEDIUM" ? 3 : 5,
-        notes: pendingReview.has(candidate.id) ? "PENDING_REVIEW" : null,
+        notes: forcedPendingReview ? "PENDING_REVIEW" : null,
       },
     });
 
@@ -317,6 +347,8 @@ export async function importReleaseResearchCandidates(
     }
 
     imported += 1;
+    if (forcedPendingReview) pendingReviewCount += 1;
+    if (forcedExcluded) excludedCount += 1;
   }
 
   await prisma.aiSearchTask.update({
@@ -327,5 +359,8 @@ export async function importReleaseResearchCandidates(
   return {
     artistId: artist.id,
     imported,
+    skippedDuplicates,
+    pendingReview: pendingReviewCount,
+    excluded: excludedCount,
   };
 }

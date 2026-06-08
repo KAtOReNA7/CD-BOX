@@ -63,7 +63,7 @@ const missingCatalog = structuredClone(baseJson);
 missingCatalog.releases[0].catalogNumber = null;
 missingCatalog.releases[0].confidence = "HIGH";
 const missingCatalogParsed = parseReleaseResearchResponse(JSON.stringify(missingCatalog));
-assert.equal(missingCatalogParsed.releases[0].confidence, "LOW");
+assert.equal(missingCatalogParsed.releases[0].confidence, "MEDIUM");
 assert.ok(missingCatalogParsed.releases[0].warnings.some((warning) => warning.includes("catalogNumber")));
 
 const noSource = structuredClone(baseJson);

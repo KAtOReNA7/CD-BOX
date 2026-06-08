@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { applyResearchQualityGates } from "@/lib/ai/release-research-quality";
 import type { ReleaseResearchResult } from "@/lib/ai/release-research-types";
 
 const categorySchema = z
@@ -101,41 +102,11 @@ export function parseReleaseResearchResponse(text: string): ReleaseResearchResul
   const json = JSON.parse(jsonText);
   const parsed = resultSchema.parse(json);
 
-  return {
+  return applyResearchQualityGates({
     ...parsed,
-    releases: parsed.releases.map((release, index) => {
-      const warnings = [...release.warnings];
-      let confidence = release.confidence;
-
-      if (!release.catalogNumber) {
-        confidence = "LOW";
-        if (!warnings.some((warning) => warning.includes("catalogNumber"))) {
-          warnings.push("PENDING_REVIEW: missing catalogNumber.");
-        }
-      }
-
-      if (release.sources.length === 0) {
-        if (!warnings.some((warning) => warning.includes("source"))) {
-          warnings.push("PENDING_REVIEW: no source URL provided.");
-        }
-      }
-
-      if (release.isReissue === true && parsed.collectionScope.excludeReissues) {
-        return {
-          ...release,
-          id: `candidate-${index + 1}`,
-          confidence,
-          warnings,
-          isExcludedByDefault: true,
-        };
-      }
-
-      return {
-        ...release,
-        id: `candidate-${index + 1}`,
-        confidence,
-        warnings,
-      };
-    }),
-  };
+    releases: parsed.releases.map((release, index) => ({
+      ...release,
+      id: `candidate-${index + 1}`,
+    })),
+  });
 }

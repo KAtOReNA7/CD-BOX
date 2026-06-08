@@ -18,6 +18,30 @@
 - Added candidate preview, category/confidence filters, selection, exclusion marking, pending-review marking, expandable sources and warnings, and candidate import.
 - Added parser tests for normal JSON, markdown code blocks, wrapped JSON, missing catalog numbers, empty sources, and reissue exclusion defaults.
 
+### Phase 3.5
+
+- Added AI release research quality gates to prevent weak candidates from polluting the formal collection library.
+- Added `src/lib/ai/release-research-quality.ts` and `tests/release-research-quality.test.ts`.
+- Added `npm run smoke:real-ai-search` for manual real OpenAI smoke testing.
+- Hardened candidate import so duplicate `title + catalogNumber` rows for the same artist are skipped instead of overwriting existing data.
+- Forced low-quality imports into pending review when confidence is not HIGH, catalog number is missing, sources are missing, or warnings include `PENDING_REVIEW`.
+- Added quality overview metrics to `/ai-search`: total candidates, safe imports, pending review, missing catalog, missing source, and default excluded.
+- Changed default selection to only HIGH confidence candidates that are not excluded, have a catalog number, and have at least one source.
+- Added import confirmation with counts for selected, skipped, and pending review rows.
+
+Quality rules:
+
+- Missing catalog number caps confidence at MEDIUM and marks pending review.
+- Missing sources forces LOW confidence and marks pending review.
+- Wikipedia-only sources cap confidence at MEDIUM and add an `only wiki source` warning.
+- LP, Vinyl, record, cassette, tape, DVD, and Blu-ray formats are excluded by default under ORIGINAL_CD scope.
+- Reissues are excluded by default when `excludeReissues` is true.
+
+Real search smoke:
+
+- Not executed in this environment because `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_TEXT_MODEL` are not set in the shell.
+- `npm run smoke:real-ai-search` exits with a clear missing-key error and can be rerun after configuring environment variables.
+
 ### Phase 2.5
 
 - Ran a smoke parse against the real local workbook.
