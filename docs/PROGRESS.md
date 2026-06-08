@@ -2,6 +2,19 @@
 
 ## 2026-06-08
 
+### Phase 4
+
+- Refocused the product around the collector loop: choose artist, manage release list, mark ownership, see gaps, fill metadata, export backup.
+- Simplified the artist table to the default collector fields: status, category, title, date, catalog number, format, source count, notes, and cover as the final column.
+- Moved advanced release metadata editing to the release detail page.
+- Simplified inline editing to collection status, notes, and cover URL.
+- Simplified filters to keyword, category, status, missing cover, and pending review; moved source/catalog/reissue/remaster/exclusion/year/confidence filters into an advanced section.
+- Added a one-click gap view.
+- Simplified stats cards to completion rate, owned/collectible total, gap count, pending review, and missing cover; moved category completion behind a details section.
+- Simplified bulk actions and moved priority/default-exclusion operations into an advanced bulk section.
+- Reworked `/ai-search` copy and layout so pasted source structuring is primary and unsupported web search is folded into a capability note.
+- Added `docs/LEAN_UX_CHECKLIST.md`.
+
 ### Phase 3.9
 
 - Enhanced `/artists/[id]` into the core collection management workspace.

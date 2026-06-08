@@ -99,7 +99,7 @@ The artist library page at `/artists/[id]` is the main workspace for collection 
 - View ownership and metadata stats, including completion rates by category.
 - Export all rows or the current filtered result as Excel from `/api/artists/[id]/export`.
 
-The main table's final column remains cover image. Source URLs are available on release detail pages and in Excel export, but are not restored as the main table's final column.
+Lean UX defaults keep the main table focused on collector work: status, category, title, date, catalog number, format, source count, notes, and cover as the final column. Advanced filters, category completion, and advanced bulk operations are collapsed by default. Source URLs are available on release detail pages and in Excel export, but are not restored as the main table's final column.
 
 ## AI Release Research
 
@@ -144,7 +144,7 @@ If `webSearchSupported=false`, release research is blocked. CD-BOX does not fall
 
 ### Pasted Source Structuring
 
-When `web_search` is unavailable, use the `/ai-search` "Pasted source structuring" tab.
+The `/ai-search` page is presented as "资料整理". Pasted source structuring is the default workflow; online search is only shown as an active tab when the configured relay supports `web_search`.
 
 - Paste text, tables, or CSV copied from official sites, labels, Tower Records, HMV, CDJapan, CDJournal, ORICON, MusicBrainz, VGMdb, or similar sources.
 - Optionally provide a source URL and a cover source URL.

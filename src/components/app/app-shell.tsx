@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/artists/new", label: "New Artist", icon: UserRoundPlus },
-  { href: "/import", label: "Import", icon: Import },
-  { href: "/ai-search", label: "AI Search", icon: Bot },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/artists/new", label: "艺人收藏库", icon: UserRoundPlus },
+  { href: "/import", label: "导入", icon: Import },
+  { href: "/ai-search", label: "资料整理", icon: Bot },
+  { href: "/settings", label: "设置", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

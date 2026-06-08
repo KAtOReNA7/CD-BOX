@@ -32,6 +32,18 @@ export function filterReleases(releases: ReleaseListItem[], filters: ReleaseFilt
     : decadeBounds(filters.decade);
 
   return releases.filter((release) => {
+    if (filters.gap === "true") {
+      const status = release.userStatus?.status;
+      const isGap =
+        status === "NOT_OWNED" ||
+        status === "WANTED" ||
+        status === "PENDING_REVIEW" ||
+        !release.coverImageUrl ||
+        release.sources.length === 0 ||
+        hasPendingReviewWarning(release);
+      if (!isGap) return false;
+    }
+
     if (
       query &&
       !includesText(release.title, query) &&

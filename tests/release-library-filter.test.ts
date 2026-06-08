@@ -46,6 +46,7 @@ assert.equal(filterReleases(rows, { missingSource: "true" }).length, 1);
 assert.equal(filterReleases(rows, { missingCover: "true" }).length, 1);
 assert.equal(filterReleases(rows, { missingCatalog: "true" }).length, 1);
 assert.equal(filterReleases(rows, { pendingReview: "true" }).length, 1);
+assert.equal(filterReleases(rows, { gap: "true" }).length, 1);
 assert.equal(filterReleases(rows, { decade: "1980s" }).length, 1);
 assert.equal(filterReleases(rows, { decade: "custom", yearFrom: "1990", yearTo: "1999" }).length, 1);
 

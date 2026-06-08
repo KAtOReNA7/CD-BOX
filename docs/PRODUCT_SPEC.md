@@ -43,7 +43,16 @@ The artist detail table displays these fields in order:
 
 `coverImageUrl` is the final visible column. Source URLs are not discarded; they are persisted in `ReleaseSource`.
 
-The artist library page supports inline release editing, direct user collection status editing, bulk actions, filters, ownership stats, category completion rates, and Excel export. Release detail pages support cover URL editing and manual `ReleaseSource` add/delete. Source URLs remain outside the main table's final column.
+The artist library page supports quick collection status editing, quick notes/cover URL editing, bulk actions, filters, ownership stats, category completion rates, and Excel export. Release detail pages support full release metadata editing and manual `ReleaseSource` add/delete. Source URLs remain outside the main table's final column.
+
+Lean UX defaults:
+
+- The default artist table shows no more than 9 business fields and keeps cover image as the final column.
+- Advanced release fields such as label, original price, edition type, reissue/remaster flags, default exclusion, confidence, and warnings are moved to details or folded sections.
+- Default filters are keyword, category, collection status, missing cover, and pending review.
+- Missing source, missing catalog number, reissue/remaster, exclusion, year range, and confidence filters are advanced.
+- Category completion rates and advanced bulk operations are folded by default.
+- `/ai-search` is presented as "资料整理" first. Pasted source structuring is the default workflow, while online search appears only when `webSearchSupported=true`; otherwise it is folded into a relay capability note.
 
 ## Excel Import Workflow
 

@@ -1,8 +1,8 @@
 import type { ArtistStats } from "@/lib/releases/release-types";
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value, tone = "default" }: { label: string; value: string | number; tone?: "default" | "strong" }) {
   return (
-    <div className="border bg-white p-4">
+    <div className={tone === "strong" ? "border bg-white p-4 ring-1 ring-foreground/10" : "border bg-white p-4"}>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
     </div>
@@ -10,23 +10,22 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 export function ArtistStatsCards({ stats }: { stats: ArtistStats }) {
+  const collectibleTotal = Math.max(0, stats.total - stats.excluded);
+  const gapCount = Math.max(0, collectibleTotal - stats.owned);
+
   return (
     <section className="grid gap-3">
-      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <Stat label="总条目" value={stats.total} />
-        <Stat label="已拥有" value={stats.owned} />
-        <Stat label="未拥有" value={stats.notOwned} />
-        <Stat label="想买" value={stats.wanted} />
-        <Stat label="完成率" value={`${stats.completionRate}%`} />
+      <div className="grid gap-3 md:grid-cols-5">
+        <Stat label="总完成率" value={`${stats.completionRate}%`} tone="strong" />
+        <Stat label="已拥有 / 应收" value={`${stats.owned} / ${collectibleTotal}`} />
+        <Stat label="缺口数量" value={gapCount} />
         <Stat label="待核对" value={stats.pendingReview} />
-        <Stat label="排除" value={stats.excluded} />
         <Stat label="缺封面" value={stats.missingCover} />
-        <Stat label="缺来源" value={stats.missingSource} />
-        <Stat label="缺品番" value={stats.missingCatalog} />
       </div>
-      <div className="border bg-white p-4">
-        <p className="text-xs text-muted-foreground">
-          完成率口径：分母排除收藏状态为 EXCLUDED 或默认排除的条目，分子为 OWNED。
+      <details className="border bg-white p-4">
+        <summary className="cursor-pointer text-sm font-medium">按分类完成率</summary>
+        <p className="mt-2 text-xs text-muted-foreground">
+          口径：分母排除收藏状态为 EXCLUDED 或默认排除的条目，分子为 OWNED。
         </p>
         <div className="mt-3 grid gap-2 md:grid-cols-3 lg:grid-cols-6">
           {stats.categoryCompletion.map((item) => (
@@ -39,7 +38,7 @@ export function ArtistStatsCards({ stats }: { stats: ArtistStats }) {
             </div>
           ))}
         </div>
-      </div>
+      </details>
     </section>
   );
 }

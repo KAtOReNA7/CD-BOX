@@ -76,8 +76,11 @@ export function ReleaseTable({
 
   if (rows.length === 0) {
     return (
-      <div className="flex min-h-72 items-center justify-center border bg-white text-sm text-muted-foreground">
-        当前筛选下没有发行条目。
+      <div className="grid min-h-72 place-items-center border bg-white p-6 text-center">
+        <div>
+          <p className="font-medium">还没有收藏条目</p>
+          <p className="mt-2 text-sm text-muted-foreground">可以导入 Excel、粘贴资料整理，或从详情页手动补资料。</p>
+        </div>
       </div>
     );
   }
@@ -97,18 +100,15 @@ export function ReleaseTable({
                   onChange={(event) => setSelectedIds(event.target.checked ? new Set(rows.map((row) => row.id)) : new Set())}
                 />
               </TableHead>
-              <TableHead className="min-w-44">收藏状态</TableHead>
+              <TableHead>收藏状态</TableHead>
               <TableHead>分类</TableHead>
               <TableHead className="min-w-56">标题</TableHead>
-              <TableHead>原版发行日</TableHead>
+              <TableHead>发行日</TableHead>
+              <TableHead>品番</TableHead>
               <TableHead>格式</TableHead>
-              <TableHead>原版品番</TableHead>
-              <TableHead>厂牌</TableHead>
-              <TableHead>再版</TableHead>
-              <TableHead>Remaster</TableHead>
+              <TableHead>来源</TableHead>
               <TableHead className="min-w-64">备注</TableHead>
-              <TableHead>操作</TableHead>
-              <TableHead className="min-w-28 text-right">封面图</TableHead>
+              <TableHead className="text-right">封面</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -125,7 +125,7 @@ export function ReleaseTable({
           </TableBody>
         </Table>
       </div>
-      <p className="text-sm text-muted-foreground">当前表格显示 {rows.length} 条，艺人库共 {totalCount} 条。主表最后一列固定为封面图。</p>
+      <p className="text-sm text-muted-foreground">显示 {rows.length} 条，艺人库共 {totalCount} 条。主表最后一列固定为封面，不显示来源 URL。</p>
     </div>
   );
 }

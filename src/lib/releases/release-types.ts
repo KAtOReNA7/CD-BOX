@@ -77,6 +77,7 @@ export type ReleaseFilters = {
   missingSource?: "true";
   missingCatalog?: "true";
   pendingReview?: "true";
+  gap?: "true";
   decade?: "1980s" | "1990s" | "2000s" | "custom" | "";
   yearFrom?: string;
   yearTo?: string;
