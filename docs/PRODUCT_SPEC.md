@@ -143,6 +143,8 @@ Import rules:
 - Wikipedia-only sources cap confidence at `MEDIUM` and must include an `only wiki source` warning.
 - Non-CD physical formats are excluded by default under original-old-CD scope.
 - Reissues are excluded by default when the user asks to exclude reissues.
+- Confidence measures extraction trust, while `isExcludedByDefault` measures collection-scope fit. A complete sourced reissue or LP row can be `MEDIUM` and excluded at the same time.
+- Complete sourced CD rows with catalog number, release date, label, and CD format may be `HIGH`.
 - Existing manually curated data is protected: candidate imports skip duplicate `title + catalogNumber` rows for the same artist instead of overwriting them.
 - By default, only HIGH confidence candidates with catalog numbers, sources, and no default exclusion are selected for import.
 

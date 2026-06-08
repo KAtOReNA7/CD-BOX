@@ -69,6 +69,7 @@ const king = parseReleaseStructureResponse(
 );
 assert.equal(king.releases.length, 2);
 assert.equal(king.releases[0].sources.length, 1);
+assert.equal(king.releases[0].confidence, "HIGH");
 assert.equal(king.releases[0].coverImageUrl, null);
 
 const noSource = parseReleaseStructureResponse(payload([{ title: "No Source" }]), request("発売日 1985-09-05 品番 K32X-30", null));
@@ -86,8 +87,11 @@ const collection = parseReleaseStructureResponse(
 );
 assert.equal(collection.releases[0].category, "COLLECTION");
 assert.equal(collection.releases[0].isExcludedByDefault, false);
+assert.equal(collection.releases[0].confidence, "HIGH");
 assert.equal(collection.releases[1].isExcludedByDefault, true);
+assert.equal(collection.releases[1].confidence, "MEDIUM");
 assert.equal(collection.releases[2].isExcludedByDefault, true);
+assert.equal(collection.releases[2].confidence, "MEDIUM");
 assert.equal(collection.releases[0].coverImageUrl, null);
 
 const towerText = fs.readFileSync(path.join(fixturesDir, "tower-miho-single.txt"), "utf8");
@@ -103,5 +107,6 @@ const collaboration = parseReleaseStructureResponse(
   request(towerText, "https://tower.jp/artist/281023/%E4%B8%AD%E5%B1%B1%E7%BE%8E%E7%A9%82"),
 );
 assert.equal(collaboration.releases[0].artistCredit, "中山美穂 & WANDS");
+assert.equal(collaboration.releases[0].confidence, "HIGH");
 
 console.log("Release structure real fixture test passed.");

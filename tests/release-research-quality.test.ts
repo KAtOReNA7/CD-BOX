@@ -32,6 +32,15 @@ function candidate(overrides: Partial<ReleaseResearchCandidate> = {}): ReleaseRe
 
 const options = { target: "ORIGINAL_CD" as const, excludeReissues: true };
 
+const completeCd = applyReleaseQualityGate(candidate({ confidence: "LOW" }), options);
+assert.equal(completeCd.confidence, "HIGH");
+
+const missingReleaseDate = applyReleaseQualityGate(
+  candidate({ confidence: "LOW", releaseDate: null, originalReleaseDate: null }),
+  options,
+);
+assert.equal(missingReleaseDate.confidence, "MEDIUM");
+
 const missingCatalog = applyReleaseQualityGate(candidate({ catalogNumber: null }), options);
 assert.equal(missingCatalog.confidence, "MEDIUM");
 assert.ok(missingCatalog.warnings.some((warning) => warning.includes("catalogNumber")));
@@ -49,14 +58,22 @@ assert.ok(wikiOnly.warnings.some((warning) => warning.includes("only wiki source
 
 const vinyl = applyReleaseQualityGate(candidate({ format: "LP Vinyl" }), options);
 assert.equal(vinyl.isExcludedByDefault, true);
+assert.equal(vinyl.confidence, "MEDIUM");
 assert.ok(vinyl.warnings.some((warning) => warning.includes("non-CD")));
 
 const reissue = applyReleaseQualityGate(candidate({ isReissue: true }), options);
 assert.equal(reissue.isExcludedByDefault, true);
-assert.ok(reissue.warnings.some((warning) => warning.includes("reissue")));
+assert.equal(reissue.confidence, "MEDIUM");
+assert.ok(reissue.warnings.some((warning) => warning.includes("reissue excluded by scope")));
 
 const highNoSource = applyReleaseQualityGate(candidate({ confidence: "HIGH", sources: [] }), options);
 assert.equal(highNoSource.confidence, "LOW");
 assert.ok(highNoSource.warnings.some((warning) => warning.includes("source")));
+
+const suspectedHallucination = applyReleaseQualityGate(
+  candidate({ warnings: ["suspected hallucination: catalog not found"] }),
+  options,
+);
+assert.equal(suspectedHallucination.confidence, "LOW");
 
 console.log("Release research quality test passed.");

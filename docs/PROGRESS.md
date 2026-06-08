@@ -2,6 +2,29 @@
 
 ## 2026-06-08
 
+### Phase 3.8.1
+
+- Calibrated pasted-source confidence scoring so complete, sourced CD rows are not stuck at LOW.
+- Separated data confidence from collection-scope exclusion:
+  - Complete sourced CD rows can become HIGH.
+  - Sourced rows with catalog numbers but incomplete fields can become MEDIUM.
+  - Reissue/remaster rows and non-CD physical rows can remain MEDIUM while `isExcludedByDefault=true`.
+  - Missing sources, risky warnings, and source-less candidates still force LOW.
+- Added tests for sourced complete rows, missing dates, missing sources, missing catalog numbers, reissues, LP/Vinyl, hallucination warnings, and invented cover cleanup.
+
+Calibrated pasted-source smoke result:
+
+- Fixtures: 3
+- Candidates: 8
+- Confidence: HIGH 6 / MEDIUM 2 / LOW 0
+- Missing catalog numbers: 0
+- Missing release dates: 0
+- Missing sources: 0
+- Default excluded: 2
+- Invented source URLs: no
+- Invented cover image URLs: no
+- Claimed online search: no
+
 ### Phase 3.8
 
 - Added real pasted-source smoke fixtures in `sample-data/pasted-sources/` for official label, retailer, and CD database style snippets.

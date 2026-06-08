@@ -139,6 +139,8 @@ When `web_search` is unavailable, use the `/ai-search` "Pasted source structurin
 - Sources are only taken from explicit URLs in the pasted text or source URL field.
 - If no source URL is present, candidates are downgraded and marked pending review.
 - Cover URLs are not invented.
+- Confidence reflects extraction trust, while default exclusion reflects the selected collection scope.
+- Complete sourced CD rows can become HIGH; sourced reissues or LP/record rows can remain MEDIUM while being excluded by default.
 - Candidates reuse the same preview, quality gates, duplicate checks, and import flow as AI release research.
 
 Real pasted-source smoke fixtures live in `sample-data/pasted-sources/`. Run the smoke after configuring AI environment variables:

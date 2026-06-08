@@ -97,17 +97,25 @@ const noCatalog = parseReleaseStructureResponse(
 assert.equal(noCatalog.releases[0].confidence, "MEDIUM");
 assert.ok(noCatalog.releases[0].warnings.some((warning) => warning.includes("catalogNumber")));
 
+const missingDate = parseReleaseStructureResponse(
+  JSON.stringify(payload({ releaseDate: null, originalReleaseDate: null })),
+  { ...baseRequest, sourceUrl: "https://example.com/source" },
+);
+assert.equal(missingDate.releases[0].confidence, "MEDIUM");
+
 const reissue = parseReleaseStructureResponse(
   JSON.stringify(payload({ isReissue: true, editionType: "reissue remaster" })),
   baseRequest,
 );
 assert.equal(reissue.releases[0].isExcludedByDefault, true);
+assert.equal(reissue.releases[0].confidence, "MEDIUM");
 
 const vinyl = parseReleaseStructureResponse(
   JSON.stringify(payload({ format: "LP Vinyl" })),
   baseRequest,
 );
 assert.equal(vinyl.releases[0].isExcludedByDefault, true);
+assert.equal(vinyl.releases[0].confidence, "MEDIUM");
 
 const highNoSource = parseReleaseStructureResponse(
   JSON.stringify(payload({ confidence: "HIGH" })),
