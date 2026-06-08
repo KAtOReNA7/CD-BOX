@@ -33,9 +33,12 @@ AUTH_GITHUB_SECRET=
 AUTH_GOOGLE_ID=
 AUTH_GOOGLE_SECRET=
 OPENAI_API_KEY=
-OPENAI_BASE_URL=
+OPENAI_BASE_URL=https://your-relay.example.com/v1
 OPENAI_TEXT_MODEL=gpt-5.5
 OPENAI_IMAGE_MODEL=gpt-image-2
+AI_PROVIDER_MODE=openai-compatible
+AI_ENABLE_WEB_SEARCH=true
+AI_ENABLE_IMAGE_GENERATION=true
 ```
 
 ## Database
@@ -89,6 +92,16 @@ The real workbook is intentionally ignored by git. Commit tests should use gener
 
 The release research workflow is available at `/ai-search`.
 
+- CD-BOX is configured for an OpenAI-compatible relay by default. It does not assume direct official OpenAI API access.
+- `OPENAI_BASE_URL` is required and must point to the relay's `/v1`-style base URL.
+- Model names must match aliases actually supported by the relay.
+- Relays may not support Responses API, `web_search`, or image generation.
+- Run the provider probe before using AI features:
+
+```bash
+npm run probe:ai
+```
+
 - Enter an artist name, country or region, collection scope, and inclusion rules.
 - Searches use the OpenAI Responses API with the `web_search` tool.
 - User-started searches force web search with `tool_choice: "required"`.
@@ -113,6 +126,8 @@ Run the real AI smoke test after configuring the OpenAI environment:
 ```bash
 npm run smoke:real-ai-search
 ```
+
+If `webSearchSupported=false`, release research is blocked. CD-BOX does not fallback to a normal chat completion and pretend it searched the web.
 
 ## Validation
 

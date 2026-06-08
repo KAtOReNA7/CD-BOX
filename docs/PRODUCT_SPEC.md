@@ -85,11 +85,14 @@ Inputs:
 AI requirements:
 
 - All AI calls go through `src/lib/ai/client.ts`.
+- CD-BOX requires an OpenAI-compatible relay through `OPENAI_BASE_URL`; direct official API access is not assumed.
 - Release research logic lives in `src/lib/ai/release-research.ts`.
 - JSON extraction and validation live in `src/lib/ai/release-research-parser.ts`.
 - Types live in `src/lib/ai/release-research-types.ts`.
 - Searches use the OpenAI Responses API with `tools: [{ type: "web_search" }]`.
 - User-started searches set `tool_choice: "required"` to force web search.
+- If the relay does not support Responses API or `web_search`, online release research is blocked and the UI asks the user to run `npm run probe:ai`.
+- Chat Completions fallback may only be used for non-search text tasks. It must not be used to fabricate online search results.
 
 Persistence:
 
@@ -112,3 +115,17 @@ Import rules:
 - Reissues are excluded by default when the user asks to exclude reissues.
 - Existing manually curated data is protected: candidate imports skip duplicate `title + catalogNumber` rows for the same artist instead of overwriting them.
 - By default, only HIGH confidence candidates with catalog numbers, sources, and no default exclusion are selected for import.
+
+## Provider Capability Probe
+
+`npm run probe:ai` checks relay capabilities without printing secrets:
+
+- Required configuration and redacted API key
+- Text model smoke
+- JSON output smoke
+- Responses API smoke
+- `web_search` smoke when Responses API is available
+- Chat Completions fallback smoke
+- Image model configuration only; image generation is deferred to a later phase
+
+The probe emits a summary object with `textSupported`, `jsonSupported`, `responsesSupported`, `webSearchSupported`, `chatCompletionsSupported`, and `imageModelConfigured`.

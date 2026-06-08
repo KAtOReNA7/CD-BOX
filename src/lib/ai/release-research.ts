@@ -1,5 +1,6 @@
 import type { AiSearchTask, Prisma, ReleaseFormat } from "@prisma/client";
 import { aiConfig, createWebSearchResponse } from "@/lib/ai/client";
+import { assertCanUseWebSearch, getConfiguredProviderCapabilities } from "@/lib/ai/provider-capabilities";
 import { parseReleaseResearchResponse } from "@/lib/ai/release-research-parser";
 import type {
   AiSearchTaskView,
@@ -130,6 +131,8 @@ function toJsonSafe(value: unknown): Prisma.InputJsonValue {
 }
 
 export async function createAndRunReleaseResearchTask(input: ReleaseResearchRequest, userId: string) {
+  assertCanUseWebSearch(getConfiguredProviderCapabilities());
+
   const task = await prisma.aiSearchTask.create({
     data: {
       userId,
@@ -143,6 +146,8 @@ export async function createAndRunReleaseResearchTask(input: ReleaseResearchRequ
 }
 
 export async function runReleaseResearchTask(taskId: string, input: ReleaseResearchRequest) {
+  assertCanUseWebSearch(getConfiguredProviderCapabilities());
+
   await prisma.aiSearchTask.update({
     where: { id: taskId },
     data: { status: "RUNNING", errorMessage: null },

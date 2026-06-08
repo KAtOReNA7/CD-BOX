@@ -1,0 +1,78 @@
+import assert from "node:assert/strict";
+import {
+  assertCanUseWebSearch,
+  getConfiguredProviderCapabilities,
+  redactSecret,
+  requireRelayBaseUrl,
+  sanitizeErrorMessage,
+} from "@/lib/ai/provider-capabilities";
+import { createAndRunReleaseResearchTask } from "@/lib/ai/release-research";
+
+assert.throws(() => requireRelayBaseUrl({}), /OPENAI_BASE_URL|relay base URL/);
+
+assert.equal(redactSecret("sk-1234567890abcdef"), "sk-1...cdef");
+assert.equal(sanitizeErrorMessage("bad key sk-secret-value", "sk-secret-value"), "bad key sk-s...alue");
+
+const noSearch = getConfiguredProviderCapabilities({
+  OPENAI_API_KEY: "sk-test",
+  OPENAI_BASE_URL: "https://relay.example.com/v1",
+  OPENAI_TEXT_MODEL: "gpt-5.5",
+  AI_ENABLE_WEB_SEARCH: "false",
+});
+assert.equal(noSearch.responsesSupported, true);
+assert.equal(noSearch.webSearchSupported, false);
+assert.throws(() => assertCanUseWebSearch(noSearch), /web_search/);
+
+const originalEnv = {
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
+  OPENAI_TEXT_MODEL: process.env.OPENAI_TEXT_MODEL,
+  AI_ENABLE_WEB_SEARCH: process.env.AI_ENABLE_WEB_SEARCH,
+};
+process.env.OPENAI_API_KEY = "sk-test";
+process.env.OPENAI_BASE_URL = "https://relay.example.com/v1";
+process.env.OPENAI_TEXT_MODEL = "gpt-5.5";
+process.env.AI_ENABLE_WEB_SEARCH = "false";
+
+async function main() {
+  await assert.rejects(
+    () =>
+      createAndRunReleaseResearchTask(
+        {
+          artistName: "Miho Nakayama",
+          country: "Japan",
+          target: "ORIGINAL_CD",
+          excludeReissues: true,
+          includeCollaborations: true,
+          includeLiveRemixBest: true,
+        },
+        "user-test",
+      ),
+    /web_search/,
+  );
+
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
+
+const missingResponses = {
+  ...noSearch,
+  responsesSupported: false,
+  webSearchSupported: false,
+};
+assert.throws(() => assertCanUseWebSearch(missingResponses), /Responses API/);
+
+assert.equal(noSearch.chatCompletionsSupported, true);
+assert.equal(noSearch.webSearchSupported, false);
+
+main().then(() => {
+  console.log("AI provider config test passed.");
+}).catch((error) => {
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  throw error;
+});

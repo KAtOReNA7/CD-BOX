@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { requireAiProviderConfig, requireRelayBaseUrl } from "@/lib/ai/provider-capabilities";
 
 const textModel = process.env.OPENAI_TEXT_MODEL ?? "gpt-5.5";
 const imageModel = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
@@ -9,9 +10,11 @@ export const aiConfig = {
 };
 
 export function createAiClient() {
+  const config = requireAiProviderConfig();
+
   return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL || undefined,
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
   });
 }
 
@@ -20,6 +23,7 @@ export async function createWebSearchResponse(input: {
   userPrompt: string;
   forceSearch?: boolean;
 }) {
+  requireRelayBaseUrl();
   const client = createAiClient();
 
   return client.responses.create({

@@ -2,6 +2,25 @@
 
 ## 2026-06-08
 
+### Phase 3.6
+
+- Made OpenAI-compatible relay configuration explicit.
+- `OPENAI_BASE_URL` is now required for AI client creation; CD-BOX no longer falls back to the official OpenAI base URL.
+- Added provider capability helpers in `src/lib/ai/provider-capabilities.ts`.
+- Added `npm run probe:ai` through `scripts/probe-ai-provider.mjs`.
+- Probe checks required config, text smoke, JSON output, Responses API, `web_search`, Chat Completions fallback, and image model configuration without generating images.
+- `/ai-search` now displays AI relay capability status and disables release search when `web_search` is not configured as available.
+- Release research refuses to run when Responses API or `web_search` capability is unavailable. It does not fallback to ordinary chat completions for fake search results.
+- `scripts/smoke-real-ai-search.mjs` now runs capability checks before real Miho Nakayama search and stops when `webSearchSupported=false`.
+- Added `tests/ai-provider-config.test.ts` covering missing base URL, key redaction, web search gating, Responses API gating, and chat fallback boundaries.
+
+Local probe result:
+
+- `OPENAI_API_KEY`: missing
+- `OPENAI_BASE_URL`: missing
+- `OPENAI_TEXT_MODEL`: missing
+- Real AI search was not executed.
+
 ### Phase 3
 
 - Added GPT-5.5 release research workflow for `/ai-search`.

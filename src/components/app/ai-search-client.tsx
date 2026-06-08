@@ -32,6 +32,7 @@ import type {
   ReleaseResearchCandidate,
   ResearchConfidence,
 } from "@/lib/ai/release-research-types";
+import type { AiProviderCapabilitySummary as ProviderSummary } from "@/lib/ai/provider-capabilities";
 
 type ArtistOption = {
   id: string;
@@ -49,7 +50,13 @@ function isPendingReview(release: ReleaseResearchCandidate) {
   return release.confidence !== "HIGH" || !release.catalogNumber || release.sources.length === 0 || release.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
 }
 
-export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
+export function AiSearchClient({
+  artists,
+  capabilities,
+}: {
+  artists: ArtistOption[];
+  capabilities: ProviderSummary;
+}) {
   const router = useRouter();
   const [artistName, setArtistName] = useState("Miho Nakayama");
   const [country, setCountry] = useState("Japan");
@@ -238,11 +245,28 @@ export function AiSearchClient({ artists }: { artists: ArtistOption[] }) {
           <CheckField label="Include collaborations" checked={includeCollaborations} onChange={setIncludeCollaborations} />
           <CheckField label="Include Live / Remix / Best" checked={includeLiveRemixBest} onChange={setIncludeLiveRemixBest} />
           <div className="lg:col-span-3">
-            <Button onClick={startSearch} disabled={loading || !artistName.trim()} className="gap-2">
+            <Button onClick={startSearch} disabled={loading || !artistName.trim() || !capabilities.webSearchSupported} className="gap-2">
               <Search className="size-4" />
               Search Releases
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">AI Relay Capability Status</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <Capability label="Text model" ok={capabilities.textSupported} />
+          <Capability label="JSON output" ok={capabilities.jsonSupported} />
+          <Capability label="Responses API" ok={capabilities.responsesSupported} />
+          <Capability label="web_search" ok={capabilities.webSearchSupported} />
+          {!capabilities.webSearchSupported ? (
+            <p className="md:col-span-4 text-sm text-muted-foreground">
+              Run <code>npm run probe:ai</code> and confirm the relay supports Responses API and web_search before searching releases.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -397,6 +421,15 @@ function Metric({ label, value }: { label: string; value: number }) {
     <div className="border bg-white p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-2 text-2xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function Capability({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between border bg-white p-3 text-sm">
+      <span>{label}</span>
+      <Badge variant={ok ? "secondary" : "destructive"}>{ok ? "available" : "unavailable"}</Badge>
     </div>
   );
 }
