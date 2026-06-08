@@ -9,6 +9,8 @@ datasource db {
 enum ReleaseCategory {
   ORIGINAL_ALBUM
   SINGLE
+  BEST
+  COLLECTION
   COMPILATION
   LIVE
   REMIX
@@ -21,6 +23,7 @@ enum CollectionStatus {
   ORDERED
   OWNED
   SKIP
+  EXCLUDED
   UNKNOWN
 }
 
@@ -193,6 +196,7 @@ model ImportBatch {
   sourceType  String            @default("excel")
   status      ImportBatchStatus @default(DRAFT)
   rowCount    Int               @default(0)
+  errorJson   Json?
   importedAt  DateTime?
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   artist      Artist?           @relation(fields: [artistId], references: [id], onDelete: SetNull)

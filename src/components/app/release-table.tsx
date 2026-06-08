@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Release, UserReleaseStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,7 +57,11 @@ export function ReleaseTable({ releases }: { releases: ReleaseRow[] }) {
                 </TableCell>
                 <TableCell>{status?.priority ?? "-"}</TableCell>
                 <TableCell>{release.category}</TableCell>
-                <TableCell className="font-medium">{release.title}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/releases/${release.id}`} className="hover:underline">
+                    {release.title}
+                  </Link>
+                </TableCell>
                 <TableCell>{formatDate(release.originalReleaseDate)}</TableCell>
                 <TableCell>{release.format}</TableCell>
                 <TableCell>{release.originalCatalogNo ?? "-"}</TableCell>
@@ -71,11 +76,14 @@ export function ReleaseTable({ releases }: { releases: ReleaseRow[] }) {
                         alt={`${release.title} cover`}
                         width={64}
                         height={64}
+                        unoptimized
                         className="size-full object-cover"
                       />
                     </div>
                   ) : (
-                    <span className="text-muted-foreground">未填写</span>
+                    <div className="ml-auto flex size-16 items-center justify-center border bg-stone-100 text-xs text-muted-foreground">
+                      No cover
+                    </div>
                   )}
                 </TableCell>
               </TableRow>

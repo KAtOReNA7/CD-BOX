@@ -58,9 +58,35 @@ For production deployments:
 npx prisma migrate deploy
 ```
 
+## Excel Import
+
+The import workflow is available at `/import`.
+
+- Upload `.xlsx` files by drag-and-drop or file picker.
+- Choose a new artist or an existing artist library.
+- Preview parsed rows before writing to the database.
+- Confirm import with a duplicate strategy: skip, update existing, or create as new.
+- `来源 URL` is saved to `ReleaseSource.url`.
+- `封面图` is saved to `Release.coverImageUrl`.
+
+Supported sheets:
+
+- `A_原创专辑原版CD`
+- `B_单曲原版CD`
+- `C_精选现场混音`
+
+Create the local sample workbook:
+
+```bash
+npm run sample:excel
+```
+
+The sample file is written to `sample-data/cd-box-import-sample.xlsx`.
+
 ## Validation
 
 ```bash
+npm run test:import
 npm run lint
 npm run build
 ```

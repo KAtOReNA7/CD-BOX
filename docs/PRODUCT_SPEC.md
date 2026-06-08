@@ -20,6 +20,7 @@ CD-BOX is a WebUI collection manager for physical CD collectors. Users sign in, 
 - `/dashboard`
 - `/artists/new`
 - `/artists/[id]`
+- `/releases/[id]`
 - `/import`
 - `/ai-search`
 - `/settings`
@@ -41,3 +42,36 @@ The artist detail table displays these fields in order:
 11. Cover image
 
 `coverImageUrl` is the final visible column. Source URLs are not discarded; they are persisted in `ReleaseSource`.
+
+## Excel Import Workflow
+
+The `/import` page supports drag-and-drop `.xlsx` upload, choosing an existing artist library, or creating a new artist by name. Uploading a workbook only creates a preview; database writes happen after the user clicks confirm.
+
+Supported sheets:
+
+- `A_原创专辑原版CD`
+- `B_单曲原版CD`
+- `C_精选现场混音`
+
+Ignored instruction sheets:
+
+- `总览`
+- `收藏口径`
+- `术语与排除项`
+- `选项`
+
+Column handling:
+
+- `封面图` maps to `Release.coverImageUrl`.
+- `来源 URL` maps to `ReleaseSource.url`.
+- If both columns exist, both values are preserved in their separate fields.
+- Source URLs never appear as the final column in the main WebUI table.
+
+Duplicate handling:
+
+- First match by `artistId + originalCatalogNo`.
+- If catalog number is empty, match by `artistId + title + originalReleaseDate + format`.
+- Preview marks duplicates without writing to the database.
+- Confirm supports skip, update existing, or create as a new release.
+
+`/releases/[id]` displays release details and source URLs. Real cover art must still come from a real URL or manual user input; AI image generation is not used for CD covers.
