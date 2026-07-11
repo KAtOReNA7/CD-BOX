@@ -50,12 +50,20 @@ export async function createFollowedArtist(userId: string, input: ArtistCreateIn
         });
 
         return { artistId: artist.id, created: true };
-      }, { isolationLevel: "Serializable" });
+      }, {
+        isolationLevel: "Serializable",
+        // A cold Neon pooled connection can exceed Prisma's 2-second default.
+        maxWait: 10_000,
+        timeout: 30_000,
+      });
     } catch (error) {
-      const isWriteConflict =
-        typeof error === "object" && error !== null && "code" in error && error.code === "P2034";
+      const isRetryableTransactionError =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error.code === "P2034" || error.code === "P2028");
 
-      if (!isWriteConflict || attempt === 2) {
+      if (!isRetryableTransactionError || attempt === 2) {
         throw error;
       }
     }

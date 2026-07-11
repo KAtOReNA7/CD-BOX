@@ -5,6 +5,7 @@ const importService = fs.readFileSync("src/lib/import/import-service.ts", "utf8"
 const researchService = fs.readFileSync("src/lib/ai/release-research.ts", "utf8");
 const releaseRoute = fs.readFileSync("src/app/api/releases/[id]/route.ts", "utf8");
 const releaseService = fs.readFileSync("src/lib/releases/release-service.ts", "utf8");
+const artistService = fs.readFileSync("src/lib/services/artists.ts", "utf8");
 const migration = fs.readFileSync("prisma/migrations/20260711010000_init/migration.sql", "utf8");
 
 const confirmTransaction = importService.slice(importService.indexOf("return prisma.$transaction"));
@@ -33,6 +34,12 @@ const updateRelease = releaseService.slice(
 assert.match(releaseRoute, /updateRelease\(id, auth\.owner\.id, parseReleasePatchInput\(body\)\)/);
 assert.match(updateRelease, /userStatus: \{ where: \{ userId \} \}/);
 assert.match(updateRelease, /release: serializeRelease\(release, userId\)/);
+
+assert.match(artistService, /isolationLevel: "Serializable"/);
+assert.match(artistService, /maxWait: 10_000/);
+assert.match(artistService, /timeout: 30_000/);
+assert.match(artistService, /error\.code === "P2034"/);
+assert.match(artistService, /error\.code === "P2028"/);
 
 assert.match(migration, /CREATE TYPE "CollectionStatus" AS ENUM \('WANTED', 'OWNED', 'NOT_OWNED', 'EXCLUDED', 'PENDING_REVIEW'\)/);
 assert.doesNotMatch(migration, /'WANT'|'SKIP'|'UNKNOWN'|'ORDERED'/);
