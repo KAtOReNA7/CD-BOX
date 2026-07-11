@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   type BulkUpdateInput,
@@ -38,7 +39,10 @@ export async function getArtistLibrary(artistId: string, userId?: string | null,
 
   if (!artist) return null;
 
-  const releases = artist.releases.map((release) => serializeRelease(release, userId));
+  const allReleases = artist.releases.map((release) => serializeRelease(release, userId));
+  const releases = allReleases.filter((release) =>
+    release.verificationStatus === "VERIFIED" &&
+    Boolean(release.coverImageUrl && release.verificationEvidence && release.verifiedAt));
   const filteredReleases = filterReleases(releases, filters);
 
   return {
@@ -49,6 +53,7 @@ export async function getArtistLibrary(artistId: string, userId?: string | null,
       country: artist.country,
     },
     releases,
+    quarantinedCount: allReleases.length - releases.length,
     filteredReleases,
     stats: computeArtistStats(releases),
   };
@@ -64,14 +69,38 @@ export async function getReleaseDetailView(releaseId: string, userId?: string | 
     },
   });
 
-  return release ? { release: serializeRelease(release, userId), artist: release.artist } : null;
+  if (
+    !release ||
+    release.verificationStatus !== "VERIFIED" ||
+    !release.coverImageUrl ||
+    !release.verificationEvidence ||
+    !release.verifiedAt
+  ) return null;
+  return { release: serializeRelease(release, userId), artist: release.artist };
 }
 
 export async function updateRelease(releaseId: string, userId: string, input: ReleasePatchInput) {
   const existing = await prisma.release.findUniqueOrThrow({
     where: { id: releaseId },
-    select: { artistId: true, coverImageUrl: true },
+    select: {
+      artistId: true,
+      verificationStatus: true,
+      title: true,
+      category: true,
+      originalReleaseDate: true,
+      format: true,
+      originalCatalogNo: true,
+      label: true,
+      originalPrice: true,
+      editionType: true,
+      isReissue: true,
+      isRemaster: true,
+      coverImageUrl: true,
+    },
   });
+  if (existing.verificationStatus !== "VERIFIED") {
+    throw new Error("This release is quarantined until it passes verification again.");
+  }
   const duplicate =
     input.catalogNumber === undefined || input.catalogNumber === null
       ? null
@@ -86,6 +115,18 @@ export async function updateRelease(releaseId: string, userId: string, input: Re
 
   const coverChanged =
     input.coverImageUrl !== undefined && input.coverImageUrl !== existing.coverImageUrl;
+  const nextDate = input.releaseDate === undefined ? existing.originalReleaseDate : toReleaseDate(input.releaseDate);
+  const metadataChanged = coverChanged ||
+    (input.title !== undefined && input.title !== existing.title) ||
+    (input.category !== undefined && input.category !== existing.category) ||
+    (input.releaseDate !== undefined && nextDate?.getTime() !== existing.originalReleaseDate?.getTime()) ||
+    (input.format !== undefined && input.format !== existing.format) ||
+    (input.catalogNumber !== undefined && input.catalogNumber !== existing.originalCatalogNo) ||
+    (input.label !== undefined && input.label !== existing.label) ||
+    (input.originalPrice !== undefined && input.originalPrice !== existing.originalPrice) ||
+    (input.editionType !== undefined && input.editionType !== existing.editionType) ||
+    (input.isReissue !== undefined && input.isReissue !== existing.isReissue) ||
+    (input.isRemaster !== undefined && input.isRemaster !== existing.isRemaster);
   const release = await prisma.$transaction(async (tx) => {
     if (coverChanged) {
       await tx.releaseSource.deleteMany({
@@ -112,6 +153,9 @@ export async function updateRelease(releaseId: string, userId: string, input: Re
         isExcludedByDefault: input.isExcludedByDefault,
         coverImageUrl: input.coverImageUrl,
         notes: input.notes,
+        verificationStatus: metadataChanged ? "UNVERIFIED" : undefined,
+        verificationEvidence: metadataChanged ? Prisma.DbNull : undefined,
+        verifiedAt: metadataChanged ? null : undefined,
       },
       include: {
         sources: true,
@@ -209,20 +253,57 @@ export async function addReleaseSource(releaseId: string, input: { url: string; 
   const url = httpUrlOrNull(input.url);
   if (!url) throw new Error("url is required.");
 
-  return prisma.releaseSource.create({
-    data: {
-      releaseId,
-      url,
-      label: textOrNull(input.label) ?? "Manual source",
-    },
+  return prisma.$transaction(async (tx) => {
+    const release = await tx.release.findUniqueOrThrow({
+      where: { id: releaseId },
+      select: { verificationStatus: true },
+    });
+    if (release.verificationStatus !== "VERIFIED") {
+      throw new Error("This release is quarantined until it passes verification again.");
+    }
+    const source = await tx.releaseSource.create({
+      data: {
+        releaseId,
+        url,
+        label: textOrNull(input.label) ?? "Manual source",
+      },
+    });
+    await tx.release.update({
+      where: { id: releaseId },
+      data: {
+        verificationStatus: "UNVERIFIED",
+        verificationEvidence: Prisma.DbNull,
+        verifiedAt: null,
+      },
+    });
+    return source;
   });
 }
 
 export async function deleteReleaseSource(releaseId: string, sourceId: string) {
-  await prisma.releaseSource.deleteMany({
-    where: {
-      id: sourceId,
-      releaseId,
-    },
+  await prisma.$transaction(async (tx) => {
+    const release = await tx.release.findUniqueOrThrow({
+      where: { id: releaseId },
+      select: { verificationStatus: true },
+    });
+    if (release.verificationStatus !== "VERIFIED") {
+      throw new Error("This release is quarantined until it passes verification again.");
+    }
+    const deleted = await tx.releaseSource.deleteMany({
+      where: {
+        id: sourceId,
+        releaseId,
+      },
+    });
+    if (deleted.count > 0) {
+      await tx.release.update({
+        where: { id: releaseId },
+        data: {
+          verificationStatus: "UNVERIFIED",
+          verificationEvidence: Prisma.DbNull,
+          verifiedAt: null,
+        },
+      });
+    }
   });
 }

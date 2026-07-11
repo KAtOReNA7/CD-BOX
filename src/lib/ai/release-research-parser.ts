@@ -19,6 +19,31 @@ const sourceSchema = z.object({
   sourceType: z.enum(["official", "retailer", "database", "news", "other"]).catch("other"),
 });
 
+const verificationSchema = z.object({
+  status: z.literal("VERIFIED"),
+  method: z.literal("musicbrainz-ndl-discogs-ai"),
+  aiDecision: z.literal("ACCEPT"),
+  aiReason: z.string().min(1).max(1_000),
+  checkedAt: z.string().datetime(),
+  matchedFields: z.array(z.string().min(1).max(100)).min(1).max(20),
+  sourceUrls: z.array(httpUrlSchema).min(2).max(20),
+  coverProvider: z.enum(["cover-art-archive", "discogs"]),
+  coverCheckedAt: z.string().datetime(),
+});
+
+const verificationSummarySchema = z.object({
+  rawReleases: z.number().int().nonnegative(),
+  releaseGroups: z.number().int().nonnegative(),
+  canonicalEditions: z.number().int().nonnegative(),
+  authoritativeMatches: z.number().int().nonnegative(),
+  crossSourceMatches: z.number().int().nonnegative(),
+  aiAccepted: z.number().int().nonnegative(),
+  rejectedByEvidence: z.number().int().nonnegative(),
+  rejectedByAi: z.number().int().nonnegative(),
+  rejectedWithoutCover: z.number().int().nonnegative(),
+  rejectedCoverUnavailable: z.number().int().nonnegative(),
+});
+
 const releaseSchema = z.object({
   title: z.string().min(1),
   titleOriginal: z.string().nullable().catch(null),
@@ -41,6 +66,7 @@ const releaseSchema = z.object({
   confidence: confidenceSchema,
   warnings: z.array(z.string()).catch([]),
   sources: z.array(sourceSchema).catch([]),
+  verification: verificationSchema.nullable().default(null).catch(null),
 });
 
 const resultSchema = z.object({
@@ -58,6 +84,7 @@ const resultSchema = z.object({
   }),
   releases: z.array(releaseSchema),
   globalWarnings: z.array(z.string()).catch([]),
+  verificationSummary: verificationSummarySchema.nullable().optional().catch(null),
 });
 
 export function extractFirstJsonObject(text: string) {
@@ -114,7 +141,11 @@ export function parseReleaseResearchResponse(
     releases: parsed.releases.map((release, index) => ({
       ...release,
       id: `candidate-${index + 1}`,
+      // A model cannot attest to its own verification. This is populated only
+      // after deterministic cross-source checks and the separate AI audit.
+      verification: null,
     })),
+    verificationSummary: null,
   };
 
   return options.applyQualityGates === false ? result : applyResearchQualityGates(result);

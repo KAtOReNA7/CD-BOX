@@ -1,4 +1,4 @@
-import type { ReleaseCategory, ReleaseFormat } from "@prisma/client";
+import type { Prisma, ReleaseCategory, ReleaseFormat, ReleaseVerificationStatus } from "@prisma/client";
 
 export const collectionStatuses = ["OWNED", "NOT_OWNED", "WANTED", "EXCLUDED", "PENDING_REVIEW"] as const;
 export type EditableCollectionStatus = (typeof collectionStatuses)[number];
@@ -90,6 +90,9 @@ export type ReleaseListItem = {
   warnings: string[];
   notes: string | null;
   coverImageUrl: string | null;
+  verificationStatus?: ReleaseVerificationStatus;
+  verificationEvidence?: Prisma.JsonValue | null;
+  verifiedAt?: string | null;
   sources: ReleaseSourceView[];
   userStatus: ReleaseStatusView | null;
 };

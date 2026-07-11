@@ -35,10 +35,11 @@ export default async function SettingsPage() {
           ))}
         </div>
         <div className="mt-6 grid gap-2 border bg-white p-6">
-          <Label htmlFor="cover">手动封面 URL 示例</Label>
+          <Label htmlFor="cover">隔离资料中的封面 URL 示例</Label>
           <Input id="cover" placeholder="https://example.com/real-cd-cover.jpg" />
           <p className="text-sm text-muted-foreground">
-            CD-BOX 只保存真实封面图 URL；本机版本不需要对象存储服务。
+            手动填写的 URL 只作为待核验资料；最终收录仍须通过联网跨源核验和真实图片检查。
+            本机版本不需要对象存储服务。
           </p>
         </div>
       </div>

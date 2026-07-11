@@ -30,7 +30,7 @@ function musicBrainzRelease(
     country: "JP",
     status: "Official",
     "release-group": {
-      id: RELEASE_GROUP_ID,
+      id: releaseId(10_000 + index),
       "primary-type": "Album",
       "secondary-types": [],
     },
@@ -40,6 +40,21 @@ function musicBrainzRelease(
       label: { name: "King Records" },
     }],
     media: [{ format: "CD" }],
+    ...overrides,
+  };
+}
+
+function musicBrainzReleaseGroup(
+  index: number,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id: releaseId(10_000 + index),
+    title: `Release ${index}`,
+    "first-release-date": `2000-01-${String((index % 28) + 1).padStart(2, "0")}`,
+    "primary-type": "Album",
+    "secondary-types": [],
+    "artist-credit": [{ name: "涓北缇庣﹤", artist: { name: "涓北缇庣﹤" } }],
     ...overrides,
   };
 }
@@ -120,6 +135,7 @@ test("searches MusicBrainz artists with an escaped exact field query and explici
       type: "Artist name",
       primary: true,
     }],
+    officialUrls: [],
     country: "JP",
     type: "Person",
     disambiguation: "Japanese singer and actress",
@@ -131,6 +147,171 @@ test("searches MusicBrainz artists with an escaped exact field query and explici
       url: `https://musicbrainz.org/artist/${ARTIST_ID}`,
     }],
   });
+});
+
+test("looks up artist aliases and only explicit official-homepage HTTPS public domains", async () => {
+  const requestedUrls: URL[] = [];
+  const client = testClient(async (input) => {
+    requestedUrls.push(new URL(input));
+    return response(200, {
+      id: ARTIST_ID,
+      name: "Miho Nakayama",
+      aliases: [{ name: "中山美穂", locale: "ja", primary: true }],
+      relations: [
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://www.miho-nakayama.com/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://www.miho-nakayama.com/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "http://www.insecure.example.org/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://user:secret@example.org/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://127.0.0.1/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://[::1]/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://localhost/" },
+        },
+        {
+          type: "official homepage",
+          "target-type": "artist",
+          url: { resource: "https://wrong-target.example.org/" },
+        },
+        {
+          type: "social network",
+          "target-type": "url",
+          url: { resource: "https://social.example.org/" },
+        },
+      ],
+    });
+  });
+
+  const result = await client.getArtist(ARTIST_ID.toUpperCase());
+
+  assert.equal(requestedUrls[0]?.pathname, `/ws/2/artist/${ARTIST_ID}`);
+  assert.equal(requestedUrls[0]?.searchParams.get("inc"), "aliases+url-rels");
+  assert.equal(requestedUrls[0]?.searchParams.get("fmt"), "json");
+  assert.equal(result.warnings.length, 0);
+  assert.equal(result.value?.aliases[0]?.name, "中山美穂");
+  assert.deepEqual(result.value?.officialUrls, ["https://www.miho-nakayama.com/"]);
+});
+
+test("artist lookup rejects a mismatched MusicBrainz id as malformed evidence", async () => {
+  const result = await testClient(async () => response(200, {
+    id: RELEASE_ID,
+    name: "Wrong artist",
+    relations: [],
+  })).getArtist(ARTIST_ID);
+
+  assert.equal(result.value, null);
+  assert.equal(result.warnings[0]?.code, "invalid-response");
+});
+
+test("research enriches the selected search artist with one detail lookup", async () => {
+  let lookupCount = 0;
+  const client = testClient(async (input) => {
+    const url = new URL(input);
+    if (url.pathname === "/ws/2/artist/") {
+      return response(200, {
+        count: 1,
+        offset: 0,
+        artists: [{
+          id: ARTIST_ID,
+          name: "Miho Nakayama",
+          country: "JP",
+          score: 100,
+          aliases: [{ name: "M. Nakayama", locale: "en" }],
+        }],
+      });
+    }
+    if (url.pathname === `/ws/2/artist/${ARTIST_ID}`) {
+      lookupCount += 1;
+      return response(200, {
+        id: ARTIST_ID,
+        name: "中山美穂",
+        country: "JP",
+        aliases: [{ name: "中山美穂", locale: "ja", primary: true }],
+        relations: [{
+          type: "official homepage",
+          "target-type": "url",
+          url: { resource: "https://www.miho-nakayama.com/" },
+        }],
+      });
+    }
+    if (url.pathname === "/ws/2/release-group") {
+      return response(200, { count: 0, offset: 0, "release-groups": [] });
+    }
+    return response(200, { count: 0, offset: 0, releases: [] });
+  });
+
+  const bundle = await researchArtistReleaseEvidence({
+    artistName: "Miho Nakayama",
+    country: "JP",
+    target: "ALL_CD",
+    excludeReissues: false,
+    includeCollaborations: true,
+    includeLiveRemixBest: true,
+    maxCoverLookups: 0,
+  }, { client });
+
+  assert.equal(lookupCount, 1);
+  assert.deepEqual(bundle.artist?.aliases.map((alias) => alias.name), ["M. Nakayama", "中山美穂"]);
+  assert.deepEqual(bundle.artist?.officialUrls, ["https://www.miho-nakayama.com/"]);
+});
+
+test("research retains search evidence and warns when artist detail lookup fails", async () => {
+  const client = testClient(async (input) => {
+    const url = new URL(input);
+    if (url.pathname === "/ws/2/artist/") {
+      return response(200, {
+        count: 1,
+        offset: 0,
+        artists: [{ id: ARTIST_ID, name: "Miho Nakayama", country: "JP", score: 100 }],
+      });
+    }
+    if (url.pathname === `/ws/2/artist/${ARTIST_ID}`) return response(503, {});
+    if (url.pathname === "/ws/2/release-group") {
+      return response(200, { count: 0, offset: 0, "release-groups": [] });
+    }
+    return response(200, { count: 0, offset: 0, releases: [] });
+  });
+
+  const bundle = await researchArtistReleaseEvidence({
+    artistName: "Miho Nakayama",
+    country: "JP",
+    target: "ALL_CD",
+    excludeReissues: false,
+    includeCollaborations: true,
+    includeLiveRemixBest: true,
+    maxCoverLookups: 0,
+  }, { client });
+
+  assert.equal(bundle.artist?.name, "Miho Nakayama");
+  assert.deepEqual(bundle.artist?.officialUrls, []);
+  assert.ok(bundle.warnings.some((warning) =>
+    warning.code === "source-unavailable" && warning.source === "musicbrainz",
+  ));
 });
 
 test("maps release groups into a uniform evidence shape without inventing edition fields", async () => {
@@ -146,6 +327,7 @@ test("maps release groups into a uniform evidence shape without inventing editio
         "first-release-date": "1985-08",
         "primary-type": "Album",
         "secondary-types": ["Compilation"],
+        "cover-art-archive": { artwork: true, count: 1, front: true, back: false },
         "artist-credit": [{
           name: "中山美穂",
           joinphrase: " & ",
@@ -176,7 +358,15 @@ test("maps release groups into a uniform evidence shape without inventing editio
   assert.equal(evidence.label, null);
   assert.equal(evidence.catalogNumber, null);
   assert.equal(evidence.format, null);
-  assert.equal(evidence.coverUrl, null);
+  assert.equal(
+    evidence.coverUrl,
+    `https://coverartarchive.org/release-group/${RELEASE_GROUP_ID}/front-500`,
+  );
+  assert.equal(
+    evidence.coverSourceUrl,
+    `https://coverartarchive.org/release-group/${RELEASE_GROUP_ID}`,
+  );
+  assert.equal(evidence.sources.at(-1)?.provider, "cover-art-archive");
   assert.equal(evidence.sourceUrl, `https://musicbrainz.org/release-group/${RELEASE_GROUP_ID}`);
 });
 
@@ -191,6 +381,7 @@ test("preserves release labels, catalog numbers, formats, aliases, and canonical
       country: "JP",
       status: "Official",
       barcode: "4988003000012",
+      "cover-art-archive": { artwork: true, count: 1, front: true, back: false },
       "release-group": {
         id: RELEASE_GROUP_ID,
         "primary-type": "Album",
@@ -231,11 +422,39 @@ test("preserves release labels, catalog numbers, formats, aliases, and canonical
   assert.deepEqual(evidence.labels, [{ name: "King Records", catalogNumber: "KICS-123" }]);
   assert.deepEqual(evidence.formats, ["CD"]);
   assert.equal(evidence.sourceUrl, `https://musicbrainz.org/release/${RELEASE_ID}`);
+  assert.equal(
+    evidence.coverUrl,
+    `https://coverartarchive.org/release/${RELEASE_ID}/front-500`,
+  );
+  assert.equal(
+    evidence.coverSourceUrl,
+    `https://coverartarchive.org/release/${RELEASE_ID}`,
+  );
   assert.deepEqual(evidence.sources, [{
     provider: "musicbrainz",
     title: "MusicBrainz release",
     url: `https://musicbrainz.org/release/${RELEASE_ID}`,
+  }, {
+    provider: "cover-art-archive",
+    title: "Cover Art Archive front cover",
+    url: `https://coverartarchive.org/release/${RELEASE_ID}`,
   }]);
+});
+
+test("does not infer embedded cover art unless MusicBrainz front is boolean true", async () => {
+  const result = await testClient(async () => response(200, {
+    count: 1,
+    offset: 0,
+    "release-groups": [{
+      id: RELEASE_GROUP_ID,
+      title: "C",
+      "cover-art-archive": { artwork: true, count: 1, front: "true" },
+    }],
+  })).listReleaseGroups(ARTIST_ID);
+
+  assert.equal(result.value.items[0]?.coverUrl, null);
+  assert.equal(result.value.items[0]?.coverSourceUrl, null);
+  assert.equal(result.value.items[0]?.sources.length, 1);
 });
 
 test("uses only explicitly marked Cover Art Archive front images and prefers approved art", async () => {
@@ -394,16 +613,17 @@ test("maps supported country aliases without silently treating unknown regions a
   );
 });
 
-test("browses artist releases in no more than two MusicBrainz pages and 200 rows", async () => {
+test("browses every available artist release within the five-page / 500-row safety bound", async () => {
   const requestedUrls: URL[] = [];
   const client = testClient(async (input) => {
     const url = new URL(input);
     requestedUrls.push(url);
     const offset = Number(url.searchParams.get("offset"));
+    const limit = Number(url.searchParams.get("limit"));
     return response(200, {
       count: 250,
       offset,
-      releases: Array.from({ length: 100 }, (_, index) =>
+      releases: Array.from({ length: Math.min(limit, 250 - offset) }, (_, index) =>
         musicBrainzRelease(offset + index + 1),
       ),
     });
@@ -411,15 +631,210 @@ test("browses artist releases in no more than two MusicBrainz pages and 200 rows
 
   const result = await client.listArtistReleases(ARTIST_ID);
 
-  assert.equal(requestedUrls.length, 2);
-  assert.deepEqual(requestedUrls.map((url) => url.searchParams.get("offset")), ["0", "100"]);
+  assert.equal(requestedUrls.length, 3);
+  assert.deepEqual(requestedUrls.map((url) => url.searchParams.get("offset")), ["0", "100", "200"]);
   assert.ok(requestedUrls.every((url) => url.searchParams.get("artist") === ARTIST_ID));
   assert.ok(requestedUrls.every((url) =>
     url.searchParams.get("inc") === "artist-credits+labels+media+release-groups",
   ));
   assert.equal(result.value.count, 250);
-  assert.equal(result.value.items.length, 200);
-  assert.equal(result.value.limit, 200);
+  assert.equal(result.value.items.length, 250);
+  assert.equal(result.value.limit, 500);
+});
+
+test("browses every available artist release group within the five-page / 500-row safety bound", async () => {
+  const requestedUrls: URL[] = [];
+  const client = testClient(async (input) => {
+    const url = new URL(input);
+    requestedUrls.push(url);
+    const offset = Number(url.searchParams.get("offset"));
+    const limit = Number(url.searchParams.get("limit"));
+    return response(200, {
+      count: 205,
+      offset,
+      "release-groups": Array.from({ length: Math.min(limit, 205 - offset) }, (_, index) =>
+        musicBrainzReleaseGroup(offset + index + 1),
+      ),
+    });
+  });
+
+  const result = await client.listArtistReleaseGroups(ARTIST_ID);
+
+  assert.equal(requestedUrls.length, 3);
+  assert.deepEqual(requestedUrls.map((url) => url.searchParams.get("offset")), ["0", "100", "200"]);
+  assert.ok(requestedUrls.every((url) => url.searchParams.get("artist") === ARTIST_ID));
+  assert.ok(requestedUrls.every((url) => url.searchParams.get("inc") === "artist-credits"));
+  assert.equal(result.value.count, 205);
+  assert.equal(result.value.items.length, 205);
+  assert.equal(result.value.limit, 500);
+});
+
+test("research consolidates each release group to its earliest identified edition without collapsing same-day titles", async () => {
+  const otherReleaseGroupId = releaseId(20_000);
+  const groupRows = [
+    musicBrainzReleaseGroup(1, {
+      id: RELEASE_GROUP_ID,
+      title: "Canonical album",
+      "first-release-date": "1985-09-05",
+    }),
+    musicBrainzReleaseGroup(2, {
+      id: otherReleaseGroupId,
+      title: "Different same-day album",
+      "first-release-date": "1985-09-05",
+    }),
+  ];
+  const releaseRows = [
+    musicBrainzRelease(101, {
+      title: "Canonical album reissue",
+      date: "1992-11-21",
+      "release-group": {
+        id: RELEASE_GROUP_ID,
+        "primary-type": "Album",
+        "secondary-types": [],
+      },
+      "label-info": [{ "catalog-number": "KICS-262", label: { name: "KING" } }],
+      barcode: "4988003130688",
+    }),
+    musicBrainzRelease(102, {
+      title: "Canonical album",
+      date: "1985-09",
+      "release-group": {
+        id: RELEASE_GROUP_ID,
+        "primary-type": "Album",
+        "secondary-types": [],
+      },
+      "label-info": [{ "catalog-number": "K32X-30", label: { name: "KING" } }],
+      barcode: null,
+    }),
+    musicBrainzRelease(103, {
+      title: "Canonical album",
+      date: "1985-09-05",
+      "release-group": {
+        id: RELEASE_GROUP_ID,
+        "primary-type": "Album",
+        "secondary-types": [],
+      },
+      "label-info": [{ "catalog-number": "K32X-30", label: { name: "KING" } }],
+      barcode: "4988003000012",
+    }),
+    musicBrainzRelease(104, {
+      title: "Different same-day album",
+      date: "1985-09-05",
+      "release-group": {
+        id: otherReleaseGroupId,
+        "primary-type": "Album",
+        "secondary-types": [],
+      },
+      "label-info": [{ "catalog-number": "K32X-31", label: { name: "KING" } }],
+      barcode: "4988003000029",
+    }),
+  ];
+  const client = testClient(async (input) => {
+    const url = new URL(input);
+    if (url.pathname === "/ws/2/artist/") {
+      return response(200, {
+        count: 1,
+        offset: 0,
+        artists: [{ id: ARTIST_ID, name: "涓北缇庣﹤", country: "JP", score: 100 }],
+      });
+    }
+    if (url.pathname === "/ws/2/release-group") {
+      return response(200, { count: groupRows.length, offset: 0, "release-groups": groupRows });
+    }
+    return response(200, { count: releaseRows.length, offset: 0, releases: releaseRows });
+  });
+
+  const bundle = await researchArtistReleaseEvidence({
+    artistName: "涓北缇庣﹤",
+    country: "JP",
+    target: "ORIGINAL_CD",
+    excludeReissues: true,
+    includeCollaborations: true,
+    includeLiveRemixBest: true,
+    maxCoverLookups: 0,
+  }, { client });
+
+  assert.equal(bundle.releases.length, 2, "different release groups remain distinct even on the same date");
+  const canonical = bundle.releases.find((item) => item.evidence.releaseGroupId === RELEASE_GROUP_ID)?.evidence;
+  assert.equal(canonical?.sourceId, releaseId(103), "complete earliest date and identifiers win the stable tie-break");
+  assert.equal(canonical?.catalogNumber, "K32X-30");
+  assert.deepEqual(
+    canonical?.sources.map((source) => source.url),
+    [
+      `https://musicbrainz.org/release-group/${RELEASE_GROUP_ID}`,
+      `https://musicbrainz.org/release/${releaseId(103)}`,
+    ],
+  );
+  assert.equal(bundle.stats.releaseGroupsFetched, 2);
+  assert.equal(bundle.stats.releasesFetched, 4);
+  assert.equal(bundle.stats.releasesAcceptedBeforeGrouping, 4);
+  assert.equal(bundle.stats.releaseGroupsAccepted, 2);
+  assert.equal(bundle.stats.releasesDeduplicated, 2);
+});
+
+test("research checks the exact release cover before falling back to its release group", async () => {
+  const coverPaths: string[] = [];
+  const groupRow = musicBrainzReleaseGroup(1, {
+    id: RELEASE_GROUP_ID,
+    title: "Canonical album",
+  });
+  const releaseRow = musicBrainzRelease(110, {
+    title: "Canonical album",
+    "release-group": {
+      id: RELEASE_GROUP_ID,
+      "primary-type": "Album",
+      "secondary-types": [],
+    },
+  });
+  const client = testClient(async (input) => {
+    const url = new URL(input);
+    if (url.pathname === "/ws/2/artist/") {
+      return response(200, {
+        count: 1,
+        offset: 0,
+        artists: [{ id: ARTIST_ID, name: "涓北缇庣﹤", country: "JP", score: 100 }],
+      });
+    }
+    if (url.pathname === "/ws/2/release-group") {
+      return response(200, { count: 1, offset: 0, "release-groups": [groupRow] });
+    }
+    if (url.pathname === "/ws/2/release") {
+      return response(200, { count: 1, offset: 0, releases: [releaseRow] });
+    }
+    if (url.hostname === "coverartarchive.org") {
+      coverPaths.push(url.pathname);
+      if (url.pathname.startsWith("/release/")) return response(404, {});
+      return response(200, {
+        images: [{
+          front: true,
+          approved: true,
+          image: `https://coverartarchive.org/release-group/${RELEASE_GROUP_ID}/front.jpg`,
+          types: ["Front"],
+        }],
+      });
+    }
+    throw new Error(`Unexpected URL: ${url}`);
+  });
+
+  const bundle = await researchArtistReleaseEvidence({
+    artistName: "涓北缇庣﹤",
+    country: "JP",
+    target: "ORIGINAL_CD",
+    excludeReissues: true,
+    includeCollaborations: true,
+    includeLiveRemixBest: true,
+    maxCoverLookups: 2,
+  }, { client });
+
+  assert.deepEqual(coverPaths, [
+    `/release/${releaseId(110)}`,
+    `/release-group/${RELEASE_GROUP_ID}`,
+  ]);
+  assert.equal(bundle.stats.coverLookups, 2);
+  assert.equal(
+    bundle.releases[0].evidence.coverUrl,
+    `https://coverartarchive.org/release-group/${RELEASE_GROUP_ID}/front.jpg`,
+  );
 });
 
 test("research aggregation resolves an exact alias to the Japanese artist and strictly filters evidence", async () => {
@@ -645,7 +1060,7 @@ test("research aggregation keeps Chinese artist and release evidence in the CN c
   assert.equal(bundle.warnings.find((item) => item.code === "outside-country-filtered")?.count, 1);
 });
 
-test("research aggregation performs at most four cover lookups by default", async () => {
+test("research aggregation relies on embedded cover flags without a default CAA request storm", async () => {
   let coverRequests = 0;
   const releases = Array.from({ length: 5 }, (_, index) =>
     musicBrainzRelease(30 + index, { date: `200${index}-01-01` }),
@@ -675,7 +1090,7 @@ test("research aggregation performs at most four cover lookups by default", asyn
     includeLiveRemixBest: true,
   }, { client });
 
-  assert.equal(coverRequests, 4);
-  assert.equal(bundle.stats.coverLookups, 4);
-  assert.equal(bundle.warnings.find((item) => item.code === "cover-lookup-limit")?.count, 1);
+  assert.equal(coverRequests, 0);
+  assert.equal(bundle.stats.coverLookups, 0);
+  assert.equal(bundle.warnings.some((item) => item.code === "cover-lookup-limit"), false);
 });

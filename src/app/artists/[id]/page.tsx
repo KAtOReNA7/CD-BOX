@@ -4,6 +4,7 @@ import { ArtistStatsCards } from "@/components/app/artist-stats-cards";
 import { ReleaseFilterPanel } from "@/components/app/release-filter-panel";
 import { ReleaseTable } from "@/components/app/release-table";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { requirePageOwner } from "@/lib/auth/current-user";
 import { getArtistLibrary } from "@/lib/releases/release-service";
 import type { ReleaseFilters } from "@/lib/releases/release-types";
@@ -45,10 +46,18 @@ export default async function ArtistDetailPage({
               "管理实体 CD 发行、收藏状态、真实封面 URL 和来源 URL。来源 URL 保留在详情页，不作为主表最后一列。"}
           </p>
         </div>
-        <Badge variant="secondary">{library.releases.length} releases</Badge>
+        <Badge variant="secondary">已核验 {library.releases.length} 条</Badge>
       </div>
 
       <div className="grid gap-6">
+        {library.quarantinedCount > 0 ? (
+          <Alert>
+            <AlertTitle>{library.quarantinedCount} 条旧资料正在自动隔离</AlertTitle>
+            <AlertDescription>
+              这些条目尚未同时通过跨源核验和有效封面检查，因此不会进入最终收藏表或导出；重新执行联网搜索后，系统会自动核验并更新可确认的条目。
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <ArtistStatsCards stats={library.stats} />
         <ReleaseFilterPanel
           artistId={library.artist.id}

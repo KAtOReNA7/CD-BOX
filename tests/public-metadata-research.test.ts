@@ -80,6 +80,7 @@ function evidenceBundle(releases: ArtistReleaseEvidenceItem[] = [item()]): Artis
       country: "JP",
       type: "Person",
       disambiguation: null,
+      officialUrls: [],
       score: 100,
       sourceUrl: `https://musicbrainz.org/artist/${artistId}`,
       sources: [{
@@ -227,7 +228,7 @@ test("organizer error classification keeps auth, quota, and model failures visib
   assert.equal(classifyPublicMetadataOrganizerError(new Error("model not found")), "model");
 });
 
-test("research strategy uses native search only when supported or unknown", () => {
+test("research strategy always starts from auditable public metadata", () => {
   const base = {
     NODE_ENV: "test",
     OPENAI_API_KEY: "sk-test",
@@ -248,8 +249,8 @@ test("research strategy uses native search only when supported or unknown", () =
     AI_RESPONSES_SUPPORTED: "true",
     AI_WEB_SEARCH_SUPPORTED: "true",
   }));
-  assert.deepEqual(supported, { primary: "native-web-search", nativeCapability: "supported" });
+  assert.deepEqual(supported, { primary: "public-metadata", nativeCapability: "supported" });
 
   const unknown = resolveReleaseResearchStrategy(getConfiguredProviderCapabilities(base));
-  assert.deepEqual(unknown, { primary: "native-web-search", nativeCapability: "unknown" });
+  assert.deepEqual(unknown, { primary: "public-metadata", nativeCapability: "unknown" });
 });

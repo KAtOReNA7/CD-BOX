@@ -36,6 +36,12 @@ export type MusicArtistEvidence = {
   name: string;
   sortName: string | null;
   aliases: ArtistAliasEvidence[];
+  /**
+   * HTTPS public-domain URLs explicitly related as an "official homepage" by
+   * MusicBrainz. These are discovered references, not proof that page content
+   * has been independently verified.
+   */
+  officialUrls: string[];
   country: string | null;
   type: string | null;
   disambiguation: string | null;
@@ -159,7 +165,16 @@ export type ArtistReleaseEvidenceBundle = {
   warnings: ArtistReleaseEvidenceWarning[];
   stats: {
     artistResultsInspected: number;
+    /** Unique release-group rows fetched from MusicBrainz before scope filtering. */
+    releaseGroupsFetched?: number;
+    /** Unique detailed release rows fetched from MusicBrainz before scope filtering. */
     releasesFetched: number;
+    /** Detailed release rows that passed status/country/format/scope filtering. */
+    releasesAcceptedBeforeGrouping?: number;
+    /** Release groups represented by one canonical detailed release. */
+    releaseGroupsAccepted?: number;
+    /** Later/duplicate detailed releases removed by release-group consolidation. */
+    releasesDeduplicated?: number;
     releasesAccepted: number;
     coverLookups: number;
   };

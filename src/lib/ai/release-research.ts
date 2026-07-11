@@ -1,12 +1,6 @@
 import type { AiSearchTask, Prisma, ReleaseFormat } from "@prisma/client";
-import {
-  aiConfig,
-  createWebSearchResponse,
-  isResponsesEndpointUnsupportedError,
-} from "@/lib/ai/client";
-import {
-  enrichReleaseResearchResultWithItunes,
-} from "@/lib/ai/itunes-enrichment";
+import { localizedArtistNameUpdate } from "@/lib/artists/localized-artist-name";
+import { aiConfig } from "@/lib/ai/client";
 import {
   getConfiguredProviderCapabilities,
   sanitizeErrorMessage,
@@ -20,8 +14,7 @@ import {
   parseReleaseResearchImportInput,
   parseReleaseResearchRequest,
 } from "@/lib/ai/release-research-input";
-import { parseReleaseResearchResponse } from "@/lib/ai/release-research-parser";
-import { applyReleaseQualityGate } from "@/lib/ai/release-research-quality";
+import { verifyDiscographyResult } from "@/lib/ai/verified-discography";
 import type {
   AiSearchTaskView,
   ReleaseResearchCandidate,
@@ -30,88 +23,16 @@ import type {
   ReleaseResearchResult,
 } from "@/lib/ai/release-research-types";
 import { prisma } from "@/lib/db/prisma";
-import { buildImportedReleaseSourceRows } from "@/lib/releases/cover-source";
-
-function buildResearchPrompt(input: ReleaseResearchRequest) {
-  return `Research physical CD releases for a Japanese artist collection database.
-
-Artist: ${input.artistName}
-Country/region: ${input.country}
-Collection scope: ${input.target}
-Exclude reissues: ${input.excludeReissues}
-Include collaborations: ${input.includeCollaborations}
-Include Live / Remix / Best: ${input.includeLiveRemixBest}
-
-Search strategy:
-1. Resolve the artist's official native-script name first, then search with both that name and romanized aliases.
-2. Prefer official artist discography and label pages.
-3. Then use King Records, Sony Music, Universal Music Japan, Avex, Victor, and other label pages.
-4. Then use Tower Records, HMV, CDJapan, CDJournal, ORICON, and Apple Music.
-5. For ACG, voice actor, or game music, VGMdb may be used.
-6. Do not use Wikipedia as the only source.
-
-Rules:
-- Return only JSON matching the requested schema. No markdown.
-- artist.name must use the official native-script name whenever one exists. For Japanese artists use Japanese kanji/kana, and for Chinese artists use Chinese characters.
-- Put a Latin-script romanization in artist.nameRomaji and Japanese phonetic kana in artist.nameKana when available.
-- Preserve collaboration credits such as "Miho Nakayama & WANDS" in artistCredit.
-- Do not invent catalog numbers, dates, covers, or source URLs.
-- coverImageUrl may only be filled when a real source explicitly provides the cover image URL.
-- If catalogNumber is missing, set confidence no higher than MEDIUM and include a warning.
-- If sources are missing, set confidence to LOW and include a warning.
-- If all sources are Wikipedia or wiki-derived, set confidence no higher than MEDIUM and include a warning.
-- Under ORIGINAL_CD scope, LP, Vinyl, record, cassette, tape, DVD, and Blu-ray formats must be excluded by default.
-- If a release is a reissue and excludeReissues is true, set isExcludedByDefault to true.
-- Each release should include at least one source when possible.
-
-JSON schema:
-{
-  "artist": {
-    "name": string,
-    "nameKana": string | null,
-    "nameRomaji": string | null,
-    "country": string,
-    "officialSiteUrl": string | null
-  },
-  "collectionScope": {
-    "target": "ORIGINAL_CD" | "ALL_CD" | "ALL_PHYSICAL",
-    "excludeReissues": boolean,
-    "includeCollaborations": boolean
-  },
-  "releases": [
-    {
-      "title": string,
-      "titleOriginal": string | null,
-      "category": "ORIGINAL_ALBUM" | "SINGLE" | "BEST" | "COLLECTION" | "LIVE" | "REMIX" | "BOX" | "EP" | "OTHER",
-      "artistCredit": string,
-      "releaseDate": string | null,
-      "originalReleaseDate": string | null,
-      "format": string | null,
-      "catalogNumber": string | null,
-      "barcode": string | null,
-      "label": string | null,
-      "originalPrice": string | null,
-      "editionType": string | null,
-      "isReissue": boolean | null,
-      "isRemaster": boolean | null,
-      "isExcludedByDefault": boolean,
-      "coverImageUrl": string | null,
-      "coverImageSourceUrl": string | null,
-      "notes": string | null,
-      "confidence": "HIGH" | "MEDIUM" | "LOW",
-      "warnings": string[],
-      "sources": [
-        {
-          "title": string,
-          "url": string,
-          "sourceType": "official" | "retailer" | "database" | "news" | "other"
-        }
-      ]
-    }
-  ],
-  "globalWarnings": string[]
-}`;
-}
+import {
+  buildImportedReleaseSourceRows,
+  COVER_IMAGE_SOURCE_DESCRIPTION,
+} from "@/lib/releases/cover-source";
+import {
+  isAllowedVerifiedCoverAssetHost,
+  isAllowedVerifiedCoverAssetUrl,
+  isAllowedVerifiedCoverSourceUrl,
+  validateCoverAsset,
+} from "@/lib/ai/cover-asset-validation";
 
 function toTaskView(task: AiSearchTask): AiSearchTaskView {
   const progressState = readTaskProgress(task);
@@ -176,22 +97,6 @@ async function updateResearchProgress(taskId: string, progress: number, stage: s
   }
 }
 
-function outputTextFromResponse(response: unknown) {
-  const maybe = response as { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> };
-
-  if (maybe.output_text) {
-    return maybe.output_text;
-  }
-
-  return (
-    maybe.output
-      ?.flatMap((item) => item.content ?? [])
-      .map((content) => content.text)
-      .filter(Boolean)
-      .join("\n") ?? ""
-  );
-}
-
 function toJsonSafe(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
@@ -206,32 +111,13 @@ export function assertCanUseOnlineResearch(capabilities: AiProviderCapabilitySum
 }
 
 export function resolveReleaseResearchStrategy(capabilities: AiProviderCapabilitySummary) {
+  if (capabilities.responsesSupport === "supported" && capabilities.webSearchSupport === "supported") {
+    return { primary: "public-metadata" as const, nativeCapability: "supported" as const };
+  }
   if (capabilities.responsesSupport === "unsupported" || capabilities.webSearchSupport === "unsupported") {
     return { primary: "public-metadata" as const, nativeCapability: "unsupported" as const };
   }
-  if (capabilities.responsesSupport === "supported" && capabilities.webSearchSupport === "supported") {
-    return { primary: "native-web-search" as const, nativeCapability: "supported" as const };
-  }
-  return { primary: "native-web-search" as const, nativeCapability: "unknown" as const };
-}
-
-class MissingNativeWebSearchCallError extends Error {
-  constructor() {
-    super("The AI provider returned no web_search call, so the native result was rejected as offline-only.");
-    this.name = "MissingNativeWebSearchCallError";
-  }
-}
-
-function researchErrorKind(error: unknown) {
-  if (error instanceof MissingNativeWebSearchCallError || isResponsesEndpointUnsupportedError(error)) {
-    return "native-search-unsupported";
-  }
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  if (/402|429|quota|credit|billing|rate.?limit/.test(message)) return "quota";
-  if (/401|403|api.?key|unauthori[sz]ed|forbidden|authentication/.test(message)) return "authentication";
-  if (/model.*(?:not found|unsupported|unavailable)|no such model/.test(message)) return "model";
-  if (/json|parse|schema|no json object|output/.test(message)) return "invalid-output";
-  return "transport";
+  return { primary: "public-metadata" as const, nativeCapability: "unknown" as const };
 }
 
 function sanitizedResearchError(error: unknown, apiKeyOverride?: string) {
@@ -243,11 +129,11 @@ function sanitizedResearchError(error: unknown, apiKeyOverride?: string) {
 
 function withPublicFallbackWarning(
   result: ReleaseResearchResult,
-  reason: "declared-unsupported" | ReturnType<typeof researchErrorKind>,
+  reason: "declared-unsupported" | "verification-required",
 ) {
   const warning = reason === "declared-unsupported"
     ? "中转站已明确标记为不支持原生 Responses/web_search，本次直接使用公共资料源。"
-    : `原生 web_search 未完成（${reason}），本次已改用公共资料源。`;
+    : "为执行可审计的最终核验，本次直接使用 MusicBrainz、日本国立国会图书馆国家书目、Discogs 与真实封面来源。";
   return {
     ...result,
     globalWarnings: [...new Set([...result.globalWarnings, warning])],
@@ -333,67 +219,34 @@ export async function runReleaseResearchTask(
   let failureTrace: Prisma.InputJsonObject | null = null;
   try {
     const strategy = resolveReleaseResearchStrategy(capabilities);
-    let nativeError: unknown = null;
-
-    if (strategy.primary === "native-web-search") {
-      await updateResearchProgress(taskId, 24, "正在尝试中转站原生 web_search");
-      try {
-        const response = await createWebSearchResponse(
-          {
-            forceSearch: true,
-            systemPrompt:
-              "You are a meticulous discography researcher for physical CD collectors. Use web_search and return strict JSON only.",
-            userPrompt: buildResearchPrompt(validatedInput),
-          },
-          apiKeyOverride,
-        );
-
-        if (!hasWebSearchCall(response)) throw new MissingNativeWebSearchCallError();
-
-        await updateResearchProgress(taskId, 68, "正在解析和校验原生搜索结果");
-        const rawText = outputTextFromResponse(response);
-        const parsed = parseReleaseResearchResponse(rawText);
-
-        await updateResearchProgress(taskId, 80, "正在补全原文艺人名与发行封面");
-        const enriched = await enrichReleaseResearchResultWithItunes(parsed, {
-          artistQuery: validatedInput.artistName,
-        });
-
-        await updateResearchProgress(taskId, 94, "正在保存原生搜索候选资料");
-        const task = await prisma.aiSearchTask.update({
-          where: { id: taskId },
-          data: {
-            status: "SUCCEEDED",
-            rawResult: {
-              mode: "native-web-search",
-              outputText: rawText,
-              response: toJsonSafe(response),
-            } satisfies Prisma.InputJsonObject,
-            parsedResult: toJsonSafe(enriched),
-          },
-        });
-
-        return toTaskView(task);
-      } catch (error) {
-        nativeError = error;
-      }
-    }
 
     await updateResearchProgress(taskId, 36, "正在查询 MusicBrainz 公共发行资料");
     const publicResearch = await researchPublicMetadataReleases(
       validatedInput,
       apiKeyOverride,
+      {
+        onEvidenceProgress: async ({ phase, processed, total }) => {
+          const phaseBase = phase === "release-groups" ? 36 : phase === "releases" ? 42 : 48;
+          const phaseSpan = phase === "covers" ? 10 : 5;
+          const ratio = total > 0 ? processed / total : 0;
+          const label = phase === "release-groups"
+            ? "正在获取完整作品分组"
+            : phase === "releases"
+              ? "正在获取完整日本 CD 版本"
+              : `正在逐张查找 Cover Art Archive 封面（${processed}/${total}）`;
+          await updateResearchProgress(taskId, Math.round(phaseBase + ratio * phaseSpan), label);
+        },
+      },
     );
     const fallbackReason = strategy.nativeCapability === "unsupported"
       ? "declared-unsupported" as const
-      : researchErrorKind(nativeError);
+      : "verification-required" as const;
     const publicResult = withPublicFallbackWarning(publicResearch.result, fallbackReason);
-    const fallbackMessage = nativeError ? sanitizedResearchError(nativeError, apiKeyOverride) : null;
     failureTrace = {
       mode: PUBLIC_METADATA_RESEARCH_MODE,
       fallbackReason: {
         kind: fallbackReason,
-        message: fallbackMessage,
+        message: null,
       },
       evidence: toJsonSafe(publicResearch.evidence),
       organizerStatus: publicResearch.organizer.status,
@@ -405,25 +258,34 @@ export async function runReleaseResearchTask(
     } satisfies Prisma.InputJsonObject;
 
     if (publicResult.releases.length === 0) {
-      throw new Error(
-        nativeError
-          ? `Native search failed (${researchErrorKind(nativeError)}) and public metadata sources returned no deterministic release candidates.`
-          : "Public metadata sources returned no deterministic release candidates.",
-      );
+      throw new Error("Public metadata sources returned no deterministic release candidates.");
     }
 
-    await updateResearchProgress(taskId, 76, "正在校验公共资料来源与字段");
-    const enriched = await enrichReleaseResearchResultWithItunes(publicResult, {
-      artistQuery: validatedInput.artistName,
-    });
-    await updateResearchProgress(taskId, 94, "正在保存公共资料源候选");
+    await updateResearchProgress(taskId, 58, "已按作品归并，正在准备独立来源核验");
+    const verified = await verifyDiscographyResult(
+      validatedInput,
+      publicResult,
+      publicResearch.evidence,
+      apiKeyOverride,
+      {
+        onProgress: async ({ processed, total, stage }) => {
+          const ratio = total > 0 ? processed / total : 0;
+          await updateResearchProgress(taskId, Math.round(60 + ratio * 24), stage);
+        },
+      },
+    );
+    await updateResearchProgress(taskId, 94, "正在保存最终核验结果");
+    const completedTrace = {
+      ...(failureTrace ?? {}),
+      verificationSummary: toJsonSafe(verified.verificationSummary ?? null),
+    } satisfies Prisma.InputJsonObject;
 
     const task = await prisma.aiSearchTask.update({
       where: { id: taskId },
       data: {
         status: "SUCCEEDED",
-        rawResult: failureTrace,
-        parsedResult: toJsonSafe(enriched),
+        rawResult: completedTrace,
+        parsedResult: toJsonSafe(verified),
       },
     });
 
@@ -471,6 +333,21 @@ function normalizeFormat(format: string | null): ReleaseFormat {
   return "OTHER";
 }
 
+function comparableCatalogNumber(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFKC")
+    .toUpperCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+function comparableReleaseTitle(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase("und")
+    .replace(/[\p{P}\p{Z}\p{Cf}]/gu, "");
+}
+
 function toDate(value: string | null) {
   if (!value) return null;
   const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
@@ -480,17 +357,41 @@ function toDate(value: string | null) {
 async function resolveArtist(
   input: ReleaseResearchImportInput,
   parsed: ReleaseResearchResult,
+  allowedArtistNames: ReadonlySet<string>,
   db: Prisma.TransactionClient,
 ) {
+  const preferredName = (input.artistName ?? parsed.artist.name).trim();
+
   if (input.artistMode === "existing" && input.artistId) {
-    return db.artist.findUniqueOrThrow({ where: { id: input.artistId } });
+    const artist = await db.artist.findUniqueOrThrow({ where: { id: input.artistId } });
+    if (![artist.name, artist.sortName].some((value) => allowedArtistNames.has(normalizeArtistIdentity(value)))) {
+      throw new Error("所选艺人与该核验任务的艺人身份不一致，不能导入。");
+    }
+    const localizedUpdate = localizedArtistNameUpdate(artist.name, artist.sortName, preferredName);
+    return localizedUpdate
+      ? db.artist.update({ where: { id: artist.id }, data: localizedUpdate })
+      : artist;
   }
 
-  const name = (input.artistName ?? parsed.artist.name).trim();
+  const name = preferredName;
   if (!name) throw new Error("artistName is required.");
+  if (!allowedArtistNames.has(normalizeArtistIdentity(name))) {
+    throw new Error("新建艺人名称必须使用核验结果或任务查询中的受控名称。");
+  }
 
-  const existing = await db.artist.findFirst({ where: { name } });
-  if (existing) return existing;
+  const existingArtists = await db.artist.findMany({ orderBy: { id: "asc" } });
+  const identityMatches = existingArtists.filter((artist) =>
+    [artist.name, artist.sortName].some((value) => allowedArtistNames.has(normalizeArtistIdentity(value))));
+  if (identityMatches.length > 1) {
+    throw new Error("Multiple existing artist libraries match this verified artist identity; merge them before importing.");
+  }
+  if (identityMatches.length === 1) {
+    const artist = identityMatches[0]!;
+    const localizedUpdate = localizedArtistNameUpdate(artist.name, artist.sortName, name);
+    return localizedUpdate
+      ? db.artist.update({ where: { id: artist.id }, data: localizedUpdate })
+      : artist;
+  }
 
   return db.artist.create({
     data: {
@@ -514,6 +415,81 @@ function candidateNotes(candidate: ReleaseResearchCandidate, pendingReview: bool
   return parts.filter(Boolean).join("\n");
 }
 
+function normalizeArtistIdentity(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase("und")
+    .replace(/[\p{P}\p{Z}\p{Cf}]/gu, "");
+}
+
+function allowedArtistIdentities(parsed: ReleaseResearchResult, taskQuery: string) {
+  let queryArtist: string | null = null;
+  try {
+    queryArtist = parseReleaseResearchRequest(JSON.parse(taskQuery)).artistName;
+  } catch {
+    // A completed server-created task should be valid; parsed source names remain authoritative.
+  }
+  return new Set([
+    parsed.artist.name,
+    parsed.artist.nameKana,
+    parsed.artist.nameRomaji,
+    queryArtist,
+  ].map(normalizeArtistIdentity).filter(Boolean));
+}
+
+function isCompletedVerifiedResearchTrace(value: Prisma.JsonValue | null) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return value.mode === PUBLIC_METADATA_RESEARCH_MODE &&
+    "verificationSummary" in value &&
+    value.verificationSummary !== null;
+}
+
+const MAX_VERIFICATION_AGE_MS = 7 * 24 * 60 * 60_000;
+const MAX_CLOCK_SKEW_MS = 5 * 60_000;
+
+function isFreshVerificationTimestamp(value: string | undefined, now = Date.now()) {
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) &&
+    timestamp <= now + MAX_CLOCK_SKEW_MS &&
+    timestamp >= now - MAX_VERIFICATION_AGE_MS;
+}
+
+export function isTrustedVerifiedCandidate(candidate: ReleaseResearchCandidate) {
+  const sourceUrls = candidate.sources.map((source) => source.url);
+  const musicBrainzGroupUrl = sourceUrls.find((value) =>
+    /^https:\/\/musicbrainz\.org\/release-group\/[0-9a-f-]+$/i.test(value));
+  const musicBrainzReleaseUrl = sourceUrls.find((value) =>
+    /^https:\/\/musicbrainz\.org\/release\/[0-9a-f-]+$/i.test(value));
+  const discogsReleaseUrl = sourceUrls.find((value) =>
+    /^https:\/\/www\.discogs\.com\/release\/\d+$/i.test(value));
+  const ndlBibliographyUrl = sourceUrls.find((value) =>
+    /^https:\/\/ndlsearch\.ndl\.go\.jp\/books\/R\d{9}-I[A-Za-z0-9._~-]+\/?$/i.test(value));
+  const coverProvider = candidate.verification?.coverProvider;
+  const trustedCoverSource = Boolean(coverProvider && candidate.coverImageSourceUrl &&
+    isAllowedVerifiedCoverSourceUrl(candidate.coverImageSourceUrl, coverProvider));
+  const attestedSources = new Set(candidate.verification?.sourceUrls ?? []);
+
+  return candidate.verification?.status === "VERIFIED" &&
+    candidate.verification.method === "musicbrainz-ndl-discogs-ai" &&
+    candidate.verification.aiDecision === "ACCEPT" &&
+    isFreshVerificationTimestamp(candidate.verification.checkedAt) &&
+    isFreshVerificationTimestamp(candidate.verification.coverCheckedAt) &&
+    Boolean(musicBrainzGroupUrl && attestedSources.has(musicBrainzGroupUrl)) &&
+    Boolean(musicBrainzReleaseUrl && attestedSources.has(musicBrainzReleaseUrl)) &&
+    Boolean(ndlBibliographyUrl && attestedSources.has(ndlBibliographyUrl)) &&
+    Boolean(discogsReleaseUrl && attestedSources.has(discogsReleaseUrl)) &&
+    sourceUrls.every((value) => /^https:\/\//i.test(value)) &&
+    candidate.verification.sourceUrls.every((value) => sourceUrls.includes(value)) &&
+    attestedSources.size >= 4 &&
+    Boolean(coverProvider && candidate.coverImageUrl &&
+      isAllowedVerifiedCoverAssetUrl(candidate.coverImageUrl, coverProvider)) &&
+    trustedCoverSource &&
+    candidate.confidence === "HIGH" &&
+    candidate.sources.length >= 4;
+}
+
 export async function importReleaseResearchCandidates(
   taskId: string,
   userId: string,
@@ -532,37 +508,57 @@ export async function importReleaseResearchCandidates(
   if (!parsed) {
     throw new Error("No parsed research result is available for this task.");
   }
+  if (!isCompletedVerifiedResearchTrace(task.rawResult)) {
+    throw new Error("该任务不是服务端完成的跨源核验结果，不能导入。");
+  }
 
   const selected = new Set(validatedInput.selectedCandidateIds);
-  const excluded = new Set(validatedInput.excludedCandidateIds);
-  const pendingReview = new Set(validatedInput.pendingReviewCandidateIds);
   const candidateIds = new Set(parsed.releases.map((candidate) => candidate.id));
   const unknownSelectedId = validatedInput.selectedCandidateIds.find((candidateId) => !candidateIds.has(candidateId));
   if (unknownSelectedId) throw new Error(`Unknown release candidate: ${unknownSelectedId}`);
+  if (Object.keys(validatedInput.candidateEdits).length > 0) {
+    throw new Error("已通过自动核验的发行资料不可在导入时修改；请重新搜索以重新核验证据。");
+  }
+  if (validatedInput.excludedCandidateIds.length > 0 || validatedInput.pendingReviewCandidateIds.length > 0) {
+    throw new Error("自动核验结果不再接受人工排除或待核对状态。");
+  }
 
-  const candidates = parsed.releases.map((candidate) => {
-    const edit = validatedInput.candidateEdits[candidate.id];
-    if (!edit) return candidate;
-
-    const coverImageSourceUrl =
-      edit.coverImageUrl === candidate.coverImageUrl
-        ? candidate.coverImageSourceUrl
-        : null;
-
-    return {
-      ...applyReleaseQualityGate(
-        { ...candidate, ...edit, coverImageSourceUrl },
-        {
-          target: parsed.collectionScope.target,
-          excludeReissues: parsed.collectionScope.excludeReissues,
-        },
-      ),
-      id: candidate.id,
-    };
-  });
+  const candidates = parsed.releases;
+  const allowedArtistNames = allowedArtistIdentities(parsed, task.query);
+  for (const candidate of candidates) {
+    if (!selected.has(candidate.id)) continue;
+    if (!isTrustedVerifiedCandidate(candidate)) {
+      throw new Error(`候选“${candidate.title}”未满足国家书目、跨源、AI 与封面硬门禁，不能导入。`);
+    }
+    const coverCheck = await validateCoverAsset(candidate.coverImageUrl!);
+    if (
+      !coverCheck.ok ||
+      !coverCheck.finalHost ||
+      !isAllowedVerifiedCoverAssetHost(coverCheck.finalHost, candidate.verification!.coverProvider)
+    ) {
+      const suffix = coverCheck.retryable ? "封面来源暂时不可用，请稍后重试。" : "封面已失效或不是可验证的真实图片。";
+      throw new Error(`候选“${candidate.title}”无法导入：${suffix}`);
+    }
+  }
 
   return prisma.$transaction(async (tx) => {
-    const artist = await resolveArtist(validatedInput, parsed, tx);
+    const artistLockIdentity = validatedInput.artistMode === "existing" && validatedInput.artistId
+      ? `artist-id:${validatedInput.artistId}`
+      : `artist-identities:${[...allowedArtistNames].sort().join("|")}`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${artistLockIdentity}, 0))`;
+    const artist = await resolveArtist(validatedInput, parsed, allowedArtistNames, tx);
+    const claimedTask = await tx.aiSearchTask.updateMany({
+      where: {
+        id: taskId,
+        userId,
+        artistId: null,
+      },
+      data: { artistId: artist.id },
+    });
+    if (claimedTask.count !== 1) {
+      throw new Error("该核验任务已经导入过，不能重复导入。");
+    }
+    await tx.$queryRaw`SELECT "id" FROM "Artist" WHERE "id" = ${artist.id} FOR UPDATE`;
     await tx.userArtistFollow.upsert({
       where: {
         userId_artistId: {
@@ -577,41 +573,52 @@ export async function importReleaseResearchCandidates(
       update: {},
     });
     let imported = 0;
-    let skippedDuplicates = 0;
-    let pendingReviewCount = 0;
-    let excludedCount = 0;
+    let updatedDuplicates = 0;
+    let coverConflicts = 0;
 
     for (const candidate of candidates) {
       if (!selected.has(candidate.id)) {
         continue;
       }
 
-      const forcedPendingReview =
-        pendingReview.has(candidate.id) ||
-        candidate.confidence !== "HIGH" ||
-        !candidate.catalogNumber ||
-        candidate.sources.length === 0 ||
-        candidate.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
-      const forcedExcluded = excluded.has(candidate.id) || candidate.isExcludedByDefault;
-
-      if (candidate.catalogNumber) {
-        const duplicate = await tx.release.findFirst({
-          where: {
-            artistId: artist.id,
-            title: candidate.title,
-            originalCatalogNo: candidate.catalogNumber,
-          },
-          select: { id: true },
-        });
-
-        if (duplicate) {
-          skippedDuplicates += 1;
-          continue;
+      const catalogKey = comparableCatalogNumber(candidate.catalogNumber);
+      const existingReleases = await tx.release.findMany({
+        where: { artistId: artist.id },
+        select: {
+          id: true,
+          title: true,
+          notes: true,
+          coverImageUrl: true,
+          originalCatalogNo: true,
+          originalReleaseDate: true,
+        },
+      });
+      let duplicateMatches = catalogKey
+        ? existingReleases.filter((release) =>
+            comparableCatalogNumber(release.originalCatalogNo) === catalogKey)
+        : [];
+      if (duplicateMatches.length === 0) {
+        const titleKey = comparableReleaseTitle(candidate.title);
+        const releaseDate = toDate(candidate.originalReleaseDate ?? candidate.releaseDate)?.getTime() ?? null;
+        if (titleKey && releaseDate !== null) {
+          duplicateMatches = existingReleases.filter((release) =>
+            release.originalCatalogNo === null &&
+            comparableReleaseTitle(release.title) === titleKey &&
+            release.originalReleaseDate?.getTime() === releaseDate);
         }
       }
-
-      const release = await tx.release.create({
-        data: {
+      if (duplicateMatches.length > 1) {
+        throw new Error(`品番“${candidate.catalogNumber}”在现有艺人库中对应多个条目，请先合并重复数据。`);
+      }
+      const duplicate = duplicateMatches[0] ?? null;
+      if (
+        duplicate?.coverImageUrl &&
+        duplicate.coverImageUrl !== candidate.coverImageUrl
+      ) {
+        coverConflicts += 1;
+        continue;
+      }
+      const releaseData = {
           artistId: artist.id,
           category: candidate.category,
           title: candidate.title,
@@ -626,19 +633,39 @@ export async function importReleaseResearchCandidates(
           isExcludedByDefault: candidate.isExcludedByDefault,
           confidence: candidate.confidence,
           warnings: candidate.warnings,
-          notes: candidateNotes(candidate, forcedPendingReview),
+          notes: candidateNotes(candidate, false),
           coverImageUrl: candidate.coverImageUrl,
-        },
-      });
+          verificationStatus: "VERIFIED" as const,
+          verificationEvidence: toJsonSafe(candidate.verification),
+          verifiedAt: new Date(candidate.verification!.checkedAt),
+      };
+      const release = duplicate
+        ? await tx.release.update({
+            where: { id: duplicate.id },
+            data: {
+              ...releaseData,
+              notes: duplicate.notes || releaseData.notes,
+            },
+          })
+        : await tx.release.create({ data: releaseData });
 
-      await tx.userReleaseStatus.create({
-        data: {
+      await tx.userReleaseStatus.upsert({
+        where: { userId_releaseId: { userId, releaseId: release.id } },
+        create: {
           userId,
           releaseId: release.id,
-          status: forcedExcluded ? "EXCLUDED" : forcedPendingReview ? "PENDING_REVIEW" : "NOT_OWNED",
-          priority: candidate.confidence === "HIGH" ? 2 : candidate.confidence === "MEDIUM" ? 3 : 5,
-          notes: forcedPendingReview ? "PENDING_REVIEW" : null,
+          status: "NOT_OWNED",
+          priority: 2,
         },
+        update: {},
+      });
+      await tx.userReleaseStatus.updateMany({
+        where: {
+          userId,
+          releaseId: release.id,
+          status: "PENDING_REVIEW",
+        },
+        data: { status: "NOT_OWNED" },
       });
 
       const uniqueSources = buildImportedReleaseSourceRows(
@@ -646,9 +673,18 @@ export async function importReleaseResearchCandidates(
         candidate.coverImageSourceUrl,
       );
 
-      if (uniqueSources.length > 0) {
+      const sourceRoleKey = (source: { url: string; description: string | null }) =>
+        `${source.url}\u0000${source.description === COVER_IMAGE_SOURCE_DESCRIPTION ? "cover" : "evidence"}`;
+      const existingSources = new Set(
+        (await tx.releaseSource.findMany({
+          where: { releaseId: release.id },
+          select: { url: true, description: true },
+        })).map(sourceRoleKey),
+      );
+      const missingSources = uniqueSources.filter((source) => !existingSources.has(sourceRoleKey(source)));
+      if (missingSources.length > 0) {
         await tx.releaseSource.createMany({
-          data: uniqueSources.map((source) => ({
+          data: missingSources.map((source) => ({
             releaseId: release.id,
             url: source.url,
             label: source.label,
@@ -657,27 +693,18 @@ export async function importReleaseResearchCandidates(
         });
       }
 
-      imported += 1;
-      if (forcedPendingReview) pendingReviewCount += 1;
-      if (forcedExcluded) excludedCount += 1;
+      if (duplicate) updatedDuplicates += 1;
+      else imported += 1;
     }
-
-    await tx.aiSearchTask.update({
-      where: { id: taskId },
-      data: { artistId: artist.id },
-    });
 
     return {
       artistId: artist.id,
       imported,
-      skippedDuplicates,
-      pendingReview: pendingReviewCount,
-      excluded: excludedCount,
+      updatedDuplicates,
+      coverConflicts,
+      skippedDuplicates: 0,
+      pendingReview: 0,
+      excluded: 0,
     };
   }, { maxWait: 5_000, timeout: 30_000 });
-}
-
-function hasWebSearchCall(response: unknown) {
-  const output = (response as { output?: Array<{ type?: string }> }).output;
-  return output?.some((item) => item.type === "web_search_call") ?? false;
 }

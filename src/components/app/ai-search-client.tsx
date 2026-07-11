@@ -16,10 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { summarizeResearchQuality } from "@/lib/ai/release-research-quality";
 import {
   addCandidateIds,
-  intersectCandidateIds,
   removeCandidateIds,
   toggleCandidateId,
 } from "@/lib/ai/release-research-selection";
@@ -27,18 +25,18 @@ import type {
   AiSearchTaskView,
   CollectionScopeTarget,
   ReleaseResearchCandidate,
-  ReleaseResearchCandidateEdit,
-  ResearchConfidence,
 } from "@/lib/ai/release-research-types";
 import type { AiProviderCapabilitySummary as ProviderSummary } from "@/lib/ai/provider-capabilities";
+import { DISCOGS_ATTRIBUTION } from "@/lib/discogs/constants";
+import { NDL_SEARCH_ATTRIBUTION } from "@/lib/ndl/constants";
 
 type ArtistOption = { id: string; name: string };
 type ActiveOperation = "search" | "structure" | "import" | "navigating";
 
 const categories = ["ALL", "ORIGINAL_ALBUM", "SINGLE", "BEST", "COLLECTION", "LIVE", "REMIX", "BOX", "EP", "OTHER"];
-const confidences = ["ALL", "HIGH", "MEDIUM", "LOW"];
+const EMPTY_RELEASES: ReleaseResearchCandidate[] = [];
 const taskPollIntervalMs = 1_500;
-const maxTaskPolls = 220;
+const maxTaskPolls = 1_200;
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,27 +52,12 @@ function researchModeLabel(rawResult: unknown) {
 }
 
 function isSafeByDefault(release: ReleaseResearchCandidate) {
-  return release.confidence === "HIGH" && !release.isExcludedByDefault && release.sources.length > 0 && Boolean(release.catalogNumber);
-}
-
-function isPendingReview(release: ReleaseResearchCandidate) {
-  return release.confidence !== "HIGH" || !release.catalogNumber || release.sources.length === 0 || release.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
-}
-
-function toCandidateEdit(candidate: ReleaseResearchCandidate): ReleaseResearchCandidateEdit {
-  return {
-    title: candidate.title,
-    category: candidate.category,
-    artistCredit: candidate.artistCredit,
-    originalReleaseDate: candidate.originalReleaseDate,
-    format: candidate.format,
-    catalogNumber: candidate.catalogNumber,
-    label: candidate.label,
-    coverImageUrl: candidate.coverImageUrl,
-    isReissue: candidate.isReissue,
-    isRemaster: candidate.isRemaster,
-    notes: candidate.notes,
-  };
+  return release.verification?.status === "VERIFIED" &&
+    release.verification.aiDecision === "ACCEPT" &&
+    release.confidence === "HIGH" &&
+    !release.isExcludedByDefault &&
+    release.sources.length >= 2 &&
+    Boolean(release.coverImageUrl && release.coverImageSourceUrl);
 }
 
 export function AiSearchClient({ artists, capabilities }: { artists: ArtistOption[]; capabilities: ProviderSummary }) {
@@ -93,39 +76,27 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const [message, setMessage] = useState<string | null>(null);
   const [activeOperation, setActiveOperation] = useState<ActiveOperation | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [confidenceFilter, setConfidenceFilter] = useState("ALL");
   const [artistMode, setArtistMode] = useState<"create" | "existing">("create");
   const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
   const [importArtistName, setImportArtistName] = useState("中山美穂");
-  const [candidateEdits, setCandidateEdits] = useState<Record<string, ReleaseResearchCandidate>>({});
 
-  const releases = useMemo(
-    () => (task?.parsedResult?.releases ?? []).map((release) => candidateEdits[release.id] ?? release),
-    [candidateEdits, task?.parsedResult?.releases],
-  );
-  const summary = useMemo(() => summarizeResearchQuality(releases), [releases]);
+  const releases = task?.parsedResult?.releases ?? EMPTY_RELEASES;
   const visibleReleases = useMemo(
     () =>
       releases.filter((release) => {
-        const categoryOk = categoryFilter === "ALL" || release.category === categoryFilter;
-        const confidenceOk = confidenceFilter === "ALL" || release.confidence === confidenceFilter;
-        return categoryOk && confidenceOk;
+        return categoryFilter === "ALL" || release.category === categoryFilter;
       }),
-    [categoryFilter, confidenceFilter, releases],
+    [categoryFilter, releases],
   );
   const visibleCandidateIds = visibleReleases.map((release) => release.id);
   const visibleSelectedCount = visibleCandidateIds.filter((candidateId) => selectedIds.has(candidateId)).length;
+  const verificationSummary = task?.parsedResult?.verificationSummary ?? null;
+  const allResultsVerified = releases.length > 0 && releases.every(isSafeByDefault);
   const progressOperation: ActiveOperation | null = navigationPending ? "navigating" : activeOperation;
   const busy = progressOperation !== null;
   const onlineResearchAvailable = capabilities.configurationReady && capabilities.webSearchEnabled;
-  const nativeSearchDeclaredSupported =
-    capabilities.responsesSupport === "supported" && capabilities.webSearchSupport === "supported";
-  const nativeSearchDeclaredUnsupported =
-    capabilities.responsesSupport === "unsupported" || capabilities.webSearchSupport === "unsupported";
   const completedResearchMode = researchModeLabel(task?.rawResult);
   const recognizedArtistNames = task?.parsedResult
     ? [...new Set([
@@ -153,20 +124,13 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
 
   function applyTaskPayload(payload: AiSearchTaskView) {
     setTask(payload);
-    setCandidateEdits({});
     const nextSelected = new Set<string>();
-    const nextExcluded = new Set<string>();
-    const nextPending = new Set<string>();
 
     for (const release of payload.parsedResult?.releases ?? []) {
       if (isSafeByDefault(release)) nextSelected.add(release.id);
-      if (release.isExcludedByDefault) nextExcluded.add(release.id);
-      if (isPendingReview(release)) nextPending.add(release.id);
     }
 
     setSelectedIds(nextSelected);
-    setExcludedIds(nextExcluded);
-    setPendingIds(nextPending);
     setImportArtistName(payload.parsedResult?.artist?.name ?? artistName);
   }
 
@@ -267,8 +231,11 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
     if (!task || task.id === "pending") return;
     const selected = releases.filter((release) => selectedIds.has(release.id));
     const skipped = releases.length - selected.length;
-    const pending = selected.filter((release) => pendingIds.has(release.id) || isPendingReview(release)).length;
-    const ok = window.confirm(`将导入 ${selected.length} 条，跳过 ${skipped} 条，其中 ${pending} 条待核对。是否继续？`);
+    if (!selected.every(isSafeByDefault)) {
+      setMessage("仅允许导入已经通过国家书目、跨源、AI 与封面硬门禁的条目。");
+      return;
+    }
+    const ok = window.confirm(`将导入 ${selected.length} 条已核验发行，跳过 ${skipped} 条。是否继续？`);
     if (!ok) return;
 
     setActiveOperation("import");
@@ -282,20 +249,16 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
           artistId,
           artistName: importArtistName,
           selectedCandidateIds: [...selectedIds],
-          excludedCandidateIds: intersectCandidateIds(excludedIds, selectedIds),
-          pendingReviewCandidateIds: intersectCandidateIds(pendingIds, selectedIds),
-          candidateEdits: Object.fromEntries(
-            Object.entries(candidateEdits)
-              .filter(([candidateId]) => selectedIds.has(candidateId))
-              .map(([candidateId, candidate]) => [candidateId, toCandidateEdit(candidate)]),
-          ),
+          excludedCandidateIds: [],
+          pendingReviewCandidateIds: [],
+          candidateEdits: {},
         }),
       });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error ?? "候选导入失败。");
       }
-      setMessage(`创建 ${payload.imported} 条，跳过重复 ${payload.skippedDuplicates} 条，待核对 ${payload.pendingReview} 条，排除 ${payload.excluded} 条。`);
+      setMessage(`创建 ${payload.imported} 条，更新已有 ${payload.updatedDuplicates ?? 0} 条，保留封面冲突 ${payload.coverConflicts ?? 0} 条；新收录项全部已通过自动核验并有有效封面。`);
       setActiveOperation(null);
       startNavigation(() => router.push(`/artists/${payload.artistId}`));
     } catch (error) {
@@ -348,16 +311,12 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         </Alert>
       ) : null}
 
-      {onlineResearchAvailable && !nativeSearchDeclaredSupported ? (
+      {onlineResearchAvailable ? (
         <Alert>
           <Search className="size-4" />
-          <AlertTitle>
-            {nativeSearchDeclaredUnsupported ? "联网研究使用公共资料源" : "联网研究将自动选择资料源"}
-          </AlertTitle>
+          <AlertTitle>联网研究使用权威公共资料源</AlertTitle>
           <AlertDescription>
-            {nativeSearchDeclaredUnsupported
-              ? "中转站不支持原生 web_search；系统将直接查询并确定性整理 MusicBrainz 与 Cover Art Archive，避免额外模型费用与长时间等待。"
-              : "系统会先尝试原生 web_search；端点不可用、无输出或没有真实搜索调用时，自动切换到公共资料源。"}
+            系统直接查询 MusicBrainz、NDL 国家书目、Discogs 与封面 API，再由 GPT-5.6 只对给定证据做保守终审；不依赖中转站原生 web_search。
           </AlertDescription>
         </Alert>
       ) : null}
@@ -524,24 +483,39 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
           </Card>
 
           <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-7">
-            <Metric label="候选" value={summary.total} />
-            <Metric label="可安全导入" value={summary.safeToImport} />
-            <Metric label="待核对" value={summary.pendingReview} />
-            <Metric label="缺品番" value={summary.missingCatalog} />
-            <Metric label="缺来源" value={summary.missingSources} />
-            <Metric label="已有封面" value={releases.filter((release) => Boolean(release.coverImageUrl)).length} />
-            <Metric label="默认排除" value={summary.defaultExcluded} />
+            <Metric label="原始版本" value={verificationSummary?.rawReleases ?? releases.length} />
+            <Metric label="作品分组" value={verificationSummary?.releaseGroups ?? releases.length} />
+            <Metric label="国家书目" value={verificationSummary?.authoritativeMatches ?? 0} />
+            <Metric label="跨源一致" value={verificationSummary?.crossSourceMatches ?? 0} />
+            <Metric label="AI 通过" value={verificationSummary?.aiAccepted ?? 0} />
+            <Metric label="封面有效" value={releases.length} />
+            <Metric
+              label="自动过滤"
+              value={verificationSummary
+                ? verificationSummary.rejectedByEvidence + verificationSummary.rejectedByAi + verificationSummary.rejectedWithoutCover + verificationSummary.rejectedCoverUnavailable
+                : 0}
+            />
           </div>
+
+          {!allResultsVerified ? (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>结果尚未达到最终收录标准</AlertTitle>
+              <AlertDescription>这些资料只能查看；请使用联网搜索完成国家书目、跨源、AI 与封面核验后再导入。</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert>
+              <Search className="size-4" />
+              <AlertTitle>仅显示最终核验结果</AlertTitle>
+              <AlertDescription>未通过国家书目、跨源一致性、AI 证据裁决或封面有效性检查的条目已自动隐藏，无需人工辨别。</AlertDescription>
+            </Alert>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 border bg-white p-4">
             <div className="flex flex-wrap gap-3">
               <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={busy}>
                 <SelectTrigger className="w-44" aria-label="分类筛选"><SelectValue /></SelectTrigger>
                 <SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent>
-              </Select>
-              <Select value={confidenceFilter} onValueChange={setConfidenceFilter} disabled={busy}>
-                <SelectTrigger className="w-36" aria-label="置信度筛选"><SelectValue /></SelectTrigger>
-                <SelectContent>{confidences.map((confidence) => <SelectItem key={confidence} value={confidence}>{confidence}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -562,28 +536,27 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
               >
                 取消全选当前结果
               </Button>
-              <Button variant="outline" disabled={busy} onClick={() => setExcludedIds((current) => addCandidateIds(current, selectedIds))}>全部已选：批量排除</Button>
-              <Button variant="outline" disabled={busy} onClick={() => setPendingIds((current) => addCandidateIds(current, selectedIds))}>全部已选：标为待核对</Button>
             </div>
           </div>
 
           <ReleaseCandidateTable
             releases={visibleReleases}
             selectedIds={selectedIds}
-            excludedIds={excludedIds}
-            pendingIds={pendingIds}
             expandedIds={expandedIds}
             disabled={busy}
             toggleSelected={(id) => toggle(setSelectedIds, id)}
-            toggleExcluded={(id) => toggle(setExcludedIds, id)}
-            togglePending={(id) => toggle(setPendingIds, id)}
             toggleExpanded={(id) => toggle(setExpandedIds, id)}
-            updateCandidate={(candidate) =>
-              setCandidateEdits((current) => ({ ...current, [candidate.id]: candidate }))
-            }
           />
           <p className="text-xs text-muted-foreground">
-            自动补全的封面来自严格匹配的 Apple Music 专辑元数据；系统会先用至少两个不同且唯一匹配的 Apple 专辑确认同一艺人，再逐张精确核对标题和年份。点击封面可查看商店来源；封面不会计作发行证据或提高资料置信度，无法唯一匹配时保持空白。
+            发行身份必须先通过日本国立国会图书馆国家书目，再由 MusicBrainz 与 Discogs 交叉核对；AI 只比较给定证据并可拒绝冲突项。封面只接受精确 CAA release 或精确 Discogs release 的 primary 图片，并校验真实文件签名与尺寸。{" "}
+            <a href={NDL_SEARCH_ATTRIBUTION.apiTermsUrl} target="_blank" rel="noreferrer" className="underline">
+              {NDL_SEARCH_ATTRIBUTION.displayNotice}
+            </a>{" "}
+            {NDL_SEARCH_ATTRIBUTION.dataNotice} ({NDL_SEARCH_ATTRIBUTION.licenseName}){" · "}
+            <a href={DISCOGS_ATTRIBUTION.apiDocumentationUrl} target="_blank" rel="noreferrer" className="underline">
+              {DISCOGS_ATTRIBUTION.dataNotice}
+            </a>{" "}
+            {DISCOGS_ATTRIBUTION.nonAffiliationNotice}
           </p>
 
           <Card>
@@ -609,7 +582,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
                 </Field>
               )}
               <div className="flex items-end">
-                <Button onClick={importCandidates} disabled={busy || selectedIds.size === 0}>
+                <Button onClick={importCandidates} disabled={busy || selectedIds.size === 0 || !allResultsVerified}>
                   {activeOperation === "import" || activeOperation === "navigating" ? "正在导入…" : `导入 ${selectedIds.size}`}
                 </Button>
               </div>
@@ -708,27 +681,17 @@ function Capability({ label, ok }: { label: string; ok: boolean }) {
 function ReleaseCandidateTable({
   releases,
   selectedIds,
-  excludedIds,
-  pendingIds,
   expandedIds,
   disabled,
   toggleSelected,
-  toggleExcluded,
-  togglePending,
   toggleExpanded,
-  updateCandidate,
 }: {
   releases: ReleaseResearchCandidate[];
   selectedIds: Set<string>;
-  excludedIds: Set<string>;
-  pendingIds: Set<string>;
   expandedIds: Set<string>;
   disabled: boolean;
   toggleSelected: (id: string) => void;
-  toggleExcluded: (id: string) => void;
-  togglePending: (id: string) => void;
   toggleExpanded: (id: string) => void;
-  updateCandidate: (candidate: ReleaseResearchCandidate) => void;
 }) {
   return (
     <div className="overflow-x-auto border bg-white" aria-busy={disabled}>
@@ -738,7 +701,7 @@ function ReleaseCandidateTable({
           <TableRow>
             <TableHead>选择</TableHead>
             <TableHead>封面</TableHead>
-            <TableHead>置信度</TableHead>
+            <TableHead>核验</TableHead>
             <TableHead>分类</TableHead>
             <TableHead className="min-w-56">标题</TableHead>
             <TableHead>发行日</TableHead>
@@ -780,11 +743,13 @@ function ReleaseCandidateTable({
                           className="size-full object-cover"
                         />
                       </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">无封面</span>
-                    )}
+                    ) : <span className="text-xs text-destructive">已拦截</span>}
                   </TableCell>
-                  <TableCell><Badge variant={confidenceVariant(release.confidence)}>{release.confidence}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant={release.verification?.status === "VERIFIED" ? "secondary" : "destructive"}>
+                      {release.verification?.status === "VERIFIED" ? "已核验" : "未核验"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{release.category}</TableCell>
                   <TableCell>
                     <button type="button" onClick={() => toggleExpanded(release.id)} className="flex items-center gap-2 text-left font-medium hover:underline">
@@ -802,12 +767,13 @@ function ReleaseCandidateTable({
                   <TableRow>
                     <TableCell colSpan={10} className="bg-stone-50">
                       <div className="grid gap-3 text-sm">
-                        <div className="flex flex-wrap gap-4">
-                          <label className="flex items-center gap-2"><input type="checkbox" checked={excludedIds.has(release.id)} onChange={() => toggleExcluded(release.id)} aria-label={`排除候选：${release.title}`} />排除</label>
-                          <label className="flex items-center gap-2"><input type="checkbox" checked={pendingIds.has(release.id)} onChange={() => togglePending(release.id)} aria-label={`候选标为待核对：${release.title}`} />待核对</label>
-                        </div>
-                        {release.warnings.length ? <p className="text-muted-foreground">Warnings: {release.warnings.join("; ")}</p> : null}
-                        <CandidateEditor candidate={release} onChange={updateCandidate} />
+                        {release.verification ? (
+                          <div className="grid gap-1 border bg-white p-3">
+                            <p className="font-medium">AI 证据裁决：{release.verification.aiReason}</p>
+                            <p className="text-muted-foreground">一致字段：{release.verification.matchedFields.join("、")}</p>
+                            <p className="text-muted-foreground">核验时间：{new Date(release.verification.checkedAt).toLocaleString("zh-CN")}</p>
+                          </div>
+                        ) : null}
                         <div className="grid gap-2">
                           {release.sources.length === 0 ? (
                             <p className="text-muted-foreground">没有来源 URL。</p>
@@ -832,110 +798,4 @@ function ReleaseCandidateTable({
       </fieldset>
     </div>
   );
-}
-
-function CandidateEditor({
-  candidate,
-  onChange,
-}: {
-  candidate: ReleaseResearchCandidate;
-  onChange: (candidate: ReleaseResearchCandidate) => void;
-}) {
-  function update<K extends keyof ReleaseResearchCandidate>(key: K, value: ReleaseResearchCandidate[K]) {
-    onChange({ ...candidate, [key]: value });
-  }
-
-  function updateCover(coverImageUrl: string | null) {
-    onChange({
-      ...candidate,
-      coverImageUrl,
-      coverImageSourceUrl:
-        coverImageUrl === candidate.coverImageUrl
-          ? candidate.coverImageSourceUrl
-          : null,
-    });
-  }
-
-  return (
-    <div className="grid gap-3 border bg-white p-4 md:grid-cols-2 lg:grid-cols-4">
-      <Field label="标题">
-        <Input value={candidate.title} onChange={(event) => update("title", event.target.value)} />
-      </Field>
-      <Field label="分类">
-        <Select
-          value={candidate.category}
-          onValueChange={(value) => update("category", value as ReleaseResearchCandidate["category"])}
-        >
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {categories.filter((category) => category !== "ALL").map((category) => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field label="原始发行日">
-        <Input
-          type="date"
-          value={candidate.originalReleaseDate?.slice(0, 10) ?? ""}
-          onChange={(event) => update("originalReleaseDate", event.target.value || null)}
-        />
-      </Field>
-      <Field label="格式">
-        <Input value={candidate.format ?? ""} onChange={(event) => update("format", event.target.value || null)} />
-      </Field>
-      <Field label="品番">
-        <Input
-          value={candidate.catalogNumber ?? ""}
-          onChange={(event) => update("catalogNumber", event.target.value || null)}
-        />
-      </Field>
-      <Field label="厂牌">
-        <Input value={candidate.label ?? ""} onChange={(event) => update("label", event.target.value || null)} />
-      </Field>
-      <Field label="封面 URL">
-        <Input
-          type="url"
-          value={candidate.coverImageUrl ?? ""}
-          onChange={(event) => updateCover(event.target.value || null)}
-        />
-      </Field>
-      <Field label="艺人名义">
-        <Input value={candidate.artistCredit} onChange={(event) => update("artistCredit", event.target.value)} />
-      </Field>
-      <label className="flex h-10 items-center gap-3 border px-3 text-sm">
-        <input
-          type="checkbox"
-          checked={candidate.isReissue === true}
-          onChange={(event) => update("isReissue", event.target.checked)}
-        />
-        再版
-      </label>
-      <label className="flex h-10 items-center gap-3 border px-3 text-sm">
-        <input
-          type="checkbox"
-          checked={candidate.isRemaster === true}
-          onChange={(event) => update("isRemaster", event.target.checked)}
-        />
-        重制
-      </label>
-      <div className="grid gap-2 md:col-span-2 lg:col-span-4">
-        <Label>备注</Label>
-        <Textarea
-          value={candidate.notes ?? ""}
-          onChange={(event) => update("notes", event.target.value || null)}
-          rows={3}
-        />
-      </div>
-      <p className="text-xs text-muted-foreground md:col-span-2 lg:col-span-4">
-        手工修改会在服务器端重新执行置信度、来源和收藏范围质量门控。
-      </p>
-    </div>
-  );
-}
-
-function confidenceVariant(confidence: ResearchConfidence) {
-  if (confidence === "HIGH") return "secondary";
-  if (confidence === "MEDIUM") return "outline";
-  return "destructive";
 }

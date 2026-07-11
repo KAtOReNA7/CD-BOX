@@ -11,10 +11,8 @@ Set-LocalRuntimeEnvironment -Port $Port
 
 Push-Location $projectRoot
 try {
-  if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "node_modules") -PathType Container)) {
-    Write-Host "Installing locked dependencies..."
-    Invoke-CheckedCommand -FilePath $npm -Arguments @("ci") -FailureMessage "Dependency installation failed"
-  }
+  Write-Host "Installing locked dependencies..."
+  Invoke-CheckedCommand -FilePath $npm -Arguments @("ci") -FailureMessage "Dependency installation failed"
 
   & (Join-Path $PSScriptRoot "local-db-init.ps1")
 

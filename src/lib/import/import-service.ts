@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type {
   DuplicateStrategy,
@@ -305,7 +305,12 @@ export async function confirmImport(input: ImportConfirmInput, userId: string): 
       if (row.duplicate && row.duplicateReleaseId && input.duplicateStrategy === "update") {
         const release = await tx.release.update({
           where: { id: row.duplicateReleaseId },
-          data: releaseData(row, artist.id, batch.id),
+          data: {
+            ...releaseData(row, artist.id, batch.id),
+            verificationStatus: "UNVERIFIED",
+            verificationEvidence: Prisma.DbNull,
+            verifiedAt: null,
+          },
         });
         await upsertReleaseStatus(userId, release.id, row, tx);
         await addReleaseSource(release.id, row, tx);

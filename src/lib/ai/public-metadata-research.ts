@@ -38,6 +38,7 @@ export type PublicMetadataResearchOutput = {
 
 export type PublicMetadataResearchDependencies = {
   researchEvidence?: typeof researchArtistReleaseEvidence;
+  onEvidenceProgress?: NonNullable<Parameters<typeof researchArtistReleaseEvidence>[1]>["onProgress"];
   organizeEvidence?: (
     input: { systemPrompt: string; userPrompt: string },
     apiKeyOverride?: string,
@@ -174,7 +175,9 @@ function deterministicCandidate(
     : null;
 
   return {
-    id: `candidate-${index + 1}`,
+    id: evidence.releaseGroupId
+      ? `release-group-${evidence.releaseGroupId}`
+      : `release-${evidence.sourceId || index + 1}`,
     title: evidence.title,
     titleOriginal: null,
     category: categoryFromPublicEvidence(item),
@@ -196,6 +199,7 @@ function deterministicCandidate(
     confidence: "LOW",
     warnings: evidenceWarnings(item, excludeReissues),
     sources,
+    verification: null,
   };
 }
 
@@ -225,6 +229,7 @@ export function buildDeterministicPublicMetadataResult(
       deterministicCandidate(item, index, sourceWhitelist, artist.name, input.excludeReissues),
     ),
     globalWarnings: uniqueStrings([PUBLIC_SOURCE_WARNING, ...bundleWarnings(bundle)]),
+    verificationSummary: null,
   };
 
   return applyResearchQualityGates(result);
@@ -392,14 +397,17 @@ export async function researchPublicMetadataReleases(
   apiKeyOverride?: string,
   dependencies: PublicMetadataResearchDependencies = {},
 ): Promise<PublicMetadataResearchOutput> {
-  const evidence = await (dependencies.researchEvidence ?? researchArtistReleaseEvidence)({
-    artistName: input.artistName,
-    country: input.country,
-    target: input.target,
-    excludeReissues: input.excludeReissues,
-    includeCollaborations: input.includeCollaborations,
-    includeLiveRemixBest: input.includeLiveRemixBest,
-  });
+  const evidence = await (dependencies.researchEvidence ?? researchArtistReleaseEvidence)(
+    {
+      artistName: input.artistName,
+      country: input.country,
+      target: input.target,
+      excludeReissues: input.excludeReissues,
+      includeCollaborations: input.includeCollaborations,
+      includeLiveRemixBest: input.includeLiveRemixBest,
+    },
+    { onProgress: dependencies.onEvidenceProgress },
+  );
   const deterministic = buildDeterministicPublicMetadataResult(input, evidence);
 
   if (deterministic.releases.length === 0) {

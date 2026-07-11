@@ -1,18 +1,28 @@
 # CD-BOX 本机部署与运维
 
-CD-BOX 的个人使用版本完全运行在本机，不依赖云托管、付费搜索 API、云数据库或外部登录。应用只监听 `127.0.0.1`，不会向局域网或互联网开放。
+CD-BOX 的个人使用版本完全运行在本机，不依赖 Vercel、其他云托管、付费搜索 API、云数据库或外部登录。应用只监听 `127.0.0.1`，不会向局域网或互联网开放。
 
 ## 运行结构
 
 - Next.js 生产服务器：`http://127.0.0.1:3000`
 - PostgreSQL：本机 PostgreSQL 16
 - AI：通过 `.env.local` 中配置的 OpenAI-compatible 中转站
-- 联网发行证据：MusicBrainz 与 Cover Art Archive 公共资料源；无需额外订阅，但受各服务的合理调用限制约束
+- 联网发行证据：MusicBrainz、NDL Search、Discogs 与 Cover Art Archive 公共接口；无需新增付费订阅
 - 数据备份：`var/backups/postgres/`
 
 真实密钥和数据库密码只能保存在 Git 忽略的 `.env.local` 中。仓库里的 `.env.example` 只包含占位符。
 
-Bootstrap 使用中转站 `/models` 已确认的 `gpt-5.6-terra`。真实探针确认 Chat Completions 和 JSON 可用，而 Responses 会完成但不返回正文、原生 `web_search` 不可用，因此本机实际配置固定为 `AI_TEXT_PROTOCOL=chat-completions`，并写入 `AI_RESPONSES_SUPPORTED=false`、`AI_CHAT_COMPLETIONS_SUPPORTED=true`、`AI_WEB_SEARCH_SUPPORTED=false`，避免每次先产生一次无效且可能计费的 Responses 请求。公共资料默认使用确定性映射（`AI_ORGANIZE_PUBLIC_METADATA=false`），GPT-5.6 仅处理用户粘贴的非结构化资料。默认不启用额外推理强度（`AI_REASONING_EFFORT=none`），单次请求超时为 300 秒；能力未经探针验证前不能自行声明为可用。
+Bootstrap 使用中转站 `/models` 已确认的 `gpt-5.6-terra`。真实探针确认 Chat Completions 和 JSON 可用，而 Responses 会完成但不返回正文、原生 `web_search` 不可用，因此本机实际配置固定为 `AI_TEXT_PROTOCOL=chat-completions`，并写入 `AI_RESPONSES_SUPPORTED=false`、`AI_CHAT_COMPLETIONS_SUPPORTED=true`、`AI_WEB_SEARCH_SUPPORTED=false`，避免每次先产生一次无效且可能计费的 Responses 请求。联网发行流程不依赖原生搜索：MusicBrainz 分页归并后必须通过 NDL 国家书目硬核验和 Discogs 辅助印证，GPT-5.6 只比较所给证据并可拒绝，不能创造事实或绕过确定性门禁。默认不启用额外推理强度（`AI_REASONING_EFFORT=none`），单次请求超时为 300 秒；能力未经探针验证前不能自行声明为可用。
+
+## 联网资料服务规则
+
+- MusicBrainz：使用明确 User-Agent，串行请求并遵守至少约 1 请求/秒的公共限速；分页结果按 release group 归并，源端不完整时不得假装完整。
+- NDL Search：国家书目是日本实体 CD 的权威硬核验源。应用显示 “This application uses the NDL Search API.”，书目元数据按 CC BY 4.0 署名；请求默认串行、至少间隔 1 秒、有限重试并缓存 24 小时。
+- Discogs：只作为辅助印证。应用显示 “Data provided by Discogs.” 及非隶属声明；匿名请求默认串行、至少间隔 2.5 秒，并遵守响应中的限速与 `Retry-After`。分页不完整时不返回已核验候选。
+- Cover Art Archive / Discogs：只接受精确实体 release 的 CAA front 或 Discogs `primary`。每张封面必须通过 HTTPS 主机白名单、受控重定向、真实文件签名、MIME、尺寸与响应体上限检查。
+- 未核验、证据冲突、歧义或无有效封面的条目不会出现在正常艺人库或最终搜索结果中，也不能导入。
+
+NDL 与 Discogs 的署名在应用全局页脚和联网研究结果区持续可见。不要删除、隐藏或改写这些声明。
 
 ## 首次全自动初始化
 
@@ -41,6 +51,14 @@ npm run local:bootstrap
 npm run local:setup
 ```
 
+已有旧版本正在运行时，先确认没有进行中的搜索或导入，再按以下顺序更新：
+
+```powershell
+npm run local:stop
+npm run local:setup
+npm run local:start
+```
+
 该命令会以非交互方式完成以下工作：
 
 1. 在缺少 `node_modules` 时执行锁定版本安装。
@@ -62,7 +80,7 @@ npm run local:start
 npm run local:start -- -Port 3100
 ```
 
-停止时在运行窗口按一次 `Ctrl+C`，然后等待进程退出，最多预留 30 秒。Next.js 会在这段时间完成进行中的请求和待执行的 `after()` 回调。不要在 AI 任务运行时直接关闭终端、使用任务管理器结束进程或强制关机。
+前台运行时，优先在运行窗口按一次 `Ctrl+C`，然后等待进程退出，最多预留 30 秒。后台运行且确认没有进行中的搜索或导入时，可执行 `npm run local:stop`；该命令只会停止当前项目在回环地址上的 Next.js 进程，端口属于其他程序时会拒绝操作。不要在 AI 任务运行时直接关闭终端、使用任务管理器结束进程或强制关机。
 
 ## 数据库备份
 
@@ -107,5 +125,6 @@ npm run local:db:restore -- -BackupFile "var\backups\postgres\cd-box-example.dum
 
 - 每次重要导入或大批量编辑前执行一次备份。
 - 至少将一份备份复制到本机之外的存储设备。
-- 代码更新后执行 `npm run local:setup`，不要使用 `prisma db push` 替代 migration。
+- 代码更新后按 `local:stop` → `local:setup` → `local:start` 执行；`local:setup` 每次都会按 lockfile 重装依赖。不要使用 `prisma db push` 替代 migration。
+- schema 或核验规则更新后，先运行 `npm run library:verify` 查看历史库回填预览；确认并备份后才运行 `npm run library:verify:apply`。预览命令不写库，应用命令也不会提升无封面或未通过证据链的记录。
 - 本机启动无需反向代理；只有将来决定向其他设备开放时，才需要重新设计认证、TLS 和网络边界。

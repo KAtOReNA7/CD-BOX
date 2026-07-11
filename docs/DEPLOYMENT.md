@@ -1,6 +1,6 @@
 # CD-BOX 本机发布基线
 
-> 状态（2026-07-11）：项目的最终运行目标是 Windows 本机单用户版本。发布是指本机生产构建与完整验收，不包含云端部署。
+> 状态（2026-07-12）：项目的最终运行目标是 Windows 本机单用户版本。发布是指本机生产构建与完整验收，不包含 Vercel 或其他云端部署。
 
 ## 1. 最终架构
 
@@ -10,10 +10,10 @@
 | 身份边界 | `LOCAL_OWNER_MODE=true`，仅允许数值回环地址请求 |
 | 数据库 | 本机 PostgreSQL 16，独立的低权限 `cd_box_app` 角色与 `cd_box` 数据库 |
 | AI | 现有 OpenAI-compatible 中转站，`gpt-5.6-terra`，Chat Completions |
-| 联网证据 | MusicBrainz 与 Cover Art Archive；Apple Music 仅作严格匹配后的名称与封面补全 |
+| 联网证据 | MusicBrainz 分页归并、NDL 国家书目硬核验、Discogs 辅助印证；精确 CAA/Discogs primary 用于真实封面 |
 | 备份 | 本机 `pg_dump` custom archive、SHA-256 校验与轮换保留 |
 
-该架构没有云托管、云数据库、外部 OAuth、付费搜索 API 或 AI 路由网关依赖。公共资料服务不收取 API 订阅费，但必须遵守其使用条款、User-Agent 要求和速率限制。中转站只使用用户已有额度，不引入新的付费服务。
+该架构不使用 Vercel，也没有其他云托管、云数据库、外部 OAuth、付费搜索 API 或 AI 路由网关依赖。公共资料服务不收取 API 订阅费，但必须遵守其使用条款、署名、User-Agent 要求和速率限制。中转站只使用用户已有额度，不引入新的付费服务。
 
 ## 2. 首次发布
 
@@ -77,10 +77,16 @@ NEXT_TELEMETRY_DISABLED=1
 
 - 普通文本整理直接走 Chat Completions，避免先发起无效 Responses 请求。
 - `AI_ENABLE_WEB_SEARCH=true` 表示允许联网研究，而不是宣称中转站有原生搜索工具。
-- 发行研究直接查询 MusicBrainz 与 Cover Art Archive，并按来源确定性整理；默认不调用 GPT，避免额外费用和长时间等待。
-- 模型输出不得新增日期、品番、厂牌、格式、封面、来源、再版或重制结论。违反约束时使用确定性证据映射。
-- 模型鉴权、额度或模型错误不会被伪装为搜索成功；仅当公共源已经产生确定性候选时，系统才带明确警告返回这些候选。
-- Apple Music 补全必须满足唯一艺人、精确标题和年份匹配，不能提升发行证据置信度。
+- 发行研究先完整读取受限范围内的 MusicBrainz 分页并按 release group 归并，再以 NDL Search 用唯一精确品番、艺人和共同日期精度绑定国家书目记录；日文/罗马字标题差异显式留给 GPT 终审，最后用 Discogs 日本 CD 版本明细作辅助印证。
+- GPT-5.6 只比较已提供的 MusicBrainz、NDL 和 Discogs 证据。它可以拒绝冲突或不足，但不能浏览、补事实、改字段或绕过程序的强标识/国家书目门禁。
+- 封面只允许精确发行版 CAA 或精确 Discogs release 的 `primary` 图片；数字商店图片不能证明实体版本。所有图片必须通过允许主机、HTTPS、重定向、状态码、真实文件签名、MIME、尺寸和受限响应体验证。
+- 未核验、证据歧义、GPT 拒绝或无有效封面的记录自动隔离，不展示为最终结果，也不能导入。模型鉴权、额度或格式错误使任务失败，不能回退到未审计候选。
+
+公共资料的运行要求：
+
+- MusicBrainz 使用明确 User-Agent，并按公共服务要求串行限速。
+- NDL 默认请求间隔至少 1 秒并缓存；界面必须显示 NDL Search API credit、国家书目来源与 CC BY 4.0 许可。
+- Discogs 匿名请求默认间隔至少 2.5 秒，读取限速与 `Retry-After`；界面必须显示 “Data provided by Discogs.” 和非隶属声明。
 
 重新更换中转站或模型后运行：
 
@@ -92,10 +98,12 @@ npm run probe:ai
 
 ## 5. 更新、备份与恢复
 
-代码更新后执行：
+代码更新后先优雅停止旧服务，再安装锁定依赖并重建，最后启动新服务：
 
 ```powershell
+npm run local:stop
 npm run local:setup
+npm run local:start
 ```
 
 重要导入前后执行：
@@ -103,6 +111,20 @@ npm run local:setup
 ```powershell
 npm run local:db:backup
 ```
+
+历史库先只读预览核验计划：
+
+```powershell
+npm run library:verify
+```
+
+完成备份并审阅预览后再应用：
+
+```powershell
+npm run library:verify:apply
+```
+
+应用命令只提升唯一匹配、通过完整证据链且有真实封面的记录；冲突或未解决记录继续隔离。
 
 恢复命令、校验规则和安全停止流程详见 [LOCAL_DEPLOYMENT.md](LOCAL_DEPLOYMENT.md)。不要使用 `prisma db push` 替代已提交 migration。
 
@@ -121,9 +143,10 @@ npm run build
 1. `127.0.0.1` owner 边界允许本机请求并拒绝非回环 Host、来源和代理头。
 2. 数据库 migration、艺人创建和页面刷新持久化正常。
 3. Excel 预览、重复策略、确认导入和导出正常。
-4. 公共资料联网研究返回带来源的候选；进度、警告、封面和原文艺人名正确。
-5. 候选编辑、全选、导入、收藏状态和来源管理正常。
-6. 备份、只读校验和一次测试恢复正常。
-7. `Ctrl+C` 能优雅停止正在运行的本机进程。
+4. 联网研究完整显示 MusicBrainz 归并、NDL/Discogs/GPT 核验与封面验证进度；来源、署名、拒绝摘要和原文艺人名正确。
+5. 确认只有 `VERIFIED` 且有已验证封面的候选可选择、全选、导入并进入正常艺人库；候选不可编辑，字段变化必须重新搜索核验；隔离记录不可见且不可导入。
+6. `library:verify` 预览不写库，`library:verify:apply` 只应用通过硬门禁的唯一历史匹配。
+7. 备份、只读校验和一次测试恢复正常。
+8. `Ctrl+C` 能优雅停止正在运行的本机进程。
 
 全部通过后才将本机构建标记为可日常使用版本。

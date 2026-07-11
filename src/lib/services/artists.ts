@@ -1,7 +1,15 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { ArtistCreateInput } from "@/lib/artists/artist-input";
+
+const verifiedReleaseWhere = {
+  verificationStatus: "VERIFIED",
+  coverImageUrl: { not: null },
+  verificationEvidence: { not: Prisma.DbNull },
+  verifiedAt: { not: null },
+} satisfies Prisma.ReleaseWhereInput;
 
 export async function createFollowedArtist(userId: string, input: ArtistCreateInput) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -78,10 +86,25 @@ export async function listDashboardArtists() {
     take: 12,
     include: {
       _count: {
-        select: { releases: true, follows: true },
+        select: {
+          releases: {
+            where: verifiedReleaseWhere,
+          },
+          follows: true,
+        },
       },
     },
   });
+}
+
+export async function getDashboardStats() {
+  const [artistCount, releaseCount, followCount] = await prisma.$transaction([
+    prisma.artist.count(),
+    prisma.release.count({ where: verifiedReleaseWhere }),
+    prisma.userArtistFollow.count(),
+  ]);
+
+  return { artistCount, releaseCount, followCount };
 }
 
 export async function listArtistOptions() {

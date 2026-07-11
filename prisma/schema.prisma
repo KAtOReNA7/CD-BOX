@@ -51,6 +51,12 @@ enum AiSearchTaskStatus {
   FAILED
 }
 
+enum ReleaseVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
 enum UiAssetKind {
   EMPTY_STATE
   DECORATION
@@ -142,32 +148,36 @@ model UserArtistFollow {
 }
 
 model Release {
-  id                  String              @id @default(cuid())
-  artistId            String
-  category            ReleaseCategory
-  title               String
-  originalReleaseDate DateTime?
-  format              ReleaseFormat       @default(CD)
-  originalCatalogNo   String?
-  label               String?
-  originalPrice       String?
-  editionType         String?
-  isReissue           Boolean             @default(false)
-  isRemaster          Boolean             @default(false)
-  isExcludedByDefault Boolean             @default(false)
-  confidence          String?
-  warnings            Json?
-  notes               String?             @db.Text
-  coverImageUrl       String?             @db.Text
-  sources             ReleaseSource[]
-  userStatus          UserReleaseStatus[]
-  artist              Artist              @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  importBatchId       String?
-  importBatch         ImportBatch?        @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id                   String                    @id @default(cuid())
+  artistId             String
+  category             ReleaseCategory
+  title                String
+  originalReleaseDate  DateTime?
+  format               ReleaseFormat             @default(CD)
+  originalCatalogNo    String?
+  label                String?
+  originalPrice        String?
+  editionType          String?
+  isReissue            Boolean                   @default(false)
+  isRemaster           Boolean                   @default(false)
+  isExcludedByDefault  Boolean                   @default(false)
+  confidence           String?
+  warnings             Json?
+  notes                String?                   @db.Text
+  coverImageUrl        String?                   @db.Text
+  verificationStatus   ReleaseVerificationStatus @default(UNVERIFIED)
+  verificationEvidence Json?
+  verifiedAt           DateTime?
+  sources              ReleaseSource[]
+  userStatus           UserReleaseStatus[]
+  artist               Artist                    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  importBatchId        String?
+  importBatch          ImportBatch?              @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
 
   @@index([artistId, category])
+  @@index([artistId, verificationStatus])
   @@index([importBatchId])
   @@index([title])
 }

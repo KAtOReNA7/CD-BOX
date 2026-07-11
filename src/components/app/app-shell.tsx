@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/app/sign-out-button";
 import { requirePageOwner } from "@/lib/auth/current-user";
+import { DISCOGS_ATTRIBUTION } from "@/lib/discogs/constants";
+import { NDL_SEARCH_ATTRIBUTION } from "@/lib/ndl/constants";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -51,6 +53,16 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
+      <footer className="mx-auto w-full max-w-7xl px-6 pb-8 text-xs text-muted-foreground">
+        <a href={NDL_SEARCH_ATTRIBUTION.apiTermsUrl} target="_blank" rel="noreferrer" className="underline">
+          {NDL_SEARCH_ATTRIBUTION.displayNotice}
+        </a>{" "}
+        <span>{NDL_SEARCH_ATTRIBUTION.dataNotice} ({NDL_SEARCH_ATTRIBUTION.licenseName})</span>{" · "}
+        <a href={DISCOGS_ATTRIBUTION.apiDocumentationUrl} target="_blank" rel="noreferrer" className="underline">
+          {DISCOGS_ATTRIBUTION.dataNotice}
+        </a>{" "}
+        {DISCOGS_ATTRIBUTION.nonAffiliationNotice}
+      </footer>
     </div>
   );
 }

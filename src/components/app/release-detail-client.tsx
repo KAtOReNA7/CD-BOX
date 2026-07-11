@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ExternalLink, Trash2 } from "lucide-react";
 import { OperationProgress } from "@/components/app/operation-progress";
@@ -41,6 +42,7 @@ export function ReleaseDetailClient({
   initialRelease: ReleaseListItem;
   artist: { id: string; name: string };
 }) {
+  const router = useRouter();
   const [release, setRelease] = useState(initialRelease);
   const [draft, setDraft] = useState(() => detailDraft(initialRelease));
   const [sourceUrl, setSourceUrl] = useState("");
@@ -63,6 +65,11 @@ export function ReleaseDetailClient({
       const payload = await response.json();
       if (!response.ok) {
         setMessage(payload.error ?? "保存失败");
+        return;
+      }
+      if (payload.release?.verificationStatus !== "VERIFIED") {
+        router.replace(`/artists/${artist.id}?verification=invalidated`);
+        router.refresh();
         return;
       }
       setRelease(payload.release);
@@ -94,6 +101,8 @@ export function ReleaseDetailClient({
       setRelease((current) => ({ ...current, sources: [...current.sources, payload.source] }));
       setSourceUrl("");
       setSourceLabel("");
+      router.replace(`/artists/${artist.id}?verification=invalidated`);
+      router.refresh();
       setMessage("来源已新增。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "来源新增失败，请检查网络后重试。");
@@ -120,6 +129,8 @@ export function ReleaseDetailClient({
         ...current,
         sources: current.sources.filter((source) => source.id !== sourceId),
       }));
+      router.replace(`/artists/${artist.id}?verification=invalidated`);
+      router.refresh();
       setMessage("来源已删除。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "来源删除失败，请检查网络后重试。");

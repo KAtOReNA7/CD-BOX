@@ -4,13 +4,13 @@ import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePageOwner } from "@/lib/auth/current-user";
-import { listDashboardArtists } from "@/lib/services/artists";
+import { getDashboardStats, listDashboardArtists } from "@/lib/services/artists";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   await requirePageOwner();
-  const artists = await listDashboardArtists();
+  const [artists, stats] = await Promise.all([listDashboardArtists(), getDashboardStats()]);
 
   return (
     <AppShell>
@@ -32,23 +32,19 @@ export default async function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-base">艺人库</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">{artists.length}</CardContent>
+          <CardContent className="text-3xl font-semibold">{stats.artistCount}</CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">发行条目</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">
-            {artists.reduce((sum, artist) => sum + artist._count.releases, 0)}
-          </CardContent>
+          <CardContent className="text-3xl font-semibold">{stats.releaseCount}</CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">关注关系</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">
-            {artists.reduce((sum, artist) => sum + artist._count.follows, 0)}
-          </CardContent>
+          <CardContent className="text-3xl font-semibold">{stats.followCount}</CardContent>
         </Card>
       </div>
 
@@ -70,7 +66,7 @@ export default async function DashboardPage() {
                   <h3 className="font-medium">{artist.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{artist.country ?? "国家/地区未填写"}</p>
                 </div>
-                <span className="text-sm text-muted-foreground">{artist._count.releases} releases</span>
+                <span className="text-sm text-muted-foreground">{artist._count.releases} 条已核验发行</span>
               </Link>
             ))
           )}

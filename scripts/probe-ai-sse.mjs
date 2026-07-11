@@ -81,3 +81,33 @@ export async function consumeResponsesEventStream(body) {
 
   throw new Error("Responses API stream ended before response.completed was received.");
 }
+
+function deltaText(content) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((part) => part && typeof part === "object" && typeof part.text === "string" ? part.text : "")
+    .join("");
+}
+
+export async function consumeChatCompletionsEventStream(body) {
+  let outputText = "";
+  let eventCount = 0;
+
+  for await (const event of readSseEvents(body)) {
+    if (event.data === "[DONE]") return { outputText, eventCount };
+    const payload = payloadFrom(event);
+    eventCount += 1;
+    if (payload?.error) throw streamError(payload, "Chat Completions stream returned an error event.");
+
+    const choices = Array.isArray(payload?.choices) ? payload.choices : [];
+    let completed = false;
+    for (const choice of choices) {
+      outputText += deltaText(choice?.delta?.content);
+      if (choice?.finish_reason !== null && choice?.finish_reason !== undefined) completed = true;
+    }
+    if (completed) return { outputText, eventCount };
+  }
+
+  throw new Error("Chat Completions stream ended before a completion marker was received.");
+}

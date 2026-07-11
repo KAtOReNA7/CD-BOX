@@ -5,6 +5,31 @@ export type ResearchTaskStatus = "pending" | "running" | "succeeded" | "failed";
 export type ResearchConfidence = "HIGH" | "MEDIUM" | "LOW";
 export type ResearchSourceType = "official" | "retailer" | "database" | "news" | "other";
 
+export type ReleaseVerification = {
+  status: "VERIFIED";
+  method: "musicbrainz-ndl-discogs-ai";
+  aiDecision: "ACCEPT";
+  aiReason: string;
+  checkedAt: string;
+  matchedFields: string[];
+  sourceUrls: string[];
+  coverProvider: "cover-art-archive" | "discogs";
+  coverCheckedAt: string;
+};
+
+export type ReleaseResearchVerificationSummary = {
+  rawReleases: number;
+  releaseGroups: number;
+  canonicalEditions: number;
+  authoritativeMatches: number;
+  crossSourceMatches: number;
+  aiAccepted: number;
+  rejectedByEvidence: number;
+  rejectedByAi: number;
+  rejectedWithoutCover: number;
+  rejectedCoverUnavailable: number;
+};
+
 export type ReleaseResearchRequest = {
   artistName: string;
   country: string;
@@ -43,6 +68,7 @@ export type ReleaseResearchCandidate = {
   confidence: ResearchConfidence;
   warnings: string[];
   sources: ReleaseResearchSource[];
+  verification?: ReleaseVerification | null;
 };
 
 export type ReleaseResearchResult = {
@@ -60,6 +86,7 @@ export type ReleaseResearchResult = {
   };
   releases: ReleaseResearchCandidate[];
   globalWarnings: string[];
+  verificationSummary?: ReleaseResearchVerificationSummary | null;
 };
 
 export type AiSearchTaskView = {

@@ -143,6 +143,66 @@ function uniqueAliases(aliases: ArtistAliasEvidence[]) {
   });
 }
 
+function publicHttpsDomainUrl(value: unknown) {
+  const raw = optionalString(value, 2_048);
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.port !== ""
+    ) return null;
+
+    const hostname = url.hostname.toLowerCase();
+    if (
+      hostname.length > 253 ||
+      hostname.includes(":") ||
+      /^\d+(?:\.\d+){3}$/.test(hostname) ||
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".internal") ||
+      hostname.endsWith(".test") ||
+      hostname.endsWith(".invalid") ||
+      hostname.endsWith(".example") ||
+      hostname.endsWith(".home.arpa") ||
+      hostname.endsWith(".onion")
+    ) return null;
+
+    const labels = hostname.split(".");
+    if (labels.length < 2 || labels.some((label) =>
+      !label ||
+      label.length > 63 ||
+      !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label)
+    )) return null;
+    const topLevelDomain = labels.at(-1) as string;
+    if (!/^(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/i.test(topLevelDomain)) return null;
+
+    url.hostname = hostname;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function parseOfficialUrls(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const urls = value.flatMap((item) => {
+    const relation = record(item);
+    if (
+      !relation ||
+      relation.type !== "official homepage" ||
+      relation["target-type"] !== "url"
+    ) return [];
+    const officialUrl = publicHttpsDomainUrl(record(relation.url)?.resource);
+    return officialUrl ? [officialUrl] : [];
+  });
+  return [...new Set(urls)];
+}
+
 function parseArtist(value: unknown): MusicArtistEvidence | null {
   const row = record(value);
   const sourceId = optionalString(row?.id, 50);
@@ -156,6 +216,7 @@ function parseArtist(value: unknown): MusicArtistEvidence | null {
     name,
     sortName: optionalString(row["sort-name"], 500),
     aliases: parseAliases(row.aliases),
+    officialUrls: parseOfficialUrls(row.relations),
     country: optionalString(row.country, 20),
     type: optionalString(row.type, 100),
     disambiguation: optionalString(row.disambiguation, 500),
@@ -220,6 +281,26 @@ function parseFormats(value: unknown) {
   return uniqueStrings(value.map((item) => optionalString(record(item)?.format, 200)));
 }
 
+function embeddedCoverArt(
+  entityType: "release-group" | "release",
+  sourceId: string,
+  value: unknown,
+) {
+  if (record(value)?.front !== true) {
+    return {
+      coverUrl: null,
+      coverSourceUrl: null,
+      sources: [] as MusicMetadataSource[],
+    };
+  }
+  const sourceUrl = `${COVER_ART_ARCHIVE_ORIGIN}/${entityType}/${sourceId}`;
+  return {
+    coverUrl: `${sourceUrl}/front-500`,
+    coverSourceUrl: sourceUrl,
+    sources: [source("Cover Art Archive front cover", sourceUrl, "cover-art-archive")],
+  };
+}
+
 function parseReleaseGroup(value: unknown): MusicReleaseEvidence | null {
   const row = record(value);
   const sourceId = optionalString(row?.id, 50);
@@ -228,6 +309,7 @@ function parseReleaseGroup(value: unknown): MusicReleaseEvidence | null {
   const normalizedId = sourceId.toLowerCase();
   const sourceUrl = `${MUSICBRAINZ_API_ORIGIN}/release-group/${normalizedId}`;
   const credit = parseArtistCredit(row["artist-credit"]);
+  const cover = embeddedCoverArt("release-group", normalizedId, row["cover-art-archive"]);
   return {
     entityType: "release-group",
     sourceId: normalizedId,
@@ -248,9 +330,9 @@ function parseReleaseGroup(value: unknown): MusicReleaseEvidence | null {
     barcode: null,
     status: null,
     sourceUrl,
-    coverUrl: null,
-    coverSourceUrl: null,
-    sources: [source("MusicBrainz release group", sourceUrl, "musicbrainz")],
+    coverUrl: cover.coverUrl,
+    coverSourceUrl: cover.coverSourceUrl,
+    sources: [source("MusicBrainz release group", sourceUrl, "musicbrainz"), ...cover.sources],
   };
 }
 
@@ -271,6 +353,7 @@ function parseRelease(value: unknown): MusicReleaseEvidence | null {
   const catalogNumbers = uniqueStrings(labels.map((item) => item.catalogNumber));
   const sourceUrl = `${MUSICBRAINZ_API_ORIGIN}/release/${normalizedId}`;
   const credit = parseArtistCredit(row["artist-credit"]);
+  const cover = embeddedCoverArt("release", normalizedId, row["cover-art-archive"]);
   return {
     entityType: "release",
     sourceId: normalizedId,
@@ -291,9 +374,9 @@ function parseRelease(value: unknown): MusicReleaseEvidence | null {
     barcode: optionalString(row.barcode, 100),
     status: optionalString(row.status, 100),
     sourceUrl,
-    coverUrl: null,
-    coverSourceUrl: null,
-    sources: [source("MusicBrainz release", sourceUrl, "musicbrainz")],
+    coverUrl: cover.coverUrl,
+    coverSourceUrl: cover.coverSourceUrl,
+    sources: [source("MusicBrainz release", sourceUrl, "musicbrainz"), ...cover.sources],
   };
 }
 
@@ -437,6 +520,24 @@ export class MusicMetadataClient {
     return { value: parsed.page, warnings: appendInvalidWarning([], parsed.invalid) };
   }
 
+  async getArtist(
+    artistId: string,
+  ): Promise<MusicMetadataResult<MusicArtistEvidence | null>> {
+    const normalizedArtistId = normalizeMbid(artistId);
+    const url = new URL(`/ws/2/artist/${normalizedArtistId}`, MUSICBRAINZ_API_ORIGIN);
+    url.searchParams.set("inc", "aliases+url-rels");
+    url.searchParams.set("fmt", "json");
+
+    const response = await this.musicBrainz.getJson(url);
+    if (!response.ok) return { value: null, warnings: [response.warning] };
+
+    const artist = parseArtist(response.value);
+    if (!artist || artist.sourceId !== normalizedArtistId) {
+      return { value: null, warnings: [invalidResponseWarning("musicbrainz")] };
+    }
+    return { value: artist, warnings: [] };
+  }
+
   async listReleaseGroups(
     artistId: string,
     options: MusicMetadataPageOptions = {},
@@ -478,17 +579,90 @@ export class MusicMetadataClient {
   }
 
   /**
+   * Browses release groups for one artist. MusicBrainz allows at most 100 rows
+   * per page; the default five-page ceiling covers large personal
+   * discographies while retaining a finite safety bound.
+   */
+  async listArtistReleaseGroups(
+    artistId: string,
+    options: ArtistReleaseBrowseOptions = {},
+  ): Promise<MusicMetadataResult<MusicMetadataPage<MusicReleaseEvidence>>> {
+    const normalizedArtistId = normalizeMbid(artistId);
+    const maxItems = clampInteger(options.maxItems, 500, 1, 500);
+    const maxPages = clampInteger(options.maxPages, 5, 1, 5);
+    const items: MusicReleaseEvidence[] = [];
+    const seenIds = new Set<string>();
+    const warnings: MusicMetadataWarning[] = [];
+    let count: number | null = null;
+    let offset = 0;
+
+    for (let pageIndex = 0; pageIndex < maxPages && items.length < maxItems; pageIndex += 1) {
+      const requestedLimit = Math.min(100, maxItems - items.length);
+      const url = new URL("/ws/2/release-group", MUSICBRAINZ_API_ORIGIN);
+      url.searchParams.set("artist", normalizedArtistId);
+      url.searchParams.set("inc", "artist-credits");
+      url.searchParams.set("fmt", "json");
+      url.searchParams.set("limit", String(requestedLimit));
+      url.searchParams.set("offset", String(offset));
+
+      const response = await this.musicBrainz.getJson(url);
+      if (!response.ok) {
+        warnings.push(response.warning);
+        break;
+      }
+
+      const parsed = pageFromPayload(
+        response.value,
+        "release-groups",
+        { limit: requestedLimit, offset },
+        parseReleaseGroup,
+      );
+      if (parsed.invalid) warnings.push(invalidResponseWarning("musicbrainz"));
+      count ??= parsed.page.count;
+      for (const releaseGroup of parsed.page.items) {
+        if (seenIds.has(releaseGroup.sourceId)) continue;
+        seenIds.add(releaseGroup.sourceId);
+        items.push(releaseGroup);
+        if (items.length >= maxItems) break;
+      }
+
+      offset += requestedLimit;
+      if (
+        parsed.received < requestedLimit ||
+        (parsed.page.count !== null && offset >= parsed.page.count)
+      ) break;
+    }
+
+    return {
+      value: {
+        count,
+        offset: 0,
+        limit: maxItems,
+        items,
+      },
+      warnings: warnings.filter((item, index) =>
+        warnings.findIndex((candidate) =>
+          candidate.source === item.source &&
+          candidate.code === item.code &&
+          candidate.message === item.message,
+        ) === index,
+      ),
+    };
+  }
+
+  /**
    * Browses detailed release rows for one artist without issuing a request per
-   * release. MusicBrainz allows at most 100 rows per page, so this method is
-   * deliberately capped at two pages / 200 rows.
+   * release. MusicBrainz allows at most 100 rows per page; the default
+   * five-page ceiling covers large personal discographies while retaining a
+   * finite safety bound.
    */
   async listArtistReleases(
     artistId: string,
     options: ArtistReleaseBrowseOptions = {},
   ): Promise<MusicMetadataResult<MusicMetadataPage<MusicReleaseEvidence>>> {
     const normalizedArtistId = normalizeMbid(artistId);
-    const maxItems = clampInteger(options.maxItems, 200, 1, 200);
-    const maxPages = clampInteger(options.maxPages, 2, 1, 2);
+    const maxItems = clampInteger(options.maxItems, 500, 1, 500);
+    const maxPages = clampInteger(options.maxPages, 5, 1, 5);
     const items: MusicReleaseEvidence[] = [];
     const seenIds = new Set<string>();
     const warnings: MusicMetadataWarning[] = [];

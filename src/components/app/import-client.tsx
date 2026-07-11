@@ -123,7 +123,7 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
         <h1 className="mt-2 text-3xl font-semibold">导入收藏清单</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
           支持中山美穂原版 CD 收藏清单这类模板。来源 URL 会保存到 ReleaseSource，
-          封面图会保存到 coverImageUrl，主表格最后一列只展示封面。
+          封面图会保存到 coverImageUrl；导入记录先进入隔离区，只有通过联网跨源核验和真实图片检查后才会进入主表。
         </p>
       </div>
 

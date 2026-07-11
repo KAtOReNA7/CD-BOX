@@ -1,5 +1,8 @@
 import { loadLocalEnv } from "./load-local-env.mjs";
-import { consumeResponsesEventStream } from "./probe-ai-sse.mjs";
+import {
+  consumeChatCompletionsEventStream,
+  consumeResponsesEventStream,
+} from "./probe-ai-sse.mjs";
 
 const envDebug = loadLocalEnv();
 const env = process.env;
@@ -64,36 +67,6 @@ function baseUrl(path) {
   return `${versioned}${path}`;
 }
 
-async function postJson(path, body) {
-  const response = await fetch(baseUrl(path), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(requestTimeoutMs),
-  });
-  const text = await response.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
-
-  if (!response.ok) {
-    const error = json?.error ?? json ?? {};
-    throw {
-      status: response.status,
-      type: error.type ?? error.code ?? "provider_error",
-      message: sanitize(error.message ?? text),
-    };
-  }
-
-  return json ?? text;
-}
-
 async function postResponsesStream(path, body) {
   const response = await fetch(baseUrl(path), {
     method: "POST",
@@ -122,6 +95,36 @@ async function postResponsesStream(path, body) {
   }
 
   return consumeResponsesEventStream(response.body);
+}
+
+async function postChatStream(path, body) {
+  const response = await fetch(baseUrl(path), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ...body, stream: true }),
+    signal: AbortSignal.timeout(requestTimeoutMs),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    const error = json?.error ?? json ?? {};
+    throw {
+      status: response.status,
+      type: error.type ?? error.code ?? "provider_error",
+      message: sanitize(error.message ?? text),
+    };
+  }
+
+  return consumeChatCompletionsEventStream(response.body);
 }
 
 function extractText(payload) {
@@ -188,17 +191,18 @@ if (!config.apiKeyConfigured || !config.baseUrlConfigured || !config.textModel) 
   process.exitCode = 1;
 } else {
   try {
-    const chat = await postJson("/chat/completions", {
+    const chat = await postChatStream("/chat/completions", {
       model: config.textModel,
       messages: [{ role: "user", content: "Reply with exactly: ok" }],
       reasoning_effort: config.reasoningEffort,
       max_completion_tokens: 2_048,
     });
-    const chatText = extractText(chat);
+    const chatText = chat.outputText;
     summary.chatCompletionsSupported = Boolean(chatText);
     summary.textSupported = /ok/i.test(chatText);
     logProbe("chat-completions", {
       ok: summary.chatCompletionsSupported,
+      eventCount: chat.eventCount,
       text: chatText.slice(0, 120),
     });
   } catch (error) {
@@ -206,13 +210,13 @@ if (!config.apiKeyConfigured || !config.baseUrlConfigured || !config.textModel) 
   }
 
   try {
-    const jsonPayload = await postJson("/chat/completions", {
+    const jsonPayload = await postChatStream("/chat/completions", {
       model: config.textModel,
       messages: [{ role: "user", content: 'Return only JSON: {"ok":true,"provider":"openai-compatible"}' }],
       reasoning_effort: config.reasoningEffort,
       max_completion_tokens: 2_048,
     });
-    const parsed = extractJsonObject(extractText(jsonPayload));
+    const parsed = extractJsonObject(jsonPayload.outputText);
     summary.jsonSupported = parsed.ok === true && parsed.provider === "openai-compatible";
     logProbe("json-output", { ok: summary.jsonSupported, parsed });
   } catch (error) {

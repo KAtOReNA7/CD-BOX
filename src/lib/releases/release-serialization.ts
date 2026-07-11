@@ -5,7 +5,13 @@ import {
   type ReleaseListItem,
 } from "@/lib/releases/release-types";
 
-export type SerializableRelease = Release & {
+type ReleaseVerificationFields = Pick<
+  Release,
+  "verificationStatus" | "verificationEvidence" | "verifiedAt"
+>;
+
+export type SerializableRelease = Omit<Release, keyof ReleaseVerificationFields> &
+  Partial<ReleaseVerificationFields> & {
   sources: ReleaseSource[];
   userStatus?: UserReleaseStatus[];
 };
@@ -40,6 +46,9 @@ export function serializeRelease(release: SerializableRelease, userId?: string |
     warnings: warningsToStrings(release.warnings),
     notes: release.notes,
     coverImageUrl: release.coverImageUrl,
+    verificationStatus: release.verificationStatus ?? "UNVERIFIED",
+    verificationEvidence: release.verificationEvidence ?? null,
+    verifiedAt: release.verifiedAt?.toISOString() ?? null,
     sources: release.sources.map((source) => ({
       id: source.id,
       url: source.url,

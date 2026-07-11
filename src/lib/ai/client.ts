@@ -1,5 +1,8 @@
 import OpenAI from "openai";
-import type { ChatCompletion } from "openai/resources/chat/completions/completions";
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+} from "openai/resources/chat/completions/completions";
 import type {
   Response,
   ResponseCreateParamsStreaming,
@@ -181,7 +184,7 @@ export async function runTextProtocolFallback<T>(input: {
 }
 
 export function collectChatCompletionText(completion: ChatCompletion) {
-  const content: unknown = completion.choices[0]?.message.content;
+  const content: unknown = completion.choices?.[0]?.message.content;
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
 
@@ -229,7 +232,11 @@ async function createChatTextResponse(
   config: RuntimeAiConfig,
   input: { systemPrompt: string; userPrompt: string },
 ) {
-  const completion = await client.chat.completions.create({
+  // This relay exposes a conforming Chat Completions stream, but its
+  // non-streaming compatibility response can contain an empty `content` even
+  // when the model generated text. Use the streaming transport for runtime
+  // generation and fail closed on incomplete/non-text completions.
+  const stream = await client.chat.completions.create({
     model: config.textModel,
     messages: [
       { role: "system", content: input.systemPrompt },
@@ -237,7 +244,60 @@ async function createChatTextResponse(
     ],
     reasoning_effort: config.reasoningEffort,
     max_completion_tokens: maxCompletionTokens(),
+    stream: true,
+    stream_options: { include_usage: true },
   });
+
+  let id = "";
+  let created = 0;
+  let model = config.textModel;
+  let outputText = "";
+  let refusal = "";
+  let finishReason: ChatCompletion.Choice["finish_reason"] | null = null;
+  let usage: ChatCompletion["usage"];
+
+  for await (const chunk of stream) {
+    const typedChunk = chunk as ChatCompletionChunk;
+    id ||= typedChunk.id;
+    created ||= typedChunk.created;
+    model = typedChunk.model || model;
+    if (typedChunk.usage) usage = typedChunk.usage;
+
+    const choices = Array.isArray(typedChunk.choices) ? typedChunk.choices : [];
+    const choice = choices.find((item) => item.index === 0) ?? choices[0];
+    if (!choice) continue;
+    if (typeof choice.delta.content === "string") outputText += choice.delta.content;
+    if (typeof choice.delta.refusal === "string") refusal += choice.delta.refusal;
+    if (choice.finish_reason) finishReason = choice.finish_reason;
+  }
+
+  if (refusal.trim()) {
+    throw new Error(`Chat Completions refused the text request: ${refusal}`);
+  }
+  if (!finishReason) {
+    throw new Error("Chat Completions stream ended before a completion marker was received.");
+  }
+  if (finishReason !== "stop") {
+    throw new Error(`Chat Completions ended with ${finishReason} before a complete text response was available.`);
+  }
+
+  const completion: ChatCompletion = {
+    id: id || `chat-${Date.now()}`,
+    created,
+    model,
+    object: "chat.completion",
+    choices: [{
+      index: 0,
+      finish_reason: finishReason,
+      logprobs: null,
+      message: {
+        role: "assistant",
+        content: outputText,
+        refusal: null,
+      },
+    }],
+    ...(usage ? { usage } : {}),
+  };
 
   return normalizedChatResponse(completion);
 }

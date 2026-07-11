@@ -222,7 +222,7 @@ export function toItunesArtwork600(artworkUrl100: string | null | undefined) {
   return url.toString();
 }
 
-function normalizeAppleStoreUrl(value: string | null | undefined) {
+export function normalizeAppleStoreUrl(value: string | null | undefined) {
   if (!value) return null;
   return isHttpUrlWithHost(value, isAppleStoreHost)?.toString() ?? null;
 }

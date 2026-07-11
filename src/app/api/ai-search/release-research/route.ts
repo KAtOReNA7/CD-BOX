@@ -7,7 +7,7 @@ import {
 import { requireRuntimeAiProviderConfig } from "@/lib/ai/provider-capabilities";
 import { parseReleaseResearchRequest } from "@/lib/ai/release-research-input";
 
-export const maxDuration = 300;
+export const maxDuration = 1_800;
 
 export async function POST(request: Request) {
   const auth = await requireApiOwner();
