@@ -17,8 +17,6 @@ export type ArtistCreateActionState = {
   message?: string;
 };
 
-export const initialArtistCreateState: ArtistCreateActionState = {};
-
 export async function createArtistAction(
   _previousState: ArtistCreateActionState,
   formData: FormData,

@@ -3,12 +3,14 @@
 import { useActionState } from "react";
 import {
   createArtistAction,
-  initialArtistCreateState,
+  type ArtistCreateActionState,
 } from "@/app/artists/new/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+const initialArtistCreateState: ArtistCreateActionState = {};
 
 function FieldErrors({ id, errors }: { id: string; errors?: string[] }) {
   if (!errors?.length) return null;

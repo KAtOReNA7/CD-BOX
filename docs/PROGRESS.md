@@ -26,7 +26,8 @@
 - Verified the original `linkapi.shop` endpoint is not publicly routable from Vercel and the replacement `new-api.xiron.net.cn` provider exposes only `gpt-5.6-terra` but fails generation with upstream timeouts / `666 openai_error`.
 - Configured Vercel AI Gateway as the production provider using the deployment OIDC token, free-tier-eligible `openai/gpt-5.4-mini`, and `openai/gpt-image-2` (image generation remains disabled).
 - Verified production Responses API generation (`200`, completed output) and a forced `web_search` call (`200`, one reported search call) through the owner-only diagnostics page.
-- Re-ran a clean npm install, production dependency audit, Prisma generation, type check, all 16 tests, ESLint, and the production build successfully before the release commit.
+- Re-ran a clean npm install, production dependency audit, Prisma generation, type check, all 17 tests, ESLint, and the production build successfully before the latest release commit.
+- Fixed the Next.js 16 Server Action export contract on `/artists/new`, redeployed production, and added a regression test that rejects non-async runtime exports from file-level `"use server"` modules.
 
 The current working tree is deployed to production for acceptance testing. It is not yet tagged as the accepted MVP release.
 
