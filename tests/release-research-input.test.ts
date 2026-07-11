@@ -41,6 +41,21 @@ const importInput = parseReleaseResearchImportInput({
 });
 assert.equal(importInput.candidateEdits["candidate-1"].catalogNumber, "K32X-30");
 
+const legacyImportInput = parseReleaseResearchImportInput({
+  ...importInput,
+  excludedCandidateIds: ["candidate-2", "candidate-1", "candidate-1"],
+  pendingReviewCandidateIds: ["candidate-2", "candidate-1", "candidate-1"],
+});
+assert.deepEqual(legacyImportInput.excludedCandidateIds, ["candidate-1"]);
+assert.deepEqual(legacyImportInput.pendingReviewCandidateIds, ["candidate-1"]);
+
+assert.throws(() =>
+  parseReleaseResearchImportInput({
+    ...importInput,
+    excludedCandidateIds: [""],
+  }),
+);
+
 assert.throws(() =>
   parseReleaseResearchImportInput({
     ...importInput,

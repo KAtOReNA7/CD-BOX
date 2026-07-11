@@ -15,6 +15,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { summarizeResearchQuality } from "@/lib/ai/release-research-quality";
+import {
+  addCandidateIds,
+  intersectCandidateIds,
+  removeCandidateIds,
+  toggleCandidateId,
+} from "@/lib/ai/release-research-selection";
 import type {
   AiSearchTaskView,
   CollectionScopeTarget,
@@ -98,6 +104,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
       }),
     [categoryFilter, confidenceFilter, releases],
   );
+  const visibleCandidateIds = visibleReleases.map((release) => release.id);
+  const visibleSelectedCount = visibleCandidateIds.filter((candidateId) => selectedIds.has(candidateId)).length;
 
   function setPendingTask() {
     setTask({
@@ -239,8 +247,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         artistId,
         artistName: importArtistName,
         selectedCandidateIds: [...selectedIds],
-        excludedCandidateIds: [...excludedIds],
-        pendingReviewCandidateIds: [...pendingIds],
+        excludedCandidateIds: intersectCandidateIds(excludedIds, selectedIds),
+        pendingReviewCandidateIds: intersectCandidateIds(pendingIds, selectedIds),
         candidateEdits: Object.fromEntries(
           Object.entries(candidateEdits)
             .filter(([candidateId]) => selectedIds.has(candidateId))
@@ -258,11 +266,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
     router.push(`/artists/${payload.artistId}`);
   }
 
-  function toggle(setter: (value: Set<string>) => void, current: Set<string>, id: string) {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setter(next);
+  function toggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
+    setter((current) => toggleCandidateId(current, id));
   }
 
   return (
@@ -422,17 +427,34 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
           <div className="flex flex-wrap items-center justify-between gap-3 border bg-white p-4">
             <div className="flex flex-wrap gap-3">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-44" aria-label="分类筛选"><SelectValue /></SelectTrigger>
                 <SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent>
               </Select>
               <Select value={confidenceFilter} onValueChange={setConfidenceFilter}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-36" aria-label="置信度筛选"><SelectValue /></SelectTrigger>
                 <SelectContent>{confidences.map((confidence) => <SelectItem key={confidence} value={confidence}>{confidence}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setExcludedIds(new Set([...excludedIds, ...selectedIds]))}>批量排除</Button>
-              <Button variant="outline" onClick={() => setPendingIds(new Set([...pendingIds, ...selectedIds]))}>批量待核对</Button>
+              <span className="self-center text-sm text-muted-foreground" role="status" aria-live="polite">
+                当前已选 {visibleSelectedCount}/{visibleCandidateIds.length}，总计 {selectedIds.size}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedIds((current) => addCandidateIds(current, visibleCandidateIds))}
+                disabled={visibleCandidateIds.length === 0 || visibleSelectedCount === visibleCandidateIds.length}
+              >
+                全选当前结果
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedIds((current) => removeCandidateIds(current, visibleCandidateIds))}
+                disabled={visibleSelectedCount === 0}
+              >
+                取消全选当前结果
+              </Button>
+              <Button variant="outline" onClick={() => setExcludedIds((current) => addCandidateIds(current, selectedIds))}>全部已选：批量排除</Button>
+              <Button variant="outline" onClick={() => setPendingIds((current) => addCandidateIds(current, selectedIds))}>全部已选：标为待核对</Button>
             </div>
           </div>
 
@@ -442,10 +464,10 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
             excludedIds={excludedIds}
             pendingIds={pendingIds}
             expandedIds={expandedIds}
-            toggleSelected={(id) => toggle(setSelectedIds, selectedIds, id)}
-            toggleExcluded={(id) => toggle(setExcludedIds, excludedIds, id)}
-            togglePending={(id) => toggle(setPendingIds, pendingIds, id)}
-            toggleExpanded={(id) => toggle(setExpandedIds, expandedIds, id)}
+            toggleSelected={(id) => toggle(setSelectedIds, id)}
+            toggleExcluded={(id) => toggle(setExcludedIds, id)}
+            togglePending={(id) => toggle(setPendingIds, id)}
+            toggleExpanded={(id) => toggle(setExpandedIds, id)}
             updateCandidate={(candidate) =>
               setCandidateEdits((current) => ({ ...current, [candidate.id]: candidate }))
             }
@@ -613,7 +635,14 @@ function ReleaseCandidateTable({
             return (
               <Fragment key={release.id}>
                 <TableRow>
-                  <TableCell><input type="checkbox" checked={selectedIds.has(release.id)} onChange={() => toggleSelected(release.id)} /></TableCell>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(release.id)}
+                      onChange={() => toggleSelected(release.id)}
+                      aria-label={`选择候选：${release.title}，${release.originalReleaseDate ?? release.releaseDate ?? "日期未知"}`}
+                    />
+                  </TableCell>
                   <TableCell><Badge variant={confidenceVariant(release.confidence)}>{release.confidence}</Badge></TableCell>
                   <TableCell>{release.category}</TableCell>
                   <TableCell>
@@ -633,8 +662,8 @@ function ReleaseCandidateTable({
                     <TableCell colSpan={9} className="bg-stone-50">
                       <div className="grid gap-3 text-sm">
                         <div className="flex flex-wrap gap-4">
-                          <label className="flex items-center gap-2"><input type="checkbox" checked={excludedIds.has(release.id)} onChange={() => toggleExcluded(release.id)} />排除</label>
-                          <label className="flex items-center gap-2"><input type="checkbox" checked={pendingIds.has(release.id)} onChange={() => togglePending(release.id)} />待核对</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" checked={excludedIds.has(release.id)} onChange={() => toggleExcluded(release.id)} aria-label={`排除候选：${release.title}`} />排除</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" checked={pendingIds.has(release.id)} onChange={() => togglePending(release.id)} aria-label={`候选标为待核对：${release.title}`} />待核对</label>
                         </div>
                         {release.warnings.length ? <p className="text-muted-foreground">Warnings: {release.warnings.join("; ")}</p> : null}
                         <CandidateEditor candidate={release} onChange={updateCandidate} />

@@ -3,6 +3,7 @@ import type {
   ReleaseResearchImportInput,
   ReleaseResearchRequest,
 } from "@/lib/ai/release-research-types";
+import { intersectCandidateIds } from "@/lib/ai/release-research-selection";
 
 const candidateIdSchema = z.string().trim().min(1).max(120);
 const nullableText = (max: number) =>
@@ -88,19 +89,21 @@ export const releaseResearchImportInputSchema = z
       });
     }
 
-    for (const [field, candidateIds] of [
-      ["excludedCandidateIds", input.excludedCandidateIds],
-      ["pendingReviewCandidateIds", input.pendingReviewCandidateIds],
-      ["candidateEdits", Object.keys(input.candidateEdits)],
-    ] as const) {
-      if (candidateIds.some((candidateId) => !selected.has(candidateId))) {
-        context.addIssue({
-          code: "custom",
-          path: [field],
-          message: "Only selected candidates may be changed.",
-        });
-      }
+    if (Object.keys(input.candidateEdits).some((candidateId) => !selected.has(candidateId))) {
+      context.addIssue({
+        code: "custom",
+        path: ["candidateEdits"],
+        message: "Only selected candidates may be changed.",
+      });
     }
+  })
+  .transform((input) => {
+    const selected = new Set(input.selectedCandidateIds);
+    return {
+      ...input,
+      excludedCandidateIds: intersectCandidateIds(input.excludedCandidateIds, selected),
+      pendingReviewCandidateIds: intersectCandidateIds(input.pendingReviewCandidateIds, selected),
+    };
   });
 
 export function parseReleaseResearchRequest(input: unknown): ReleaseResearchRequest {
