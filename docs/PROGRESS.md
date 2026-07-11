@@ -28,12 +28,13 @@
 - Verified production Responses API generation (`200`, completed output) and a forced `web_search` call (`200`, one reported search call) through the owner-only diagnostics page.
 - Re-ran a clean npm install, production dependency audit, Prisma generation, type check, all 17 tests, ESLint, and the production build successfully before the latest release commit.
 - Fixed the Next.js 16 Server Action export contract on `/artists/new`, redeployed production, and added a regression test that rejects non-async runtime exports from file-level `"use server"` modules.
+- Verified production artist creation end to end: `POST /artists/new` returned `303`, the new `/artists/[id]` page returned `200`, and the deployment logged no Prisma or 5xx errors after increasing the Neon transaction startup allowance.
 
 The current working tree is deployed to production for acceptance testing. It is not yet tagged as the accepted MVP release.
 
 ### Remaining Before Production Acceptance
 
-- Complete deployed acceptance for artist creation, Excel import, online research, candidate edit/import, status updates, export, and logout.
+- Complete deployed acceptance for Excel import, online research, candidate edit/import, status updates, export, and logout.
 
 Production deployment, owner authentication, and the AI Gateway release gate are complete; full collection-workflow acceptance is still in progress.
 
