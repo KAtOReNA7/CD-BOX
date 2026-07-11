@@ -7,6 +7,11 @@ import type {
   ImportPreviewResult,
   ParsedReleaseRow,
 } from "@/lib/import/import-types";
+import {
+  COVER_IMAGE_SOURCE_DESCRIPTION,
+  isAppleMusicSourceUrl,
+  isCoverSourceDescription,
+} from "@/lib/releases/cover-source";
 import { canonicalCollectionStatus } from "@/lib/releases/release-types";
 
 function toDate(value: string | null) {
@@ -122,6 +127,8 @@ async function upsertReleaseStatus(
   row: ParsedReleaseRow,
   db: Prisma.TransactionClient,
 ) {
+  const statusData = importedReleaseStatusData(row);
+
   await db.userReleaseStatus.upsert({
     where: {
       userId_releaseId: {
@@ -129,44 +136,82 @@ async function upsertReleaseStatus(
         releaseId,
       },
     },
-    update: {
-      status: row.status,
-      priority: row.priority,
-    },
+    update: statusData,
     create: {
       userId,
       releaseId,
-      status: row.status,
-      priority: row.priority,
+      ...statusData,
     },
   });
+}
+
+export function importedReleaseStatusData(row: ParsedReleaseRow) {
+  return {
+    status: row.status,
+    priority: row.priority,
+    ...(row.ownedNotes !== undefined ? { ownedNotes: row.ownedNotes } : {}),
+  };
+}
+
+export function importedReleaseSourceRows(row: ParsedReleaseRow) {
+  const evidenceUrls = [...new Set([
+    ...(row.sourceUrls ?? []),
+    ...(row.sourceUrl ? [row.sourceUrl] : []),
+  ])];
+  const sources = evidenceUrls.map((url) => ({
+    url,
+    label: "Imported source URL",
+    description: null as string | null,
+  }));
+
+  if (row.coverImageSourceUrl) {
+    sources.push({
+      url: row.coverImageSourceUrl,
+      label: isAppleMusicSourceUrl(row.coverImageSourceUrl) ? "Apple Music" : "Cover image source",
+      description: COVER_IMAGE_SOURCE_DESCRIPTION,
+    });
+  }
+
+  return sources;
 }
 
 async function addReleaseSource(releaseId: string, row: ParsedReleaseRow, db: Prisma.TransactionClient) {
-  if (!row.sourceUrl) {
-    return;
-  }
-
-  const existing = await db.releaseSource.findFirst({
-    where: {
-      releaseId,
-      url: row.sourceUrl,
-    },
-    select: { id: true },
-  });
-
-  if (!existing) {
-    await db.releaseSource.create({
-      data: {
+  if (row.coverImageSourceUrl !== undefined) {
+    await db.releaseSource.deleteMany({
+      where: {
         releaseId,
-        url: row.sourceUrl,
-        label: "Imported source URL",
+        description: COVER_IMAGE_SOURCE_DESCRIPTION,
+        ...(row.coverImageSourceUrl ? { url: { not: row.coverImageSourceUrl } } : {}),
       },
     });
   }
+
+  for (const source of importedReleaseSourceRows(row)) {
+    const existing = await db.releaseSource.findMany({
+      where: {
+        releaseId,
+        url: source.url,
+      },
+      select: { description: true },
+    });
+
+    const sourceIsCover = isCoverSourceDescription(source.description);
+    const alreadyExists = existing.some(
+      (item) => isCoverSourceDescription(item.description) === sourceIsCover,
+    );
+
+    if (!alreadyExists) {
+      await db.releaseSource.create({
+        data: {
+          releaseId,
+          ...source,
+        },
+      });
+    }
+  }
 }
 
-function releaseData(row: ParsedReleaseRow, artistId: string, batchId: string) {
+export function releaseData(row: ParsedReleaseRow, artistId: string, batchId: string) {
   return {
     artistId,
     importBatchId: batchId,
@@ -176,7 +221,11 @@ function releaseData(row: ParsedReleaseRow, artistId: string, batchId: string) {
     format: row.format,
     originalCatalogNo: row.originalCatalogNo,
     label: row.label,
+    originalPrice: row.originalPrice,
+    editionType: row.editionType,
     isReissue: row.isReissue,
+    isRemaster: row.isRemaster,
+    isExcludedByDefault: row.isExcludedByDefault,
     notes: row.notes,
     coverImageUrl: row.coverImageUrl,
   };
@@ -201,6 +250,19 @@ export async function confirmImport(input: ImportConfirmInput, userId: string): 
 
   return prisma.$transaction(async (tx) => {
     const artist = await resolveConfirmArtist(input.artist, tx);
+    await tx.userArtistFollow.upsert({
+      where: {
+        userId_artistId: {
+          userId,
+          artistId: artist.id,
+        },
+      },
+      create: {
+        userId,
+        artistId: artist.id,
+      },
+      update: {},
+    });
     const rowsWithPreview = await buildImportPreview({
       fileName: input.fileName,
       artist: { mode: "existing", artistId: artist.id, artistName: artist.name },

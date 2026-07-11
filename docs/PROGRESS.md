@@ -1,238 +1,77 @@
 # CD-BOX Progress
 
-## 2026-07-11 — Production MVP Integration (In Progress)
+## 2026-07-11 — 本机单用户版本（开发收尾中）
 
-### Decisions Locked
+### 已锁定方向
 
-- CD-BOX is a single-owner application. GitHub is the only authentication provider, `AUTH_GITHUB_ALLOWED_ID=26319181` is the stable owner allowlist, and the login is display-only.
-- The product has one shared artist/release catalog and no registration, invitations, roles, teams, or user-management UI.
-- User-linked follow and collection-status records remain internal persistence details for the authenticated owner; they do not make the product a multi-user workspace.
-- Real online release research is required for the first production release. Responses API plus an actual `web_search` tool call must pass; pasted-source structuring alone is insufficient.
-- The production stack is Vercel in `hkg1`, Neon PostgreSQL, GitHub OAuth, and Vercel AI Gateway with OIDC authentication.
+- CD-BOX 只面向一个 owner，在 Windows 本机运行，不对局域网或互联网开放。
+- 唯一运行入口是 `http://127.0.0.1:3000`；数据库是本机 PostgreSQL 16。
+- 不提供注册、邀请、团队、角色或用户管理。
+- 艺人与发行构成一个共享目录；用户关联表只保存 owner 的收藏状态和内部完整性信息。
+- AI 使用现有 OpenAI-compatible 中转站的 `gpt-5.6-terra` Chat Completions。
+- 联网发行证据优先来自真实来源。当前中转站没有可用的原生 Responses/web-search，因此使用 MusicBrainz 与 Cover Art Archive 公共资料源。
+- 不新增云托管、云数据库、付费搜索 API、AI 路由或外部登录依赖。
+- 所有秘密只保存在 Git 忽略且 ACL 受限的 `.env.local`；不得打印或提交。
 
-### Implemented on the Current Working Branch
+### 已完成
 
-- Replaced the previous multi-provider authentication assumptions with GitHub-only owner authentication and stable numeric-ID allowlist checks in the sign-in, JWT, session, and server-side owner boundary.
-- Added authentication guards to owner pages and API routes, owner identity display, and logout handling.
-- Implemented `/artists/new` with validated creation and owner-follow behavior.
-- Added initial Prisma migration files and production migration scripts to the current working tree.
-- Standardized collection states as `OWNED`, `NOT_OWNED`, `WANTED`, `EXCLUDED`, and `PENDING_REVIEW`, with priority constrained to 1–5.
-- Made online search the first AI workflow when relay capability is configured and added editable candidate fields before import.
-- Hardened relay URL validation, provider probing, response-source inspection, security headers, dependency versions, Node/npm pins, and CI checks.
-- Added a production deployment runbook for Vercel, Neon, GitHub OAuth, encrypted environment variables, migration, and release verification.
-- Deployed the application to `https://cd-box.vercel.app`, applied the committed Neon migration, created the production GitHub OAuth application, and verified owner login.
-- Replaced username-only authorization with stable GitHub numeric-ID checks across sign-in, JWT, session, and every server-side owner boundary.
-- Added owner-only production provider diagnostics and streaming Responses API collection so slow providers can return incremental events without a gateway timeout.
-- Verified the original `linkapi.shop` endpoint is not publicly routable from Vercel and the replacement `new-api.xiron.net.cn` provider exposes only `gpt-5.6-terra` but fails generation with upstream timeouts / `666 openai_error`.
-- Configured Vercel AI Gateway as the production provider using the deployment OIDC token, free-tier-eligible `openai/gpt-5.4-mini`, and `openai/gpt-image-2` (image generation remains disabled).
-- Verified production Responses API generation (`200`, completed output) and a forced `web_search` call (`200`, one reported search call) through the owner-only diagnostics page.
-- Re-ran a clean npm install, production dependency audit, Prisma generation, type check, all 17 tests, ESLint, and the production build successfully before the latest release commit.
-- Fixed the Next.js 16 Server Action export contract on `/artists/new`, redeployed production, and added a regression test that rejects non-async runtime exports from file-level `"use server"` modules.
-- Verified production artist creation end to end: `POST /artists/new` returned `303`, the new `/artists/[id]` page returned `200`, and the deployment logged no Prisma or 5xx errors after increasing the Neon transaction startup allowance.
+#### 本机运行与安全
 
-The current working tree is deployed to production for acceptance testing. It is not yet tagged as the accepted MVP release.
+- 增加严格的本机 owner 模式，只接受数值回环 Host、Origin 和可信回环代理头组合。
+- 启动脚本强制执行 `next start -H 127.0.0.1 -p 3000`。
+- 完成 PostgreSQL 角色/数据库初始化、migration、生产构建、备份、SHA-256 校验和单事务恢复脚本。
+- Bootstrap 可从 Windows 剪贴板安全读取现有中转站密钥，生成强随机数据库密码与认证秘密，并原子写入受保护的 `.env.local`。
+- 完成旧数据导出文件到本机数据库的导入命令与事务边界。
 
-### Remaining Before Production Acceptance
+#### 收藏工作流
 
-- Complete deployed acceptance for Excel import, online research, candidate edit/import, status updates, export, and logout.
+- 完成艺人创建、艺人库、发行详情、来源管理、收藏状态、批量更新、筛选、统计与 Excel 导出。
+- 完成 Excel 上传、预览、重复检测、跳过/更新/新建策略和确认导入。
+- 保存来源 URL 到 `ReleaseSource`，保存真实封面 URL 到 `Release.coverImageUrl`。
+- 导入与批量操作均具备事务边界和回归测试。
 
-Production deployment, owner authentication, and the AI Gateway release gate are complete; full collection-workflow acceptance is still in progress.
+#### AI 与资料研究
 
-> The entries below are historical milestones. Older statements that made pasted-source structuring primary or described general per-user behavior are superseded by the production MVP decisions above.
+- OpenAI-compatible 客户端支持 Responses 和 Chat Completions，并根据显式能力声明避免无效端点请求。
+- 已验证当前 GPT-5.6 中转站的 Chat Completions 和 JSON 输出可用，Responses 正文与原生 web-search 不可用。
+- 完成 MusicBrainz/Cover Art Archive 客户端：安全 URL、User-Agent、限速、有限重试、分页上限、结果缓存、严格艺人消歧、国家/格式/发行状态筛选和封面查询上限。
+- 联网研究可在三种能力状态下工作：
+  - 原生能力明确可用：使用真实原生搜索。
+  - 原生能力明确不可用：直接使用公共资料源。
+  - 能力未知：尝试原生搜索，端点/空输出/无真实搜索调用时自动降级。
+- 公共资料研究已改为默认确定性映射，不调用 GPT；GPT-5.6 保留给粘贴非结构化资料整理，避免大型艺人目录产生额外费用和长时间等待。
+- 公共源无法确认再版状态时，排除再版搜索的候选会强制标为待核对。
+- 鉴权、额度、模型和传输错误不会伪装成搜索成功；公共源已有确定性候选时才允许带明确警告返回。
+- 完成原文艺人名与 Apple Music 封面严格补全、质量门控、候选全选/编辑/导入和全过程进度提示。
+- `rawResult` 保存研究模式、证据、响应、进度和脱敏错误。
 
-## 2026-06-08
+#### 工程质量
 
-### Phase 4
+- Next.js、React 和 Node/npm 版本已固定到当前安全版本范围。
+- 完成 AI 协议、公共元数据、认证边界、导入事务、解析、质量门控、筛选、统计、导出和 Server Action 合约测试。
+- 图片生成保持关闭；AI 生成图不能作为真实 CD 封面。
+- 已移除不属于最终本机架构的云平台运行时依赖和配置。
 
-- Refocused the product around the collector loop: choose artist, manage release list, mark ownership, see gaps, fill metadata, export backup.
-- Simplified the artist table to the default collector fields: status, category, title, date, catalog number, format, source count, notes, and cover as the final column.
-- Moved advanced release metadata editing to the release detail page.
-- Simplified inline editing to collection status, notes, and cover URL.
-- Simplified filters to keyword, category, status, missing cover, and pending review; moved source/catalog/reissue/remaster/exclusion/year/confidence filters into an advanced section.
-- Added a one-click gap view.
-- Simplified stats cards to completion rate, owned/collectible total, gap count, pending review, and missing cover; moved category completion behind a details section.
-- Simplified bulk actions and moved priority/default-exclusion operations into an advanced bulk section.
-- At that phase, reworked `/ai-search` so pasted-source structuring was primary and unsupported web search was folded into a capability note. This ordering is superseded by the 2026-07-11 online-first launch decision.
-- Added `docs/LEAN_UX_CHECKLIST.md`.
+### 当前验证基线
 
-### Phase 3.9
+- `npm run typecheck`：通过。
+- `npm test`：61/61 通过。
+- `npm run lint`：通过。
+- `npm run build`：Next.js 生产构建通过。
+- `npm run audit:prod`：0 个已知生产依赖漏洞。
 
-- Enhanced `/artists/[id]` into the core collection management workspace.
-- Added release service modules:
-  - `src/lib/releases/release-service.ts`
-  - `src/lib/releases/release-types.ts`
-  - `src/lib/releases/release-filters.ts`
-  - `src/lib/releases/release-stats.ts`
-  - `src/lib/releases/release-export.ts`
-- Added inline release editing for title, category, date, format, catalog number, label, price, edition type, reissue/remaster flags, default exclusion, cover URL, and notes.
-- Added direct collection-status editing backed by automatic `UserReleaseStatus` creation. The production product uses this only for the allowlisted owner.
-- Added multi-select bulk updates for status, priority, and `isExcludedByDefault`, scoped to the current artist.
-- Added filter panel for keyword, category, status, confidence, flags, missing cover/source/catalog, pending review, and decade/year ranges.
-- Added collection stats cards and category completion rates.
-- Added Excel export for all rows or current filtered rows.
-- Enhanced release detail pages with cover URL editing, source URL add/delete, user status display, return link, and exclusion reason.
-- Added tests for release filters, stats, export rows, and bulk update validation.
+### 剩余验收
 
-### Phase 3.8.1
+1. 在本机生产进程中完整走通艺人创建、Excel 导入、公共资料研究、候选编辑/导入、收藏状态与导出。
+2. 验证搜索全过程进度、原文艺人名、发行封面、来源链接和错误警告。
+3. 创建数据库备份，执行归档只读校验和一次测试恢复。
+4. 验证进行中任务完成后的优雅停止与重新启动。
+5. 完成上述项目后，将本机构建标记为日常使用版本。
 
-- Calibrated pasted-source confidence scoring so complete, sourced CD rows are not stuck at LOW.
-- Separated data confidence from collection-scope exclusion:
-  - Complete sourced CD rows can become HIGH.
-  - Sourced rows with catalog numbers but incomplete fields can become MEDIUM.
-  - Reissue/remaster rows and non-CD physical rows can remain MEDIUM while `isExcludedByDefault=true`.
-  - Missing sources, risky warnings, and source-less candidates still force LOW.
-- Added tests for sourced complete rows, missing dates, missing sources, missing catalog numbers, reissues, LP/Vinyl, hallucination warnings, and invented cover cleanup.
+## 历史功能阶段摘要
 
-Calibrated pasted-source smoke result:
-
-- Fixtures: 3
-- Candidates: 8
-- Confidence: HIGH 6 / MEDIUM 2 / LOW 0
-- Missing catalog numbers: 0
-- Missing release dates: 0
-- Missing sources: 0
-- Default excluded: 2
-- Invented source URLs: no
-- Invented cover image URLs: no
-- Claimed online search: no
-
-### Phase 3.8
-
-- Added real pasted-source smoke fixtures in `sample-data/pasted-sources/` for official label, retailer, and CD database style snippets.
-- Added `scripts/smoke-pasted-structure.mjs` and `npm run smoke:pasted-structure`.
-- Smoke test uses `OPENAI_TEXT_MODEL`, calls the pasted-source structuring service, and does not use `web_search`.
-- Hardened pasted-source parsing for partial model JSON, explicit source-only URL preservation, explicit cover-only preservation, category inference, reissue inference, and non-CD format gates.
-- Expanded response text extraction to handle relay Responses API content variants.
-- Added `tests/release-structure-real-fixture.test.ts`.
-
-Real pasted-source smoke result:
-
-- Fixtures: 3
-- Candidates: 8
-- Confidence: HIGH 0 / MEDIUM 0 / LOW 8
-- Missing catalog numbers: 0
-- Missing release dates: 0
-- Missing sources: 0
-- Default excluded: 2
-- Invented source URLs: no
-- Invented cover image URLs: no
-- Claimed online search: no
-- `COLLECTION 2015 復刻` and `COLLECTION LP` were retained as candidates and excluded by default.
-- `中山美穂 & WANDS` artist credit was preserved.
-
-### Phase 3.7
-
-- Added "Pasted source structuring" mode to `/ai-search` for relay environments where `web_search` is unavailable.
-- Added API route `POST /api/ai-search/structure-notes`.
-- Added structuring service, parser, and types:
-  - `src/lib/ai/release-structure.ts`
-  - `src/lib/ai/release-structure-parser.ts`
-  - `src/lib/ai/release-structure-types.ts`
-- Reused the existing candidate preview, quality gates, duplicate protection, and import workflow.
-- Added tests in `tests/release-structure-parser.test.ts`.
-- Enforced that sources can only come from explicit URLs in pasted text or user-provided source URL.
-- Enforced that cover image URLs are not invented and are only preserved when explicitly provided.
-
-### Phase 3.6
-
-- Made OpenAI-compatible relay configuration explicit.
-- `OPENAI_BASE_URL` is now required for AI client creation; CD-BOX no longer falls back to the official OpenAI base URL.
-- Added provider capability helpers in `src/lib/ai/provider-capabilities.ts`.
-- Added `npm run probe:ai` through `scripts/probe-ai-provider.mjs`.
-- Probe checks required config, text smoke, JSON output, Responses API, `web_search`, Chat Completions fallback, and image model configuration without generating images.
-- `/ai-search` now displays AI relay capability status and disables release search when `web_search` is not configured as available.
-- Release research refuses to run when Responses API or `web_search` capability is unavailable. It does not fallback to ordinary chat completions for fake search results.
-- `scripts/smoke-real-ai-search.mjs` now runs capability checks before real Miho Nakayama search and stops when `webSearchSupported=false`.
-- Added `tests/ai-provider-config.test.ts` covering missing base URL, key redaction, web search gating, Responses API gating, and chat fallback boundaries.
-
-Local probe result:
-
-- `OPENAI_API_KEY`: missing
-- `OPENAI_BASE_URL`: missing
-- `OPENAI_TEXT_MODEL`: missing
-- Real AI search was not executed.
-
-### Phase 3
-
-- Added GPT-5.5 release research workflow for `/ai-search`.
-- Implemented OpenAI Responses API web search through `src/lib/ai/client.ts` with `tools: [{ type: "web_search" }]` and forced `tool_choice: "required"` for user-started searches.
-- Added release research services and types:
-  - `src/lib/ai/release-research.ts`
-  - `src/lib/ai/release-research-parser.ts`
-  - `src/lib/ai/release-research-types.ts`
-- Added API routes:
-  - `POST /api/ai-search/release-research`
-  - `GET /api/ai-search/tasks/[id]`
-  - `POST /api/ai-search/tasks/[id]/import`
-- Expanded `AiSearchTask` with `rawResult`, `parsedResult`, and `errorMessage`.
-- Added candidate preview, category/confidence filters, selection, exclusion marking, pending-review marking, expandable sources and warnings, and candidate import.
-- Added parser tests for normal JSON, markdown code blocks, wrapped JSON, missing catalog numbers, empty sources, and reissue exclusion defaults.
-
-### Phase 3.5
-
-- Added AI release research quality gates to prevent weak candidates from polluting the formal collection library.
-- Added `src/lib/ai/release-research-quality.ts` and `tests/release-research-quality.test.ts`.
-- Added `npm run smoke:real-ai-search` for manual real OpenAI smoke testing.
-- Hardened candidate import so duplicate `title + catalogNumber` rows for the same artist are skipped instead of overwriting existing data.
-- Forced low-quality imports into pending review when confidence is not HIGH, catalog number is missing, sources are missing, or warnings include `PENDING_REVIEW`.
-- Added quality overview metrics to `/ai-search`: total candidates, safe imports, pending review, missing catalog, missing source, and default excluded.
-- Changed default selection to only HIGH confidence candidates that are not excluded, have a catalog number, and have at least one source.
-- Added import confirmation with counts for selected, skipped, and pending review rows.
-
-Quality rules:
-
-- Missing catalog number caps confidence at MEDIUM and marks pending review.
-- Missing sources forces LOW confidence and marks pending review.
-- Wikipedia-only sources cap confidence at MEDIUM and add an `only wiki source` warning.
-- LP, Vinyl, record, cassette, tape, DVD, and Blu-ray formats are excluded by default under ORIGINAL_CD scope.
-- Reissues are excluded by default when `excludeReissues` is true.
-
-Real search smoke:
-
-- Not executed in this environment because `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_TEXT_MODEL` are not set in the shell.
-- `npm run smoke:real-ai-search` exits with a clear missing-key error and can be rerun after configuring environment variables.
-
-### Phase 2.5
-
-- Ran a smoke parse against the real local workbook.
-- Confirmed only the A/B/C release sheets are parsed and instruction sheets are skipped.
-- Enhanced header compatibility for real workbook headers including compact original CD date/catalog/source URL headers.
-- Normalized Excel `Date` cells by local year/month/day to avoid date drift from timezone conversion.
-- Added real-template header fixture coverage in `tests/import-real-template.test.ts`.
-- Added `npm run smoke:real-import` for local smoke testing with a non-committed real workbook.
-
-Smoke result:
-
-- A sheet rows: 22
-- B sheet rows: 39
-- C sheet rows: 20
-- Importable rows: 81
-- Error rows: 0
-- Source URL recognized: 81
-- Cover image recognized: 0 because the real workbook does not include a cover image column
-
-### Phase 2
-
-- Added Excel import parsing with `xlsx` in `src/lib/import/excel-parser.ts`.
-- Added import types and database write service in `src/lib/import/import-types.ts` and `src/lib/import/import-service.ts`.
-- Added API routes: `POST /api/import/preview` and `POST /api/import/confirm`.
-- Reworked `/import` into a drag-and-drop upload, preview, duplicate strategy, and confirm workflow.
-- Added `/releases/[id]` to show release details and `ReleaseSource` URLs outside the main collection table.
-- Added support for source URL to `ReleaseSource.url` and cover image to `Release.coverImageUrl`.
-- Added `EXCLUDED`, `BEST`, and `COLLECTION` enum values for import compatibility.
-- Added `sample-data/cd-box-import-sample.xlsx` plus parser test coverage through `npm run test:import`.
-
-### Phase 1
-
-- Initialized the Next.js App Router WebUI foundation.
-- Added TypeScript, Tailwind CSS, shadcn/ui components, Prisma, PostgreSQL schema, NextAuth route wiring, and OpenAI SDK wrapper.
-- Added Prisma models for `User`, `Account`, `Session`, `Artist`, `UserArtistFollow`, `Release`, `ReleaseSource`, `UserReleaseStatus`, `ImportBatch`, `AiSearchTask`, and `UiAsset`.
-- Created MVP pages: `/`, `/dashboard`, `/artists/new`, `/artists/[id]`, `/import`, `/ai-search`, and `/settings`.
-- Implemented the artist release table with `coverImageUrl` as the final column.
-- Preserved source URL handling as the separate `ReleaseSource` model and detail-page source list.
-
-## Next
-
-- Complete the 2026-07-11 production acceptance checklist above.
-- Configure credentials only in ignored local environment files or encrypted Vercel environment variables; never commit secrets.
-- Do not call the MVP released until GitHub OAuth, Neon migration, and real relay `web_search` have passed in production.
+- Phase 1：Next.js/Prisma 基础、数据模型、核心页面和封面列。
+- Phase 2：Excel 导入、发行详情、来源持久化和真实模板兼容。
+- Phase 3：AI 发行研究、候选预览、质量门控、粘贴资料整理和导入保护。
+- Phase 4：收藏者工作流收敛、艺人库筛选/批量操作/统计/导出和精简 UI。
+- Local Finalization：本机 owner、PostgreSQL 运维、GPT-5.6 Chat 兼容、公共元数据研究与零新增付费依赖。

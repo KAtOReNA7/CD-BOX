@@ -2,9 +2,16 @@ import "server-only";
 
 import { cache } from "react";
 import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth/options";
+import { upsertLocalOwner } from "@/lib/auth/local-owner";
+import {
+  isLocalOwnerRequestAllowed,
+  readLocalOwnerRequestMetadata,
+  resolveLocalOwnerConfiguration,
+} from "@/lib/auth/local-owner-policy";
 import {
   authorizeOwnerIdentity,
   resolveAllowedGitHubId,
@@ -12,13 +19,46 @@ import {
   type AuthorizedOwnerIdentity,
 } from "@/lib/auth/owner-policy";
 
-export type AuthenticatedOwner = AuthorizedOwnerIdentity;
+export type AuthenticatedOwner = {
+  id: string;
+  authMode: "github" | "local";
+  handle: string;
+  name: string;
+  image: string | null;
+  githubId: string | null;
+  githubLogin: string | null;
+};
+
+function fromGitHubOwner(owner: AuthorizedOwnerIdentity): AuthenticatedOwner {
+  return {
+    ...owner,
+    authMode: "github",
+    handle: owner.githubLogin,
+  };
+}
 
 export const getCurrentOwner = cache(async (): Promise<AuthenticatedOwner | null> => {
+  const localOwnerConfiguration = resolveLocalOwnerConfiguration();
+  if (localOwnerConfiguration.status !== "disabled") {
+    if (localOwnerConfiguration.status !== "enabled") {
+      return null;
+    }
+
+    const requestHeaders = await headers();
+    const request = readLocalOwnerRequestMetadata(requestHeaders);
+    if (!isLocalOwnerRequestAllowed(localOwnerConfiguration, request)) {
+      return null;
+    }
+
+    const owner = await upsertLocalOwner();
+    return { ...owner, githubId: null, githubLogin: null };
+  }
+
   const session = await getServerSession(authOptions);
   const allowedGithubId = resolveAllowedGitHubId(process.env.AUTH_GITHUB_ALLOWED_ID);
   const fallbackGithubLogin = resolveAllowedGitHubLogin(process.env.AUTH_GITHUB_ALLOWED_LOGIN);
-  return authorizeOwnerIdentity(session?.user, allowedGithubId, fallbackGithubLogin);
+  const owner = authorizeOwnerIdentity(session?.user, allowedGithubId, fallbackGithubLogin);
+  return owner ? fromGitHubOwner(owner) : null;
 });
 
 export async function getCurrentUserId() {

@@ -1,74 +1,79 @@
 # CD-BOX
 
-CD-BOX is a private WebUI for managing a physical CD collection. It maintains one shared artist and release catalog, source URLs, cover image URLs, import history, AI research tasks, and the owner's collection status.
+CD-BOX is a private, locally hosted WebUI for managing a physical CD collection. It maintains one shared artist and release catalog, source URLs, cover image URLs, import history, AI research tasks, and the owner's collection status.
 
-## Production MVP Decisions
+## Local Deployment Decisions
 
-- **Single owner:** GitHub is the only sign-in provider. `AUTH_GITHUB_ALLOWED_ID=26319181` is the stable owner allowlist; `AUTH_GITHUB_ALLOWED_LOGIN=KAtOReNA7` is display-only. CD-BOX does not provide registration, invitations, roles, or user management.
+- **Single owner:** local owner mode is restricted to loopback requests. CD-BOX does not provide registration, invitations, roles, or user management.
 - **Shared catalog:** artists and releases live in one shared release catalog. The schema keeps an owner identity and collection-status records for authentication and data integrity, but the product is not a multi-user workspace.
-- **Online AI research at launch:** real internet search through the OpenAI Responses API `web_search` tool is a launch requirement. If the configured relay cannot prove `web_search` support, online research stays blocked rather than falling back to ordinary chat and claiming that a search occurred.
-- **Deployment:** the production stack is Vercel (Hong Kong region), Neon PostgreSQL, GitHub OAuth, and Vercel AI Gateway authenticated by the deployment OIDC token.
+- **Online research:** release evidence comes from verified native `web_search` when available, otherwise from deterministic MusicBrainz and Cover Art Archive records. GPT-5.6 is reserved for structuring user-pasted unstructured material; ordinary chat is never presented as web evidence.
+- **Deployment:** one local Next.js production process bound to `127.0.0.1`, local PostgreSQL, and the existing OpenAI-compatible relay. No cloud hosting, paid search API, cloud database, or external login is required.
 
-The production application is available at <https://cd-box.vercel.app>. Neon migrations, the stable-domain GitHub OAuth callback, owner login, unauthenticated API protection, Responses API generation, and a real AI Gateway `web_search` call have been verified. Final acceptance still requires the complete deployed collection workflow. See [docs/PROGRESS.md](docs/PROGRESS.md) and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+See [docs/LOCAL_DEPLOYMENT.md](docs/LOCAL_DEPLOYMENT.md) for the local setup, backup, restore, and graceful-shutdown runbook.
 
 ## Tech Stack
 
 - Next.js App Router, React, and TypeScript
 - Tailwind CSS and shadcn/ui
 - Prisma and PostgreSQL
-- NextAuth with GitHub OAuth
-- OpenAI SDK with Vercel AI Gateway or another OpenAI-compatible relay
-- Vercel and Neon PostgreSQL for production
+- NextAuth-compatible local owner boundary
+- OpenAI SDK with an OpenAI-compatible relay
+- Windows PowerShell operations and local PostgreSQL backups
 
 ## Local Setup
 
-Use Node.js 24 and npm 11, then create a local environment file that is ignored by Git:
+Use Node.js 24 and npm 11. For a first-time Windows installation, place the existing relay key alone on the Windows clipboard and run the elevated, non-interactive bootstrap:
 
 ```powershell
-npm ci
-Copy-Item .env.example .env.local
-npm run db:generate
-npm run dev
+npm run local:bootstrap
+npm run local:start
 ```
 
-Open <http://localhost:3000>. GitHub OAuth must be configured with the local callback URL `http://localhost:3000/api/auth/callback/github` before sign-in works.
+Bootstrap creates the dedicated `cd_box_app` PostgreSQL role and `cd_box` database, generates strong database and authentication secrets, writes the ignored `.env.local` atomically, applies migrations, and builds the application. It temporarily adds one `hostnossl postgres postgres 127.0.0.1/32 trust` rule and restores the byte-identical original `pg_hba.conf` in `finally`. The clipboard key and generated secrets are never printed or passed on a process command line.
+
+Open <http://127.0.0.1:3000>. The production server is explicitly bound to the loopback interface and is unavailable from other devices.
 
 Required configuration:
 
 ```bash
-DATABASE_URL=
-AUTH_SECRET=
-NEXTAUTH_URL=http://localhost:3000
-AUTH_GITHUB_ID=
-AUTH_GITHUB_SECRET=
-AUTH_GITHUB_ALLOWED_ID=26319181
-AUTH_GITHUB_ALLOWED_LOGIN=KAtOReNA7
-OPENAI_API_KEY=
-AI_GATEWAY_API_KEY=
-OPENAI_BASE_URL=https://ai-gateway.vercel.sh/v1
-OPENAI_TEXT_MODEL=openai/gpt-5.6-sol
-OPENAI_IMAGE_MODEL=openai/gpt-image-2
-AI_PROVIDER_MODE=vercel-ai-gateway
+DATABASE_URL=postgresql://<database-user>:<database-password>@127.0.0.1:55432/<database-name>?schema=public
+LOCAL_OWNER_MODE=true
+LOCAL_OWNER_BIND_HOST=127.0.0.1
+NEXTAUTH_URL=http://127.0.0.1:3000
+AUTH_URL=http://127.0.0.1:3000
+AUTH_SECRET=<generate-a-long-random-value>
+OPENAI_API_KEY=<relay-api-key>
+OPENAI_BASE_URL=https://<relay-host>/v1
+OPENAI_TEXT_MODEL=gpt-5.6-terra
+AI_TEXT_PROTOCOL=chat-completions
+AI_MAX_COMPLETION_TOKENS=16384
+AI_REASONING_EFFORT=none
+AI_REQUEST_TIMEOUT_MS=300000
 AI_ENABLE_WEB_SEARCH=true
+AI_ORGANIZE_PUBLIC_METADATA=false
 AI_ENABLE_IMAGE_GENERATION=false
+AI_RESPONSES_SUPPORTED=false
+AI_CHAT_COMPLETIONS_SUPPORTED=true
+AI_WEB_SEARCH_SUPPORTED=false
 ```
 
-Vercel deployments use the automatically injected `VERCEL_OIDC_TOKEN`; `AI_GATEWAY_API_KEY` is only needed for local Gateway access. For a custom OpenAI-compatible relay, set `AI_PROVIDER_MODE=openai-compatible`, provide `OPENAI_API_KEY`, and replace the base URL and model IDs. Never commit real credentials.
+`OPENAI_IMAGE_MODEL` stays unset while image generation is disabled. The capability declarations above match the verified GPT-5.6 relay; re-run `npm run probe:ai` before changing them. Never commit real credentials.
 
 ## Database
 
-Generate the Prisma client and apply committed migrations locally:
+Initialize the local database and apply committed migrations:
 
 ```bash
-npm run db:generate
-npm run db:migrate:dev
+npm run local:db:init
 ```
 
-For production, use committed migrations rather than `prisma db push`:
+Create a compressed, checksummed backup with automatic retention:
 
 ```bash
-npm run db:migrate:deploy
+npm run local:db:backup
 ```
+
+Use committed migrations rather than `prisma db push`.
 
 ## Collection Library
 
@@ -107,25 +112,25 @@ npm run smoke:real-import
 
 ## AI Release Research
 
-The `/ai-search` launch workflow is online-first:
+The `/ai-search` workflow is online-first:
 
 1. Enter an artist, region, scope, and inclusion rules.
-2. Run Responses API research with `tools: [{ type: "web_search" }]` and required tool use.
-3. Enrich missing covers and native-script artist names only from uniquely matched Apple Music album metadata; unmatched or ambiguous rows stay unchanged.
-4. Review and edit candidates before import.
-5. Import only explicitly selected candidates; source URLs are preserved as `ReleaseSource` rows.
+2. Use native Responses `web_search` only when the relay explicitly supports it. The verified local relay instead queries the free MusicBrainz and Cover Art Archive public services.
+3. Map public evidence deterministically without a model call. This avoids extra relay cost and long waits; GPT-5.6 remains available for the separate pasted-source structuring workflow.
+4. Enrich missing covers and native-script artist names only from uniquely matched Apple Music metadata; unmatched or ambiguous rows stay unchanged.
+5. Review and edit candidates, then import only explicitly selected rows. Source URLs are preserved as `ReleaseSource` records.
 
-Quality gates cap or lower confidence for missing catalog numbers, missing sources, wiki-only evidence, reissues, and out-of-scope physical formats. AI-generated images are never accepted as real CD covers. Apple Music artwork is linked to its store source and is accepted only after at least two distinct, uniquely matched Apple collections establish one dominant artist ID, followed by a unique exact title/year album match. Cover metadata never raises release confidence or substitutes for physical-edition evidence. Duplicate `title + catalogNumber` candidates for the same artist are skipped instead of overwriting curated data.
+Quality gates cap or lower confidence for missing catalog numbers, missing sources, wiki-only evidence, reissues, and out-of-scope physical formats. When MusicBrainz cannot verify reissue status under an exclude-reissues search, the row is forced to pending review rather than presented as safe to import. AI-generated images are never accepted as real CD covers. Apple Music artwork is linked to its store source and is accepted only after at least two distinct, uniquely matched Apple collections establish one dominant artist ID, followed by a unique exact title/year album match. Cover metadata never raises release confidence or substitutes for physical-edition evidence. Duplicate `title + catalogNumber` candidates for the same artist are skipped instead of overwriting curated data.
 
-Pasted-source structuring remains available as a secondary workflow for organizing user-supplied text, tables, or URLs. It is not a substitute for the required launch-time online search and must never claim network access.
+Pasted-source structuring remains available for user-supplied text, tables, or URLs and must never claim network access.
 
-Before deployment, verify the relay without printing secrets:
+Before the local release, verify the relay without printing secrets:
 
 ```bash
 npm run probe:ai
 ```
 
-The production gate requires `responsesSupported=true`, `webSearchSupported=true`, and the configured production model. A real online-search smoke test can then be run with:
+The local gate requires Chat Completions text and JSON support. Responses and native `web_search` may remain unsupported because public metadata research is a separate, source-faithful path. A real research smoke can be run with:
 
 ```bash
 npm run smoke:real-ai-search
@@ -141,4 +146,4 @@ npm run check
 npm run build
 ```
 
-Production is not considered verified until GitHub owner login, database migration, artist creation, Excel import, online research, candidate edit/import, collection updates, export, and logout all pass against the deployed Vercel application.
+The local release is not considered verified until the local owner boundary, database migration, artist creation, Excel import, online research, candidate edit/import, collection updates, export, backup, and graceful shutdown all pass on `127.0.0.1`.

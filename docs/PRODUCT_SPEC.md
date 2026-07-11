@@ -1,34 +1,20 @@
 # CD-BOX Product Spec
 
-CD-BOX is a private WebUI collection manager for one physical CD collector. The owner signs in with GitHub, maintains a shared artist and release catalog, and tracks original albums, singles, best albums, collections, live releases, remixes, box sets, EPs, and other physical CD formats.
+CD-BOX 是一名实体 CD 收藏者使用的本机 WebUI。它管理一个共享的艺人/发行目录、来源链接、真实封面链接、导入历史、AI 研究任务和收藏状态。产品不面向公众，不提供注册、邀请、团队、角色或用户管理。
 
-This document describes the production MVP target. Historical implementation milestones remain in `docs/PROGRESS.md`; when an older milestone differs from this specification, this document is authoritative.
+本文是最终产品基线；历史阶段记录不能覆盖本文。
 
-## MVP Goals
+## 产品与运行边界
 
-- Run as a Next.js App Router application with TypeScript, Tailwind CSS, shadcn/ui, Prisma, PostgreSQL, and NextAuth.
-- Use GitHub as the only authentication provider and allow only stable GitHub numeric ID `26319181` through `AUTH_GITHUB_ALLOWED_ID`; the login is display-only.
-- Do not provide registration, invitations, roles, teams, or user administration.
-- Store one shared artist/release catalog and the owner's collection state in PostgreSQL so it can sync across the owner's devices.
-- Use the existing Excel template as the data prototype.
-- Replace the WebUI table's final `Source URL` column with `Cover Image`.
-- Preserve source URLs as `ReleaseSource` records and show them on release detail pages.
-- Store `coverImageUrl` as a URL in MVP. Object storage is out of scope for the production MVP.
-- Route all AI text calls through `src/lib/ai/client.ts`; production uses Vercel AI Gateway with `OPENAI_TEXT_MODEL=openai/gpt-5.6-sol` and deployment OIDC authentication.
-- Require real online release research through the Responses API `web_search` tool for launch.
-- Keep image generation disabled for the production MVP even though an image-model setting is reserved for future UI assets.
-- Never generate fake CD covers with AI. Real CD cover art must come from a real source URL or manual user input.
-- Deploy the production application to Vercel with Neon PostgreSQL.
+- Next.js App Router、TypeScript、React、Tailwind CSS、shadcn/ui、Prisma 和 PostgreSQL。
+- 单个生产进程只监听 `127.0.0.1`，默认端口 3000。
+- `LOCAL_OWNER_MODE=true` 建立单 owner 边界；每个页面、Route Handler 和 Server Action 仍在服务器端检查 owner。
+- 不需要外部 OAuth、云托管、云数据库、反向代理或对象存储。
+- 艺人与发行形成一个共享目录；用户关联表保留用于收藏状态、数据完整性和未来兼容，但不构成多用户产品。
+- 真实秘密只保存在 Git 忽略且 ACL 受限的 `.env.local`。
+- 本机 PostgreSQL 是唯一运行数据库；使用已提交 migration，不使用 `prisma db push` 代替发布迁移。
 
-## Identity and Data Boundary
-
-- GitHub OAuth is the only sign-in method.
-- Only the configured stable GitHub numeric ID may create a valid session. Login and email are display/profile data and are not sufficient for authorization.
-- Every protected page and API route resolves the authenticated owner server-side.
-- Artists and releases form one shared catalog. The database may retain user-linked follow and collection-status records, but these support the single-owner boundary and do not constitute user-management functionality.
-- No anonymous mutation or cross-user data access is permitted.
-
-## Pages
+## 页面
 
 - `/`
 - `/dashboard`
@@ -39,171 +25,145 @@ This document describes the production MVP target. Historical implementation mil
 - `/ai-search`
 - `/settings`
 
-## Artist Release Table
+## 艺人库与发行表
 
-The artist detail table displays these fields in order:
+艺人详情页是主要收藏工作区。默认表格按以下顺序显示：
 
-1. Collection status
-2. Category
-3. Title
-4. Original release date
-5. Original catalog number
-6. Format
-7. Source count
-8. Notes
-9. Cover image
+1. 收藏状态
+2. 分类
+3. 标题
+4. 原始发行日期
+5. 原始品番
+6. 格式
+7. 来源数量
+8. 备注
+9. 封面
 
-`coverImageUrl` is the final visible column. Source URLs are not discarded; they are persisted in `ReleaseSource`.
+`coverImageUrl` 是最后一个可见列。来源 URL 单独保存在 `ReleaseSource`，并在发行详情页显示。
 
-The artist library page supports quick collection status editing, quick notes/cover URL editing, bulk actions, filters, ownership stats, category completion rates, and Excel export. Release detail pages support full release metadata editing and manual `ReleaseSource` add/delete. Source URLs remain outside the main table's final column.
+艺人库支持：
 
-Lean UX defaults:
+- 收藏状态 `OWNED`、`NOT_OWNED`、`WANTED`、`EXCLUDED`、`PENDING_REVIEW`。
+- 1–5 优先级。
+- 快速编辑状态、备注和封面 URL。
+- 完整发行元数据编辑与来源增删。
+- 批量更新、缺口视图、筛选、收藏统计和元数据完整度。
+- 导出全部或当前筛选结果到 Excel。
 
-- The default artist table shows no more than 9 business fields and keeps cover image as the final column.
-- Advanced release fields such as label, original price, edition type, reissue/remaster flags, default exclusion, confidence, and warnings are moved to details or folded sections.
-- Default filters are keyword, category, collection status, missing cover, and pending review.
-- Missing source, missing catalog number, reissue/remaster, exclusion, year range, and confidence filters are advanced.
-- Category completion rates and advanced bulk operations are folded by default.
-- `/ai-search` is online-search first when the required relay capability is available. Pasted-source structuring is secondary and cannot satisfy the production launch gate.
+## Excel 导入
 
-## Excel Import Workflow
+`/import` 支持 `.xlsx` 上传、预览、重复检测和明确确认后写库。上传本身不能修改数据库。
 
-The `/import` page supports drag-and-drop `.xlsx` upload, choosing an existing artist library, or creating a new artist by name. Uploading a workbook only creates a preview; database writes happen after the user clicks confirm.
-
-Supported sheets:
+支持的逻辑工作表：
 
 - `A_OriginalAlbumOriginalCD`
 - `B_SingleOriginalCD`
 - `C_BestLiveRemix`
 
-The real Japanese workbook uses equivalent Japanese sheet names. Instruction sheets such as overview, collection policy, glossary, and options are skipped.
+等价日文表名同样支持；说明、口径、术语等非数据工作表跳过。
 
-Column handling:
+字段规则：
 
-- Cover image maps to `Release.coverImageUrl`.
-- Source URL maps to `ReleaseSource.url`.
-- If both columns exist, both values are preserved in their separate fields.
-- Source URLs never appear as the final column in the main WebUI table.
+- 封面图映射到 `Release.coverImageUrl`。
+- 来源 URL 映射到 `ReleaseSource.url`。
+- 两列同时存在时分别保留。
+- 日期按工作簿本地年月日解析，避免时区漂移。
 
-Duplicate handling:
+重复规则：
 
-- First match by `artistId + originalCatalogNo`.
-- If catalog number is empty, match by `artistId + title + originalReleaseDate + format`.
-- Preview marks duplicates without writing to the database.
-- Confirm supports skip, update existing, or create as a new release.
+1. 优先匹配 `artistId + originalCatalogNo`。
+2. 品番为空时匹配 `artistId + title + originalReleaseDate + format`。
+3. 预览只标记重复，不写数据库。
+4. 确认阶段支持跳过、更新现有或创建新记录。
 
-## GPT Release Research Workflow
+## AI 与联网发行研究
 
-The `/ai-search` page lets the authenticated owner create release candidates before importing anything into the formal collection library.
+所有 AI 文本调用统一通过 `src/lib/ai/client.ts`。最终配置使用现有 OpenAI-compatible 中转站的 `gpt-5.6-terra` Chat Completions；不经过额外 AI 路由服务。
 
-It has two modes, in this order:
+`/ai-search` 有两个模式：
 
-- Online search
-- Pasted source structuring
+1. 联网研究
+2. 粘贴资料整理
 
-Inputs:
+联网研究输入：艺人名、国家/地区、收藏范围、是否排除再版、是否包含合作名义，以及是否包含 Live/Remix/Best。
 
-- Artist name
-- Country or region, defaulting to Japan
-- Collection scope: original old CD, all CD, or all physical
-- Exclude reissues
-- Include collaborations
-- Include Live / Remix / Best
+### 联网研究策略
 
-AI requirements:
+- `AI_ENABLE_WEB_SEARCH=true` 表示用户允许联网研究。
+- 当某个中转站明确支持 Responses 与真实 `web_search` 时，可使用原生工具调用，并要求响应中存在真实搜索调用。
+- 当前已验证中转站不支持该能力，因此直接查询 MusicBrainz 与 Cover Art Archive 公共资料源，不先发起无效 Responses 请求。
+- 公共资料服务不需要额外 API 订阅，但调用必须遵守其公开规则与速率限制。
+- 公共资料默认按来源确定性映射，不调用模型；GPT-5.6 只用于整理用户粘贴的非结构化资料。
+- 当公共源无法确认再版状态且用户要求排除再版时，候选必须标为待核对，不能显示为可安全导入。
+- 模型输出新增或改变日期、品番、厂牌、格式、条码、封面、来源、再版、重制或原始发行日期时，整个整理结果被拒绝并使用确定性映射。
+- 公共源只提供某一具体发行日期时写入 `releaseDate`，不得猜测 `originalReleaseDate`。
+- MusicBrainz 未明确给出再版/重制状态时保持 `null`，不得根据标题或日期推断。
+- AI 鉴权、额度或模型错误必须在警告/任务错误中可见。只有公共源已经产生确定性候选时，任务才能以公共资料模式成功。
 
-- All AI calls go through `src/lib/ai/client.ts`.
-- CD-BOX requires an OpenAI-compatible relay through `OPENAI_BASE_URL`; direct official API access is not assumed.
-- Release research logic lives in `src/lib/ai/release-research.ts`.
-- JSON extraction and validation live in `src/lib/ai/release-research-parser.ts`.
-- Types live in `src/lib/ai/release-research-types.ts`.
-- Searches use the OpenAI Responses API with `tools: [{ type: "web_search" }]`.
-- User-started searches set `tool_choice: "required"` to force web search.
-- If the relay does not support Responses API or `web_search`, online release research is blocked and the UI asks the user to run `npm run probe:ai`.
-- Chat Completions fallback may only be used for non-search text tasks. It must not be used to fabricate online search results.
-- A deployment that cannot complete a real `web_search` call is not release-ready.
-- Online results may enrich a missing cover and native-script artist name from Apple Music Search metadata only after at least two distinct, uniquely matched Apple collections establish one majority artist ID; each cover still requires one unique exact title/year album within that artist. Existing covers are never overwritten, ambiguous matches remain empty, every accepted Apple cover retains a separate Apple Music provenance link, and cover-only metadata is excluded from release-evidence counts and never raises release confidence.
+### 名称、封面与来源
 
-## Pasted Source Structuring
+- 艺人原文名只能来自 MusicBrainz 名称/别名或严格匹配的 Apple Music 元数据。
+- Apple Music 只有在至少两个不同专辑建立唯一主艺人证据后，才能补全艺人原文名。
+- 每个 Apple 封面还必须匹配同一艺人的唯一精确标题与年份；现有封面不覆盖，歧义结果保持为空。
+- Apple 封面保存单独的来源链接，但不能替代实体版本证据，也不能提高发行置信度。
+- AI 生成图片不得作为真实 CD 封面。
 
-The owner can paste source material from official sites, labels, retailers, CD databases, MusicBrainz, VGMdb, or CSV/table text. This secondary mode is called "Pasted source structuring"; it is not search, must not claim network access, and does not replace the launch requirement for working online search.
+### 质量门控
 
-Rules:
+- 缺品番最多为 `MEDIUM`，并标记待核对。
+- 缺来源强制为 `LOW`，并标记待核对。
+- 仅 wiki 来源最多为 `MEDIUM`。
+- 原版 CD 范围下的 LP、黑胶、卡带、DVD、Blu-ray 等默认排除。
+- 明确再版且用户要求排除再版时默认排除。
+- 完整、有真实来源、品番、日期、厂牌和 CD 格式的候选可以为 `HIGH`。
+- 默认只选择 `HIGH`、有品番、有来源且未默认排除的候选。
+- AI 结果永不直接写入正式发行表；必须由 owner 预览、编辑、选择并确认导入。
+- 同一艺人的重复 `title + catalogNumber` 不覆盖人工整理数据。
 
-- All calls still go through `src/lib/ai/client.ts`.
-- Structuring logic lives in `src/lib/ai/release-structure.ts`.
-- Parser logic lives in `src/lib/ai/release-structure-parser.ts`.
-- Sources may only come from URLs explicitly present in pasted text or the optional user-provided source URL.
-- If no source URL exists, candidates keep empty `sources`, are downgraded by quality gates, and are marked pending review.
-- `coverImageUrl` may only be kept when it matches an explicit user-provided cover URL. The model must not invent cover art.
-- Missing fields remain `null`; the model must not guess catalog numbers or dates.
-- The same candidate preview, quality gates, and import path are reused.
-- The parser keeps release-like rows even when they are outside scope, then marks reissues, remasters, LP, record, cassette, tape, DVD, and Blu-ray rows as excluded by default where applicable.
-- `廃盤` means out of print and is not treated as a reissue by itself.
-- `COLLECTION`, `Best`, `ベスト`, `精选`, and `合集` are classified as `BEST` or `COLLECTION`, not `SINGLE`.
-- `8cmCD`, `CDシングル`, and single rows are classified as `SINGLE` unless the source says collection, best, live, remix, or box.
+## 粘贴资料整理
 
-Smoke fixtures:
+Owner 可以粘贴官网、厂牌、零售商、数据库、CSV 或表格文本。该模式不联网，也不得声称执行过搜索。
 
-- Real pasted-source smoke snippets live in `sample-data/pasted-sources/`.
-- `npm run smoke:pasted-structure` calls the pasted-source structuring workflow without `web_search`.
-- Smoke output reports candidate counts, confidence counts, missing fields, missing sources, default exclusions, invented cover URLs, invented source URLs, and accidental online-search claims.
+- 来源只能来自粘贴文本中的显式 URL 或用户单独输入的来源 URL。
+- 封面只能保留用户显式提供的封面 URL。
+- 缺失字段保持 `null`，不得猜品番、日期、封面或来源。
+- 与联网研究复用同一解析、质量门控、候选编辑和导入路径。
 
-Persistence:
+## 持久化与任务状态
 
-- Search tasks are saved as `AiSearchTask`.
-- `rawResult` stores the raw model output and a JSON-safe response snapshot.
-- `parsedResult` stores the validated candidate structure.
-- Failed parsing or API errors set `status = FAILED` and write `errorMessage`.
+- 搜索任务保存在 `AiSearchTask`。
+- `rawResult` 保存研究模式、进度阶段、公共证据、模型响应快照和脱敏错误。
+- `parsedResult` 保存通过校验的候选。
+- 任务阶段必须反映真实工作：等待、资料查询、证据校验、名称/封面补全和保存。
+- 失败任务保存可操作的脱敏错误，不得记录 API 密钥或数据库密码。
 
-Import rules:
+## 无新增付费依赖原则
 
-- AI results never write directly to `Release`.
-- Candidates are previewed in a dense table with confidence, category, title, artist credit, date, format, catalog number, label, reissue flag, cover, source count, and warnings.
-- Users select candidates, mark exclusions, and mark pending-review rows before import.
-- Sources are saved to `ReleaseSource`.
-- Cover image URLs are only saved when a real source provides them. AI-generated CD covers remain forbidden.
-- Missing catalog numbers are capped at `MEDIUM` confidence and marked with a `PENDING_REVIEW` warning.
-- Missing sources force `LOW` confidence and must be pending review.
-- Wikipedia-only sources cap confidence at `MEDIUM` and must include an `only wiki source` warning.
-- Non-CD physical formats are excluded by default under original-old-CD scope.
-- Reissues are excluded by default when the user asks to exclude reissues.
-- Confidence measures extraction trust, while `isExcludedByDefault` measures collection-scope fit. A complete sourced reissue or LP row can be `MEDIUM` and excluded at the same time.
-- Complete sourced CD rows with catalog number, release date, label, and CD format may be `HIGH`.
-- Existing manually curated data is protected: candidate imports skip duplicate `title + catalogNumber` rows for the same artist instead of overwriting them.
-- By default, only HIGH confidence candidates with catalog numbers, sources, and no default exclusion are selected for import.
+- 优先使用项目已有依赖和 Codex 已安装能力完成开发、安装与验收。
+- 新工具先检查是否可本机运行、是否开源或免订阅，以及是否要求信用卡。
+- 不引入会自动续费、按请求收费的搜索服务、云数据库或托管平台。
+- Codex 浏览器/计算机控制只用于开发和验收，不能作为 CD-BOX 关闭 Codex 后的运行时后端。
 
-## Provider Capability Probe
+## 本机发布与验收
 
-`npm run probe:ai` checks relay capabilities without printing secrets:
+发布命令：
 
-- Required configuration and redacted API key
-- Text model smoke
-- JSON output smoke
-- Responses API smoke
-- `web_search` smoke when Responses API is available
-- Chat Completions fallback smoke
-- Image model configuration only; image generation is deferred to a later phase
+```powershell
+npm ci
+npm run audit:prod
+npm run db:generate
+npm run check
+npm run build
+```
 
-The probe emits a summary object with `textSupported`, `jsonSupported`, `responsesSupported`, `webSearchSupported`, `chatCompletionsSupported`, and `imageModelConfigured`.
+最终验收必须在 `127.0.0.1` 完成：
 
-## Production Deployment and Acceptance
+1. 本机 owner 边界和非回环请求拒绝。
+2. PostgreSQL migration、艺人创建和数据持久化。
+3. Excel 预览、重复策略、确认导入与导出。
+4. 公共资料研究、进度、来源、原文名、封面、候选编辑和导入。
+5. 收藏状态、筛选、批量操作和来源管理。
+6. 数据库备份、校验与测试恢复。
+7. 生产构建、优雅停止和重新启动。
 
-Target infrastructure:
-
-- Vercel for the Next.js application and GitHub-connected deployments.
-- Neon PostgreSQL through Vercel Marketplace.
-- GitHub OAuth with the production callback URL.
-- Vercel AI Gateway, or another verified OpenAI-compatible provider, whose Responses API can execute and report `web_search` calls.
-
-The production MVP is accepted only after all of the following pass in the deployed environment:
-
-1. Database migrations apply cleanly to Neon.
-2. GitHub numeric ID `26319181` can sign in and a non-allowlisted GitHub ID is rejected, regardless of login text.
-3. The owner can create an artist and access only authenticated pages and APIs.
-4. Excel preview, duplicate handling, and confirmed import persist correctly.
-5. The provider probe reports Responses API and `web_search` support, and a real online release search returns evidence-backed candidates.
-6. Candidate review/edit/import, collection-status updates, source handling, and Excel export work end to end.
-7. Type checking, tests, lint, production build, and production dependency audit pass.
-
-Vercel deployment, Neon migration, stable-domain GitHub OAuth, owner login, unauthenticated API protection, Responses API generation, and a real AI Gateway `web_search` call are complete. Full collection-workflow acceptance remains tracked in `docs/PROGRESS.md`.
+完整运维步骤见 `docs/LOCAL_DEPLOYMENT.md`；当前完成度见 `docs/PROGRESS.md`。

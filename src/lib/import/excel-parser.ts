@@ -12,12 +12,18 @@ const headerAliases = {
   format: ["格式"],
   catalogNo: ["原版品番", "品番", "应找原版 CD 品番", "原版CD品番", "原版 CD 品番"],
   label: ["厂牌"],
+  originalPrice: ["原价", "原始价格", "定价"],
+  editionType: ["版本类型", "版本"],
   isReissue: ["是否再版"],
+  isRemaster: ["是否 Remaster", "是否Remaster", "Remaster"],
+  isExcludedByDefault: ["是否默认排除", "默认排除"],
   notes: ["备注"],
   coverImageUrl: ["封面图", "封面图 URL", "封面 URL", "Cover Image URL"],
+  coverImageSourceUrl: ["封面来源 URL", "封面来源URL", "Cover Source URL"],
   sourceUrl: ["来源 URL", "来源URL", "来源 url", "Source URL"],
   priority: ["优先级", "优先度"],
   status: ["收集状态", "收藏状态"],
+  ownedNotes: ["拥有状态备注", "收藏状态备注"],
   included: ["是否纳入"],
 } satisfies Record<string, string[]>;
 
@@ -46,6 +52,22 @@ function findValue(row: Record<string, unknown>, aliases: string[]) {
   );
 
   return found ? found[1] : undefined;
+}
+
+function optionalText(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  return cellText(value) || null;
+}
+
+function parseSourceUrls(value: unknown) {
+  if (value === undefined) return undefined;
+
+  return [...new Set(
+    cellText(value)
+      .split(/[\r\n]+/)
+      .map((url) => url.trim())
+      .filter(Boolean),
+  )];
 }
 
 export function parseDateValue(value: unknown): Date | null {
@@ -126,11 +148,11 @@ function parseStatus(value: unknown, included: boolean): EditableCollectionStatu
     return "OWNED";
   }
 
-  if (["未拥有", "skip", "跳过"].includes(text)) {
+  if (["未拥有", "not_owned", "not owned", "skip", "跳过"].includes(text)) {
     return "NOT_OWNED";
   }
 
-  if (["想买", "want", "wishlist"].includes(text)) {
+  if (["想买", "want", "wanted", "wishlist"].includes(text)) {
     return "WANTED";
   }
 
@@ -138,15 +160,32 @@ function parseStatus(value: unknown, included: boolean): EditableCollectionStatu
     return "EXCLUDED";
   }
 
+  if (["待审核", "待复核", "pending_review", "pending review"].includes(text)) {
+    return "PENDING_REVIEW";
+  }
+
   return "NOT_OWNED";
 }
 
 function parseFormat(value: unknown): ReleaseFormat {
-  const text = cellText(value).toUpperCase().replace(/\s+/g, "_").replace("+", "_");
+  const text = cellText(value).toUpperCase().replace(/[\s+-]+/g, "_");
+  const exactFormats = new Set<ReleaseFormat>([
+    "CD",
+    "SHM_CD",
+    "BLU_SPEC_CD",
+    "SACD",
+    "HYBRID_SACD",
+    "CD_DVD",
+    "BOX_SET",
+    "OTHER",
+  ]);
+
+  if (exactFormats.has(text as ReleaseFormat)) return text as ReleaseFormat;
 
   if (text.includes("SHM")) return "SHM_CD";
   if (text.includes("BLU")) return "BLU_SPEC_CD";
-  if (text.includes("HYBRID") || text.includes("SACD")) return "HYBRID_SACD";
+  if (text.includes("HYBRID")) return "HYBRID_SACD";
+  if (text.includes("SACD")) return "SACD";
   if (text.includes("DVD")) return "CD_DVD";
   if (text.includes("BOX")) return "BOX_SET";
   if (text.includes("CD") || !text) return "CD";
@@ -178,6 +217,27 @@ function inferCategory(sheetName: string, typeValue: unknown): ReleaseCategory {
   }
 
   const type = cellText(typeValue);
+  const normalizedType = type.toUpperCase().replace(/[\s-]+/g, "_");
+  const exactCategories = new Set<ReleaseCategory>([
+    "ORIGINAL_ALBUM",
+    "SINGLE",
+    "BEST",
+    "COLLECTION",
+    "COMPILATION",
+    "LIVE",
+    "REMIX",
+    "BOX",
+    "EP",
+    "OTHER",
+  ]);
+
+  if (exactCategories.has(normalizedType as ReleaseCategory)) {
+    return normalizedType as ReleaseCategory;
+  }
+
+  if (/Single|单曲|シングル/i.test(type)) {
+    return "SINGLE";
+  }
 
   if (/Best|ベスト|精选/i.test(type)) {
     return "BEST";
@@ -185,6 +245,10 @@ function inferCategory(sheetName: string, typeValue: unknown): ReleaseCategory {
 
   if (/COLLECTION|Collection|合集/i.test(type)) {
     return "COLLECTION";
+  }
+
+  if (/Compilation|合辑|合輯|コンピレーション/i.test(type)) {
+    return "COMPILATION";
   }
 
   if (/Live|ライブ|现场/i.test(type)) {
@@ -195,6 +259,18 @@ function inferCategory(sheetName: string, typeValue: unknown): ReleaseCategory {
     return "REMIX";
   }
 
+  if (/Box|盒装|套装|ボックス/i.test(type)) {
+    return "BOX";
+  }
+
+  if (/^EP$|迷你专辑|ミニアルバム/i.test(type)) {
+    return "EP";
+  }
+
+  if (/Original Album|原创专辑|原創アルバム|アルバム|Album/i.test(type)) {
+    return "ORIGINAL_ALBUM";
+  }
+
   return "OTHER";
 }
 
@@ -203,7 +279,8 @@ function shouldImportSheet(sheetName: string) {
     return false;
   }
 
-  return sheetName.includes("A_原创专辑原版CD") ||
+  return sheetName.trim().toUpperCase() === "CD-BOX" ||
+    sheetName.includes("A_原创专辑原版CD") ||
     sheetName.includes("B_单曲原版CD") ||
     sheetName.includes("C_精选现场混音");
 }
@@ -242,6 +319,13 @@ export function parseExcelBuffer(buffer: Buffer, fileName = "upload.xlsx"): Pars
       const format = parseFormat(findValue(row, headerAliases.format));
       const included = parseIncluded(findValue(row, headerAliases.included));
       const status = parseStatus(findValue(row, headerAliases.status), included);
+      const originalPrice = optionalText(findValue(row, headerAliases.originalPrice));
+      const editionType = optionalText(findValue(row, headerAliases.editionType));
+      const isRemasterValue = findValue(row, headerAliases.isRemaster);
+      const isExcludedByDefaultValue = findValue(row, headerAliases.isExcludedByDefault);
+      const coverImageSourceUrl = optionalText(findValue(row, headerAliases.coverImageSourceUrl));
+      const sourceUrls = parseSourceUrls(findValue(row, headerAliases.sourceUrl));
+      const ownedNotes = optionalText(findValue(row, headerAliases.ownedNotes));
       const errors: string[] = [];
 
       if (!title) {
@@ -258,12 +342,23 @@ export function parseExcelBuffer(buffer: Buffer, fileName = "upload.xlsx"): Pars
         format,
         originalCatalogNo: catalogNo,
         label: cellText(findValue(row, headerAliases.label)) || null,
+        ...(originalPrice !== undefined ? { originalPrice } : {}),
+        ...(editionType !== undefined ? { editionType } : {}),
         isReissue: parseBooleanValue(findValue(row, headerAliases.isReissue), false),
+        ...(isRemasterValue !== undefined
+          ? { isRemaster: parseBooleanValue(isRemasterValue, false) }
+          : {}),
+        ...(isExcludedByDefaultValue !== undefined
+          ? { isExcludedByDefault: parseBooleanValue(isExcludedByDefaultValue, false) }
+          : {}),
         notes: cellText(findValue(row, headerAliases.notes)) || null,
         coverImageUrl: cellText(findValue(row, headerAliases.coverImageUrl)) || null,
-        sourceUrl: cellText(findValue(row, headerAliases.sourceUrl)) || null,
+        ...(coverImageSourceUrl !== undefined ? { coverImageSourceUrl } : {}),
+        sourceUrl: sourceUrls?.[0] ?? null,
+        ...(sourceUrls !== undefined ? { sourceUrls } : {}),
         priority: parsePriority(findValue(row, headerAliases.priority)),
         status,
+        ...(ownedNotes !== undefined ? { ownedNotes } : {}),
         included,
         duplicate: false,
         duplicateReleaseId: null,

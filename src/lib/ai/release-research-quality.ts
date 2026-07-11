@@ -79,6 +79,12 @@ export function applyReleaseQualityGate(
   const unknownFormat = isUnknownFormat(release.format);
   const incompleteStructuredFields = !hasReleaseDate(release) || !release.format || !release.label;
   const riskyWarnings = hasRiskyWarning(warnings);
+  const explicitPendingReview = warnings.some((warning) => warning.includes("PENDING_REVIEW"));
+
+  if (explicitPendingReview) {
+    confidence = capConfidence(confidence, "MEDIUM");
+    pendingReview = true;
+  }
 
   if (missingCatalogNumber) {
     confidence = capConfidence(confidence, "MEDIUM");
@@ -145,6 +151,7 @@ export function applyReleaseQualityGate(
     release.isReissue !== true &&
     release.isRemaster !== true &&
     !riskyWarnings &&
+    !explicitPendingReview &&
     !wikiOnlySources
   ) {
     confidence = "HIGH";
@@ -194,6 +201,7 @@ export function applyReleaseQualityGate(
       safeToImportByDefault:
         confidence === "HIGH" &&
         !isExcludedByDefault &&
+        !explicitPendingReview &&
         release.sources.length > 0 &&
         Boolean(release.catalogNumber),
     },
@@ -220,6 +228,7 @@ export function summarizeResearchQuality(releases: ReleaseResearchCandidate[]) {
       (release) =>
         release.confidence === "HIGH" &&
         !release.isExcludedByDefault &&
+        !release.warnings.some((warning) => warning.includes("PENDING_REVIEW")) &&
         release.sources.length > 0 &&
         Boolean(release.catalogNumber),
     ).length,

@@ -7,15 +7,15 @@ import { requirePageOwner } from "@/lib/auth/current-user";
 const envItems = [
   "DATABASE_URL",
   "AUTH_SECRET",
-  "AUTH_GITHUB_ID",
-  "AUTH_GITHUB_ALLOWED_ID",
-  "AUTH_GITHUB_ALLOWED_LOGIN",
+  "LOCAL_OWNER_MODE",
+  "LOCAL_OWNER_BIND_HOST",
   "OPENAI_API_KEY",
-  "AI_GATEWAY_API_KEY",
   "OPENAI_BASE_URL",
   "OPENAI_TEXT_MODEL",
   "OPENAI_IMAGE_MODEL",
-  "AI_PROVIDER_MODE",
+  "AI_TEXT_PROTOCOL",
+  "AI_ENABLE_WEB_SEARCH",
+  "AI_ORGANIZE_PUBLIC_METADATA",
 ];
 
 export default async function SettingsPage() {
@@ -38,7 +38,7 @@ export default async function SettingsPage() {
           <Label htmlFor="cover">手动封面 URL 示例</Label>
           <Input id="cover" placeholder="https://example.com/real-cd-cover.jpg" />
           <p className="text-sm text-muted-foreground">
-            MVP 只保存封面图 URL，后续可扩展到 Supabase Storage 或 Cloudflare R2。
+            CD-BOX 只保存真实封面图 URL；本机版本不需要对象存储服务。
           </p>
         </div>
       </div>

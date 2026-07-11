@@ -1,11 +1,17 @@
 import "server-only";
 
-import { getVercelOidcToken } from "@vercel/oidc";
-
 export type AiProviderCapabilitySummary = {
+  configurationReady: boolean;
   baseUrlConfigured: boolean;
   textModel: string | null;
   imageModel: string | null;
+  textProtocol: AiTextProtocol;
+  effectiveTextProtocol: AiTextProtocol | "unavailable";
+  textSupport: AiCapabilityState;
+  responsesSupport: AiCapabilityState;
+  webSearchSupport: AiCapabilityState;
+  chatCompletionsSupport: AiCapabilityState;
+  webSearchEnabled: boolean;
   textSupported: boolean;
   jsonSupported: boolean;
   responsesSupported: boolean;
@@ -13,6 +19,64 @@ export type AiProviderCapabilitySummary = {
   chatCompletionsSupported: boolean;
   imageModelConfigured: boolean;
 };
+
+export type AiCapabilityState = "supported" | "unsupported" | "unknown";
+export type AiTextProtocol = "auto" | "responses" | "chat-completions";
+export type AiReasoningEffort = "none" | "minimal" | "low" | "medium" | "high";
+
+const textProtocols = new Set<AiTextProtocol>(["auto", "responses", "chat-completions"]);
+const reasoningEfforts = new Set<AiReasoningEffort>(["none", "minimal", "low", "medium", "high"]);
+
+export function resolveAiTextProtocol(env: NodeJS.ProcessEnv = process.env): AiTextProtocol {
+  const configured = env.AI_TEXT_PROTOCOL ?? "auto";
+  if (!textProtocols.has(configured as AiTextProtocol)) {
+    throw new Error("AI_TEXT_PROTOCOL must be one of: auto, responses, chat-completions.");
+  }
+
+  return configured as AiTextProtocol;
+}
+
+export function resolveEffectiveAiTextProtocol(env: NodeJS.ProcessEnv = process.env): AiTextProtocol {
+  const requested = resolveAiTextProtocol(env);
+  if (requested !== "auto") return requested;
+
+  const responses = declaredCapability(env.AI_RESPONSES_SUPPORTED);
+  const chatCompletions = declaredCapability(env.AI_CHAT_COMPLETIONS_SUPPORTED);
+
+  if (responses === "unsupported" && chatCompletions === "unsupported") {
+    throw new Error("Both Responses and Chat Completions are explicitly marked unsupported.");
+  }
+  if (responses === "supported" && chatCompletions !== "supported") return "responses";
+  if (chatCompletions === "supported" && responses !== "supported") return "chat-completions";
+  if (responses === "unsupported") return "chat-completions";
+  if (chatCompletions === "unsupported") return "responses";
+
+  return "auto";
+}
+
+export function resolveAiReasoningEffort(env: NodeJS.ProcessEnv = process.env): AiReasoningEffort {
+  const configured = env.AI_REASONING_EFFORT ?? "none";
+  if (!reasoningEfforts.has(configured as AiReasoningEffort)) {
+    throw new Error("AI_REASONING_EFFORT must be one of: none, minimal, low, medium, high.");
+  }
+
+  return configured as AiReasoningEffort;
+}
+
+export function resolveAiRequestTimeoutMs(env: NodeJS.ProcessEnv = process.env) {
+  const configured = Number(env.AI_REQUEST_TIMEOUT_MS ?? 300_000);
+  if (!Number.isInteger(configured) || configured < 30_000 || configured > 600_000) {
+    throw new Error("AI_REQUEST_TIMEOUT_MS must be an integer between 30000 and 600000 milliseconds.");
+  }
+
+  return configured;
+}
+
+function declaredCapability(value: string | undefined): AiCapabilityState {
+  if (value === "true") return "supported";
+  if (value === "false") return "unsupported";
+  return "unknown";
+}
 
 export function redactSecret(value: string | undefined | null) {
   if (!value) return "missing";
@@ -58,19 +122,14 @@ export function requireRelayBaseUrl(env: NodeJS.ProcessEnv = process.env) {
 }
 
 export function resolveAiCredential(env: NodeJS.ProcessEnv = process.env) {
-  if (env.AI_PROVIDER_MODE === "vercel-ai-gateway") {
-    return env.AI_GATEWAY_API_KEY ?? env.VERCEL_OIDC_TOKEN ?? null;
-  }
-
   return env.OPENAI_API_KEY ?? null;
 }
 
 export function requireAiProviderConfig(env: NodeJS.ProcessEnv = process.env) {
-  const providerMode = env.AI_PROVIDER_MODE ?? "openai-compatible";
   const apiKey = resolveAiCredential(env);
   const missing = ["OPENAI_BASE_URL", "OPENAI_TEXT_MODEL"].filter((key) => !env[key]);
   if (!apiKey) {
-    missing.unshift(providerMode === "vercel-ai-gateway" ? "AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN" : "OPENAI_API_KEY");
+    missing.unshift("OPENAI_API_KEY");
   }
 
   if (missing.length > 0) {
@@ -79,33 +138,31 @@ export function requireAiProviderConfig(env: NodeJS.ProcessEnv = process.env) {
     );
   }
 
+  const requestedTextProtocol = resolveAiTextProtocol(env);
+  const effectiveTextProtocol = resolveEffectiveAiTextProtocol(env);
+
   return {
     apiKey: apiKey!,
     baseURL: requireRelayBaseUrl(env),
     textModel: env.OPENAI_TEXT_MODEL!,
     imageModel: env.OPENAI_IMAGE_MODEL ?? null,
-    providerMode,
+    requestedTextProtocol,
+    textProtocol: effectiveTextProtocol,
+    effectiveTextProtocol,
+    reasoningEffort: resolveAiReasoningEffort(env),
+    requestTimeoutMs: resolveAiRequestTimeoutMs(env),
     webSearchEnabled: env.AI_ENABLE_WEB_SEARCH === "true",
     imageGenerationEnabled: env.AI_ENABLE_IMAGE_GENERATION === "true",
   };
 }
 
-export async function requireRuntimeAiProviderConfig(
+export function requireRuntimeAiProviderConfig(
   env: NodeJS.ProcessEnv = process.env,
   apiKeyOverride?: string,
 ) {
-  const providerMode = env.AI_PROVIDER_MODE ?? "openai-compatible";
-  let apiKey = apiKeyOverride ?? resolveAiCredential(env);
-
-  if (!apiKey && providerMode === "vercel-ai-gateway") {
-    apiKey = await getVercelOidcToken();
-  }
-
   const runtimeEnv = {
     ...env,
-    ...(providerMode === "vercel-ai-gateway"
-      ? { AI_GATEWAY_API_KEY: apiKey ?? undefined }
-      : { OPENAI_API_KEY: apiKey ?? undefined }),
+    OPENAI_API_KEY: apiKeyOverride ?? resolveAiCredential(env) ?? undefined,
   };
 
   return requireAiProviderConfig(runtimeEnv);
@@ -120,30 +177,77 @@ export function getConfiguredProviderCapabilities(env: NodeJS.ProcessEnv = proce
   }
   const textModel = env.OPENAI_TEXT_MODEL ?? null;
   const imageModel = env.OPENAI_IMAGE_MODEL ?? null;
-  const hasRuntimeCredential =
-    Boolean(resolveAiCredential(env)) ||
-    (env.AI_PROVIDER_MODE === "vercel-ai-gateway" && env.VERCEL === "1");
-  const hasTextConfig = Boolean(hasRuntimeCredential && baseUrlConfigured && env.OPENAI_TEXT_MODEL);
+  const hasRuntimeCredential = Boolean(resolveAiCredential(env));
+  const hasRequiredTextConfig = Boolean(hasRuntimeCredential && baseUrlConfigured && env.OPENAI_TEXT_MODEL);
+
+  let textProtocol: AiTextProtocol = "auto";
+  let effectiveTextProtocol: AiTextProtocol | "unavailable" = "auto";
+  let providerSettingsValid = true;
+  try {
+    textProtocol = resolveAiTextProtocol(env);
+    effectiveTextProtocol = resolveEffectiveAiTextProtocol(env);
+    resolveAiReasoningEffort(env);
+    resolveAiRequestTimeoutMs(env);
+  } catch {
+    // Invalid configuration is not a verified provider capability.
+    providerSettingsValid = false;
+    effectiveTextProtocol = "unavailable";
+  }
+  const hasTextConfig = hasRequiredTextConfig && providerSettingsValid;
+
+  const responsesSupport = !hasTextConfig || textProtocol === "chat-completions"
+    ? "unsupported"
+    : declaredCapability(env.AI_RESPONSES_SUPPORTED);
+  const chatCompletionsSupport = !hasTextConfig || textProtocol === "responses"
+    ? "unsupported"
+    : declaredCapability(env.AI_CHAT_COMPLETIONS_SUPPORTED);
+  const webSearchEnabled = env.AI_ENABLE_WEB_SEARCH === "true";
+  const webSearchSupport = !hasTextConfig || !webSearchEnabled || responsesSupport === "unsupported"
+    ? "unsupported"
+    : declaredCapability(env.AI_WEB_SEARCH_SUPPORTED);
+  const textSupport = !hasTextConfig
+    ? "unsupported"
+    : responsesSupport === "supported" || chatCompletionsSupport === "supported"
+      ? "supported"
+      : responsesSupport === "unsupported" && chatCompletionsSupport === "unsupported"
+        ? "unsupported"
+        : "unknown";
 
   return {
+    configurationReady: hasTextConfig,
     baseUrlConfigured,
     textModel,
     imageModel,
-    textSupported: hasTextConfig,
-    jsonSupported: hasTextConfig,
-    responsesSupported: hasTextConfig,
-    webSearchSupported: hasTextConfig && env.AI_ENABLE_WEB_SEARCH === "true",
-    chatCompletionsSupported: hasTextConfig,
+    textProtocol,
+    effectiveTextProtocol,
+    textSupport,
+    responsesSupport,
+    webSearchSupport,
+    chatCompletionsSupport,
+    webSearchEnabled,
+    textSupported: textSupport === "supported",
+    jsonSupported: textSupport === "supported",
+    responsesSupported: responsesSupport === "supported",
+    webSearchSupported: webSearchSupport === "supported",
+    chatCompletionsSupported: chatCompletionsSupport === "supported",
     imageModelConfigured: Boolean(imageModel),
   };
 }
 
 export function assertCanUseWebSearch(capabilities: AiProviderCapabilitySummary) {
-  if (!capabilities.responsesSupported) {
+  if (!capabilities.configurationReady) {
+    throw new Error("The AI provider configuration is incomplete. Configure the relay URL, model, and credential first.");
+  }
+
+  if (!capabilities.webSearchEnabled) {
+    throw new Error("Online release research is disabled. Set AI_ENABLE_WEB_SEARCH=true after verifying the relay.");
+  }
+
+  if (capabilities.responsesSupport === "unsupported") {
     throw new Error("The configured relay does not have Responses API enabled. Online release research cannot run.");
   }
 
-  if (!capabilities.webSearchSupported) {
+  if (capabilities.webSearchSupport === "unsupported") {
     throw new Error("The current OpenAI-compatible relay does not support web_search, so online release research cannot run.");
   }
 }

@@ -1,7 +1,15 @@
 import "server-only";
 
 import { requireRuntimeAiProviderConfig, sanitizeErrorMessage } from "@/lib/ai/provider-capabilities";
-import { createTextResponse, createWebSearchResponse } from "@/lib/ai/client";
+import {
+  collectResponseOutputText,
+  createResponsesTextResponse,
+  createWebSearchResponse,
+} from "@/lib/ai/client";
+import {
+  consumeChatCompletionsEventStream,
+  consumeResponsesEventStream,
+} from "@/lib/ai/sse";
 
 export const providerChecks = [
   "models",
@@ -12,6 +20,20 @@ export const providerChecks = [
   "web-search",
 ] as const;
 export type ProviderCheck = (typeof providerChecks)[number];
+export type ProviderCheckResult = {
+  check: ProviderCheck;
+  ok: boolean;
+  status: number | null;
+  errorType?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string;
+  [key: string]: unknown;
+};
+
+let activeProviderCheck: {
+  check: ProviderCheck;
+  promise: Promise<ProviderCheckResult>;
+} | null = null;
 
 export function isProviderCheck(value: string | null | undefined): value is ProviderCheck {
   return providerChecks.includes(value as ProviderCheck);
@@ -27,7 +49,7 @@ async function providerRequest(path: string, body?: unknown) {
     },
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(config.requestTimeoutMs),
   });
   const text = await response.text();
   let payload: unknown = null;
@@ -41,7 +63,19 @@ async function providerRequest(path: string, body?: unknown) {
   return { response, payload };
 }
 
-async function providerStreamRequest(path: string, body: unknown) {
+function parseJson(text: string) {
+  try {
+    return text ? JSON.parse(text) as unknown : null;
+  } catch {
+    return null;
+  }
+}
+
+async function providerStreamRequest(
+  path: string,
+  body: unknown,
+  kind: "responses" | "chat-completions",
+) {
   const config = await requireRuntimeAiProviderConfig();
   const response = await fetch(`${config.baseURL}${path}`, {
     method: "POST",
@@ -51,15 +85,41 @@ async function providerStreamRequest(path: string, body: unknown) {
     },
     body: JSON.stringify(body),
     cache: "no-store",
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(config.requestTimeoutMs),
   });
-  const reader = response.body?.getReader();
-  const firstChunk = reader ? await reader.read() : null;
-  await reader?.cancel();
+
+  if (!response.ok) {
+    const text = await response.text();
+    return {
+      response,
+      payload: parseJson(text),
+      eventCount: 0,
+      completed: false,
+      outputText: "",
+    };
+  }
+
+  if (kind === "responses") {
+    const result = await consumeResponsesEventStream(response.body);
+    return {
+      response,
+      payload: result.response,
+      eventCount: result.eventCount,
+      completed: result.response.status === "completed",
+      outputText: typeof result.response.output_text === "string"
+        ? result.response.output_text
+        : collectResponseOutputText(result.response.output),
+    };
+  }
+
+  const result = await consumeChatCompletionsEventStream(response.body);
 
   return {
     response,
-    hasChunk: Boolean(firstChunk && !firstChunk.done && firstChunk.value.byteLength > 0),
+    payload: null,
+    eventCount: result.eventCount,
+    completed: true,
+    outputText: result.outputText,
   };
 }
 
@@ -74,7 +134,19 @@ function errorMetadata(payload: unknown) {
   };
 }
 
-export async function runProviderCheck(check: ProviderCheck) {
+function chatCompletionText(payload: unknown) {
+  if (!payload || typeof payload !== "object" || !("choices" in payload) || !Array.isArray(payload.choices)) {
+    return "";
+  }
+  const first = payload.choices[0];
+  if (!first || typeof first !== "object" || !("message" in first) || !first.message || typeof first.message !== "object") {
+    return "";
+  }
+  const content = "content" in first.message ? first.message.content : null;
+  return typeof content === "string" ? content : "";
+}
+
+async function runProviderCheckOnce(check: ProviderCheck): Promise<ProviderCheckResult> {
   let runtimeApiKey: string | null = null;
 
   try {
@@ -109,15 +181,10 @@ export async function runProviderCheck(check: ProviderCheck) {
       const { response, payload } = await providerRequest("/chat/completions", {
         model: config.textModel,
         messages: [{ role: "user", content: "Reply with exactly: ok" }],
-        max_tokens: 32,
+        reasoning_effort: config.reasoningEffort,
+        max_completion_tokens: 2_048,
       });
-      const hasOutput = Boolean(
-        payload &&
-          typeof payload === "object" &&
-          "choices" in payload &&
-          Array.isArray(payload.choices) &&
-          payload.choices.length > 0,
-      );
+      const hasOutput = Boolean(chatCompletionText(payload));
 
       return {
         check,
@@ -129,41 +196,49 @@ export async function runProviderCheck(check: ProviderCheck) {
     }
 
     if (check === "chat-stream") {
-      const { response, hasChunk } = await providerStreamRequest("/chat/completions", {
+      const { response, payload, eventCount, completed, outputText } = await providerStreamRequest("/chat/completions", {
         model: config.textModel,
         messages: [{ role: "user", content: "Reply with exactly: ok" }],
-        max_tokens: 32,
+        reasoning_effort: config.reasoningEffort,
+        max_completion_tokens: 2_048,
         stream: true,
-      });
+      }, "chat-completions");
 
       return {
         check,
-        ok: response.ok && hasChunk,
+        ok: response.ok && completed && Boolean(outputText),
         status: response.status,
         contentType: response.headers.get("content-type"),
-        hasChunk,
+        eventCount,
+        completed,
+        hasOutput: Boolean(outputText),
+        ...errorMetadata(payload),
       };
     }
 
     if (check === "responses-stream") {
-      const { response, hasChunk } = await providerStreamRequest("/responses", {
+      const { response, payload, eventCount, completed, outputText } = await providerStreamRequest("/responses", {
         model: config.textModel,
         input: "Reply with exactly: ok",
-        max_output_tokens: 32,
+        reasoning: { effort: config.reasoningEffort },
+        max_output_tokens: 2_048,
         stream: true,
-      });
+      }, "responses");
 
       return {
         check,
-        ok: response.ok && hasChunk,
+        ok: response.ok && completed && Boolean(outputText),
         status: response.status,
         contentType: response.headers.get("content-type"),
-        hasChunk,
+        eventCount,
+        completed,
+        hasOutput: Boolean(outputText),
+        ...errorMetadata(payload),
       };
     }
 
     if (check === "responses") {
-      const response = await createTextResponse({
+      const response = await createResponsesTextResponse({
         systemPrompt: "Return only the requested text.",
         userPrompt: "Reply with exactly: ok",
       });
@@ -201,7 +276,7 @@ export async function runProviderCheck(check: ProviderCheck) {
     throw new Error(`Unsupported provider check: ${check}`);
   } catch (error) {
     const errorMessage = error instanceof Error
-      ? [runtimeApiKey, process.env.OPENAI_API_KEY, process.env.AI_GATEWAY_API_KEY, process.env.VERCEL_OIDC_TOKEN]
+      ? [runtimeApiKey, process.env.OPENAI_API_KEY]
           .reduce<string>((message, secret) => sanitizeErrorMessage(message, secret), error.message)
           .slice(0, 500)
       : "Unknown provider error";
@@ -215,4 +290,30 @@ export async function runProviderCheck(check: ProviderCheck) {
       errorMessage,
     };
   }
+}
+
+export function runProviderCheck(check: ProviderCheck): Promise<ProviderCheckResult> {
+  if (activeProviderCheck) {
+    if (activeProviderCheck.check === check) {
+      return activeProviderCheck.promise;
+    }
+
+    return Promise.resolve({
+      check,
+      ok: false,
+      status: null,
+      errorType: "BusyError",
+      errorCode: "diagnostic_in_progress",
+      errorMessage: `The ${activeProviderCheck.check} diagnostic is already running. Wait for it to finish before starting another check.`,
+    });
+  }
+
+  const promise = runProviderCheckOnce(check);
+  activeProviderCheck = { check, promise };
+  void promise.finally(() => {
+    if (activeProviderCheck?.promise === promise) {
+      activeProviderCheck = null;
+    }
+  });
+  return promise;
 }

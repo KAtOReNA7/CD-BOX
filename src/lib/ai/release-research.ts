@@ -1,13 +1,21 @@
 import type { AiSearchTask, Prisma, ReleaseFormat } from "@prisma/client";
-import { aiConfig, createWebSearchResponse } from "@/lib/ai/client";
+import {
+  aiConfig,
+  createWebSearchResponse,
+  isResponsesEndpointUnsupportedError,
+} from "@/lib/ai/client";
 import {
   enrichReleaseResearchResultWithItunes,
 } from "@/lib/ai/itunes-enrichment";
 import {
-  assertCanUseWebSearch,
   getConfiguredProviderCapabilities,
   sanitizeErrorMessage,
 } from "@/lib/ai/provider-capabilities";
+import type { AiProviderCapabilitySummary } from "@/lib/ai/provider-capabilities";
+import {
+  PUBLIC_METADATA_RESEARCH_MODE,
+  researchPublicMetadataReleases,
+} from "@/lib/ai/public-metadata-research";
 import {
   parseReleaseResearchImportInput,
   parseReleaseResearchRequest,
@@ -188,9 +196,67 @@ function toJsonSafe(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+export function assertCanUseOnlineResearch(capabilities: AiProviderCapabilitySummary) {
+  if (!capabilities.configurationReady) {
+    throw new Error("The AI provider configuration is incomplete. Configure the relay URL, model, and credential first.");
+  }
+  if (!capabilities.webSearchEnabled) {
+    throw new Error("Online release research is disabled. Set AI_ENABLE_WEB_SEARCH=true to allow public-source research.");
+  }
+}
+
+export function resolveReleaseResearchStrategy(capabilities: AiProviderCapabilitySummary) {
+  if (capabilities.responsesSupport === "unsupported" || capabilities.webSearchSupport === "unsupported") {
+    return { primary: "public-metadata" as const, nativeCapability: "unsupported" as const };
+  }
+  if (capabilities.responsesSupport === "supported" && capabilities.webSearchSupport === "supported") {
+    return { primary: "native-web-search" as const, nativeCapability: "supported" as const };
+  }
+  return { primary: "native-web-search" as const, nativeCapability: "unknown" as const };
+}
+
+class MissingNativeWebSearchCallError extends Error {
+  constructor() {
+    super("The AI provider returned no web_search call, so the native result was rejected as offline-only.");
+    this.name = "MissingNativeWebSearchCallError";
+  }
+}
+
+function researchErrorKind(error: unknown) {
+  if (error instanceof MissingNativeWebSearchCallError || isResponsesEndpointUnsupportedError(error)) {
+    return "native-search-unsupported";
+  }
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (/402|429|quota|credit|billing|rate.?limit/.test(message)) return "quota";
+  if (/401|403|api.?key|unauthori[sz]ed|forbidden|authentication/.test(message)) return "authentication";
+  if (/model.*(?:not found|unsupported|unavailable)|no such model/.test(message)) return "model";
+  if (/json|parse|schema|no json object|output/.test(message)) return "invalid-output";
+  return "transport";
+}
+
+function sanitizedResearchError(error: unknown, apiKeyOverride?: string) {
+  return sanitizeErrorMessage(
+    error instanceof Error ? error.message : "Release research failed.",
+    apiKeyOverride ?? process.env.OPENAI_API_KEY,
+  ).slice(0, 2_000);
+}
+
+function withPublicFallbackWarning(
+  result: ReleaseResearchResult,
+  reason: "declared-unsupported" | ReturnType<typeof researchErrorKind>,
+) {
+  const warning = reason === "declared-unsupported"
+    ? "中转站已明确标记为不支持原生 Responses/web_search，本次直接使用公共资料源。"
+    : `原生 web_search 未完成（${reason}），本次已改用公共资料源。`;
+  return {
+    ...result,
+    globalWarnings: [...new Set([...result.globalWarnings, warning])],
+  };
+}
+
 export async function createReleaseResearchTask(input: ReleaseResearchRequest, userId: string) {
   const validatedInput = parseReleaseResearchRequest(input);
-  assertCanUseWebSearch(getConfiguredProviderCapabilities());
+  assertCanUseOnlineResearch(getConfiguredProviderCapabilities());
 
   const activeTask = await prisma.aiSearchTask.findFirst({
     where: {
@@ -249,12 +315,11 @@ export async function runReleaseResearchTask(
   const capabilityEnv = apiKeyOverride
     ? {
         ...process.env,
-        ...(process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
-          ? { AI_GATEWAY_API_KEY: apiKeyOverride }
-          : { OPENAI_API_KEY: apiKeyOverride }),
+        OPENAI_API_KEY: apiKeyOverride,
       }
     : process.env;
-  assertCanUseWebSearch(getConfiguredProviderCapabilities(capabilityEnv));
+  const capabilities = getConfiguredProviderCapabilities(capabilityEnv);
+  assertCanUseOnlineResearch(capabilities);
 
   await prisma.aiSearchTask.update({
     where: { id: taskId },
@@ -265,54 +330,118 @@ export async function runReleaseResearchTask(
     },
   });
 
+  let failureTrace: Prisma.InputJsonObject | null = null;
   try {
-    const response = await createWebSearchResponse(
-      {
-        forceSearch: true,
-        systemPrompt:
-          "You are a meticulous discography researcher for physical CD collectors. Use web_search and return strict JSON only.",
-        userPrompt: buildResearchPrompt(validatedInput),
-      },
-      apiKeyOverride,
-    );
+    const strategy = resolveReleaseResearchStrategy(capabilities);
+    let nativeError: unknown = null;
 
-    if (!hasWebSearchCall(response)) {
-      throw new Error("The AI provider returned no web_search call, so the result was rejected as offline-only.");
+    if (strategy.primary === "native-web-search") {
+      await updateResearchProgress(taskId, 24, "正在尝试中转站原生 web_search");
+      try {
+        const response = await createWebSearchResponse(
+          {
+            forceSearch: true,
+            systemPrompt:
+              "You are a meticulous discography researcher for physical CD collectors. Use web_search and return strict JSON only.",
+            userPrompt: buildResearchPrompt(validatedInput),
+          },
+          apiKeyOverride,
+        );
+
+        if (!hasWebSearchCall(response)) throw new MissingNativeWebSearchCallError();
+
+        await updateResearchProgress(taskId, 68, "正在解析和校验原生搜索结果");
+        const rawText = outputTextFromResponse(response);
+        const parsed = parseReleaseResearchResponse(rawText);
+
+        await updateResearchProgress(taskId, 80, "正在补全原文艺人名与发行封面");
+        const enriched = await enrichReleaseResearchResultWithItunes(parsed, {
+          artistQuery: validatedInput.artistName,
+        });
+
+        await updateResearchProgress(taskId, 94, "正在保存原生搜索候选资料");
+        const task = await prisma.aiSearchTask.update({
+          where: { id: taskId },
+          data: {
+            status: "SUCCEEDED",
+            rawResult: {
+              mode: "native-web-search",
+              outputText: rawText,
+              response: toJsonSafe(response),
+            } satisfies Prisma.InputJsonObject,
+            parsedResult: toJsonSafe(enriched),
+          },
+        });
+
+        return toTaskView(task);
+      } catch (error) {
+        nativeError = error;
+      }
     }
 
-    await updateResearchProgress(taskId, 68, "正在解析和校验搜索结果");
-    const rawText = outputTextFromResponse(response);
-    const parsed = parseReleaseResearchResponse(rawText);
+    await updateResearchProgress(taskId, 36, "正在查询 MusicBrainz 公共发行资料");
+    const publicResearch = await researchPublicMetadataReleases(
+      validatedInput,
+      apiKeyOverride,
+    );
+    const fallbackReason = strategy.nativeCapability === "unsupported"
+      ? "declared-unsupported" as const
+      : researchErrorKind(nativeError);
+    const publicResult = withPublicFallbackWarning(publicResearch.result, fallbackReason);
+    const fallbackMessage = nativeError ? sanitizedResearchError(nativeError, apiKeyOverride) : null;
+    failureTrace = {
+      mode: PUBLIC_METADATA_RESEARCH_MODE,
+      fallbackReason: {
+        kind: fallbackReason,
+        message: fallbackMessage,
+      },
+      evidence: toJsonSafe(publicResearch.evidence),
+      organizerStatus: publicResearch.organizer.status,
+      organizerError: publicResearch.organizer.error,
+      outputText: publicResearch.organizer.outputText,
+      response: publicResearch.organizer.response === null
+        ? null
+        : toJsonSafe(publicResearch.organizer.response),
+    } satisfies Prisma.InputJsonObject;
 
-    await updateResearchProgress(taskId, 78, "正在补全原文艺人名与发行封面");
-    const enriched = await enrichReleaseResearchResultWithItunes(parsed, {
+    if (publicResult.releases.length === 0) {
+      throw new Error(
+        nativeError
+          ? `Native search failed (${researchErrorKind(nativeError)}) and public metadata sources returned no deterministic release candidates.`
+          : "Public metadata sources returned no deterministic release candidates.",
+      );
+    }
+
+    await updateResearchProgress(taskId, 76, "正在校验公共资料来源与字段");
+    const enriched = await enrichReleaseResearchResultWithItunes(publicResult, {
       artistQuery: validatedInput.artistName,
     });
-
-    await updateResearchProgress(taskId, 92, "正在保存候选资料");
+    await updateResearchProgress(taskId, 94, "正在保存公共资料源候选");
 
     const task = await prisma.aiSearchTask.update({
       where: { id: taskId },
       data: {
         status: "SUCCEEDED",
-        rawResult: {
-          outputText: rawText,
-          response: toJsonSafe(response),
-        } satisfies Prisma.InputJsonObject,
+        rawResult: failureTrace,
         parsedResult: toJsonSafe(enriched),
       },
     });
 
     return toTaskView(task);
   } catch (error) {
+    const errorMessage = sanitizedResearchError(error, apiKeyOverride);
     const task = await prisma.aiSearchTask.update({
       where: { id: taskId },
       data: {
         status: "FAILED",
-        errorMessage: sanitizeErrorMessage(
-          error instanceof Error ? error.message : "Release research failed.",
-          apiKeyOverride ?? process.env.OPENAI_API_KEY,
-        ).slice(0, 2_000),
+        errorMessage,
+        rawResult: {
+          ...(failureTrace ?? {}),
+          kind: "research-error",
+          progress: 100,
+          stage: "任务执行失败",
+          error: errorMessage,
+        } satisfies Prisma.InputJsonObject,
       },
     });
 
@@ -434,6 +563,19 @@ export async function importReleaseResearchCandidates(
 
   return prisma.$transaction(async (tx) => {
     const artist = await resolveArtist(validatedInput, parsed, tx);
+    await tx.userArtistFollow.upsert({
+      where: {
+        userId_artistId: {
+          userId,
+          artistId: artist.id,
+        },
+      },
+      create: {
+        userId,
+        artistId: artist.id,
+      },
+      update: {},
+    });
     let imported = 0;
     let skippedDuplicates = 0;
     let pendingReviewCount = 0;

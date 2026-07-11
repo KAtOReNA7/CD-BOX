@@ -4,6 +4,7 @@ import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/prisma";
+import { resolveLocalOwnerMode } from "@/lib/auth/local-owner-policy";
 import {
   extractGitHubId,
   extractGitHubLogin,
@@ -13,8 +14,13 @@ import {
 } from "@/lib/auth/owner-policy";
 
 const providers: NextAuthOptions["providers"] = [];
+const localOwnerMode = resolveLocalOwnerMode(process.env.LOCAL_OWNER_MODE);
 
-if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
+if (
+  localOwnerMode === "disabled" &&
+  process.env.AUTH_GITHUB_ID &&
+  process.env.AUTH_GITHUB_SECRET
+) {
   providers.push(
     GitHubProvider({
       clientId: process.env.AUTH_GITHUB_ID,
@@ -32,6 +38,9 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ account, profile }) {
+      if (resolveLocalOwnerMode(process.env.LOCAL_OWNER_MODE) !== "disabled") {
+        return false;
+      }
       if (account?.provider !== "github") {
         return false;
       }

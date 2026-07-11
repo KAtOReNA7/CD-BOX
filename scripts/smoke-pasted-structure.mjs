@@ -4,10 +4,7 @@ import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./load-local-env.mjs";
 
 loadLocalEnv();
-const providerCredential =
-  process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
-    ? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN
-    : process.env.OPENAI_API_KEY;
+const providerCredential = process.env.OPENAI_API_KEY;
 
 const { structurePastedSourceText } = await import(pathToFileURL(path.resolve("src/lib/ai/release-structure.ts")));
 const { summarizeResearchQuality } = await import(pathToFileURL(path.resolve("src/lib/ai/release-research-quality.ts")));

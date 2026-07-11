@@ -44,6 +44,15 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function researchModeLabel(rawResult: unknown) {
+  if (!rawResult || typeof rawResult !== "object" || Array.isArray(rawResult) || !("mode" in rawResult)) {
+    return null;
+  }
+  if (rawResult.mode === "public-metadata") return "公共资料源";
+  if (rawResult.mode === "native-web-search") return "原生 web_search";
+  return null;
+}
+
 function isSafeByDefault(release: ReleaseResearchCandidate) {
   return release.confidence === "HIGH" && !release.isExcludedByDefault && release.sources.length > 0 && Boolean(release.catalogNumber);
 }
@@ -112,6 +121,12 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const visibleSelectedCount = visibleCandidateIds.filter((candidateId) => selectedIds.has(candidateId)).length;
   const progressOperation: ActiveOperation | null = navigationPending ? "navigating" : activeOperation;
   const busy = progressOperation !== null;
+  const onlineResearchAvailable = capabilities.configurationReady && capabilities.webSearchEnabled;
+  const nativeSearchDeclaredSupported =
+    capabilities.responsesSupport === "supported" && capabilities.webSearchSupport === "supported";
+  const nativeSearchDeclaredUnsupported =
+    capabilities.responsesSupport === "unsupported" || capabilities.webSearchSupport === "unsupported";
+  const completedResearchMode = researchModeLabel(task?.rawResult);
   const recognizedArtistNames = task?.parsedResult
     ? [...new Set([
         task.parsedResult.artist.name,
@@ -175,7 +190,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   }
 
   async function startSearch() {
-    if (!capabilities.webSearchSupported) return;
+    if (!onlineResearchAvailable) return;
     setActiveOperation("search");
     setMessage(null);
     setPendingTask();
@@ -312,7 +327,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         </Alert>
       ) : null}
 
-      {!capabilities.webSearchSupported ? (
+      {!onlineResearchAvailable ? (
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
           <AlertTitle>联网搜索尚未就绪</AlertTitle>
@@ -325,10 +340,24 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
             <Capability label="Responses API" ok={capabilities.responsesSupported} />
             <Capability label="web_search" ok={capabilities.webSearchSupported} />
             <p className="md:col-span-4 text-sm text-muted-foreground">
-              联网搜索不会降级为普通聊天模型执行。当前请使用粘贴资料整理。
+              请先完成中转站基础配置，并将 AI_ENABLE_WEB_SEARCH 设为 true。
             </p>
           </div>
             </details>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {onlineResearchAvailable && !nativeSearchDeclaredSupported ? (
+        <Alert>
+          <Search className="size-4" />
+          <AlertTitle>
+            {nativeSearchDeclaredUnsupported ? "联网研究使用公共资料源" : "联网研究将自动选择资料源"}
+          </AlertTitle>
+          <AlertDescription>
+            {nativeSearchDeclaredUnsupported
+              ? "中转站不支持原生 web_search；系统将直接查询并确定性整理 MusicBrainz 与 Cover Art Archive，避免额外模型费用与长时间等待。"
+              : "系统会先尝试原生 web_search；端点不可用、无输出或没有真实搜索调用时，自动切换到公共资料源。"}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -358,9 +387,9 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         />
       ) : null}
 
-      <Tabs defaultValue={capabilities.webSearchSupported ? "online-search" : "pasted-structure"}>
+      <Tabs defaultValue={onlineResearchAvailable ? "online-search" : "pasted-structure"}>
         <TabsList>
-          {capabilities.webSearchSupported ? <TabsTrigger value="online-search">联网搜索</TabsTrigger> : null}
+          {onlineResearchAvailable ? <TabsTrigger value="online-search">联网搜索</TabsTrigger> : null}
           <TabsTrigger value="pasted-structure">粘贴资料整理</TabsTrigger>
         </TabsList>
         <TabsContent value="pasted-structure" className="mt-4">
@@ -413,7 +442,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
           </Card>
         </TabsContent>
 
-        {capabilities.webSearchSupported ? (
+        {onlineResearchAvailable ? (
           <TabsContent value="online-search" className="mt-4">
             <Card>
               <CardHeader>
@@ -455,6 +484,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         <section className="grid gap-4">
           <div className="flex flex-wrap items-center gap-3 border bg-white p-4">
             <Badge variant={task.status === "failed" ? "destructive" : "secondary"}>{task.status}</Badge>
+            {completedResearchMode ? <Badge variant="outline">{completedResearchMode}</Badge> : null}
             <span className="text-sm text-muted-foreground">model: {task.model || "pending"}</span>
           </div>
           {task.status === "failed" ? (

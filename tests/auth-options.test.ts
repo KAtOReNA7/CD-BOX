@@ -11,7 +11,9 @@ async function main() {
   assert.ok(sessionCallback);
 
   const previousAllowedId = process.env.AUTH_GITHUB_ALLOWED_ID;
+  const previousLocalOwnerMode = process.env.LOCAL_OWNER_MODE;
   process.env.AUTH_GITHUB_ALLOWED_ID = "26319181";
+  delete process.env.LOCAL_OWNER_MODE;
 
   try {
     assert.equal(
@@ -39,6 +41,21 @@ async function main() {
       } as Parameters<typeof signIn>[0]),
       false,
     );
+
+    process.env.LOCAL_OWNER_MODE = "true";
+    assert.equal(
+      await signIn({
+        user: { id: "owner-user" },
+        account: {
+          provider: "github",
+          providerAccountId: "26319181",
+          type: "oauth",
+        },
+        profile: { id: 26319181, login: "renamed-owner" },
+      } as Parameters<typeof signIn>[0]),
+      false,
+    );
+    delete process.env.LOCAL_OWNER_MODE;
 
     assert.equal(
       await signIn({
@@ -89,6 +106,11 @@ async function main() {
       delete process.env.AUTH_GITHUB_ALLOWED_ID;
     } else {
       process.env.AUTH_GITHUB_ALLOWED_ID = previousAllowedId;
+    }
+    if (previousLocalOwnerMode === undefined) {
+      delete process.env.LOCAL_OWNER_MODE;
+    } else {
+      process.env.LOCAL_OWNER_MODE = previousLocalOwnerMode;
     }
   }
 

@@ -40,12 +40,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <div className="ml-1 flex items-center gap-2 border-l pl-3">
               <Avatar size="sm">
                 {owner.image ? <AvatarImage src={owner.image} alt="" /> : null}
-                <AvatarFallback>{owner.githubLogin.slice(0, 1).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{owner.handle.slice(0, 1).toUpperCase()}</AvatarFallback>
               </Avatar>
               <span className="hidden max-w-36 truncate text-sm font-medium lg:inline">
-                @{owner.githubLogin}
+                {owner.authMode === "github" ? "@" : ""}{owner.handle}
               </span>
-              <SignOutButton />
+              {owner.authMode === "github" ? <SignOutButton /> : null}
             </div>
           </div>
         </div>

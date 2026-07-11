@@ -52,7 +52,7 @@ export async function createFollowedArtist(userId: string, input: ArtistCreateIn
         return { artistId: artist.id, created: true };
       }, {
         isolationLevel: "Serializable",
-        // A cold Neon pooled connection can exceed Prisma's 2-second default.
+        // A newly started PostgreSQL connection can exceed Prisma's 2-second default.
         maxWait: 10_000,
         timeout: 30_000,
       });

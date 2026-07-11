@@ -83,4 +83,12 @@ const suspectedHallucination = applyReleaseQualityGate(
 );
 assert.equal(suspectedHallucination.confidence, "LOW");
 
+const explicitlyPending = applyReleaseQualityGate(
+  candidate({ warnings: ["PENDING_REVIEW: source cannot verify this edition."] }),
+  options,
+);
+assert.equal(explicitlyPending.confidence, "MEDIUM");
+assert.equal(explicitlyPending.quality.pendingReview, true);
+assert.equal(explicitlyPending.quality.safeToImportByDefault, false);
+
 console.log("Release research quality test passed.");
