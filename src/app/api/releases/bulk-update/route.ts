@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requireApiOwner } from "@/lib/auth/current-user";
 import { bulkUpdateReleases, parseBulkUpdateInput } from "@/lib/releases/release-service";
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
+  const userId = auth.owner.id;
 
   try {
     const body = (await request.json()) as Record<string, unknown>;

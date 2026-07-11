@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
 import { Archive, Database, LogIn, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { authOptions } from "@/lib/auth/options";
+import { getCurrentOwner } from "@/lib/auth/current-user";
 
 export default async function Home() {
-  const session = await getServerSession(authOptions);
+  const owner = await getCurrentOwner();
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-950">
@@ -29,9 +28,9 @@ export default async function Home() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href={session ? "/dashboard" : "/api/auth/signin"} className="gap-2">
+              <Link href={owner ? "/dashboard" : "/api/auth/signin"} className="gap-2">
                 <LogIn className="size-4" />
-                {session ? "进入控制台" : "登录开始"}
+                {owner ? "进入控制台" : "使用 GitHub 登录"}
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">

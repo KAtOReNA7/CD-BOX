@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requireApiOwner } from "@/lib/auth/current-user";
 import { importReleaseResearchCandidates } from "@/lib/ai/release-research";
 import type { ReleaseResearchImportInput } from "@/lib/ai/release-research-types";
 
@@ -7,11 +7,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const userId = await getCurrentUserId();
-
-  if (!userId) {
-    return NextResponse.json({ error: "请先登录后再导入候选条目" }, { status: 401 });
-  }
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
+  const userId = auth.owner.id;
 
   try {
     const { id } = await params;

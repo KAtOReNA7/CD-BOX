@@ -1,19 +1,33 @@
-import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/current-user";
-import { createAndRunReleaseResearchTask } from "@/lib/ai/release-research";
-import type { ReleaseResearchRequest } from "@/lib/ai/release-research-types";
+import { after, NextResponse } from "next/server";
+import { requireApiOwner } from "@/lib/auth/current-user";
+import {
+  createReleaseResearchTask,
+  runReleaseResearchTask,
+} from "@/lib/ai/release-research";
+import { requireRuntimeAiProviderConfig } from "@/lib/ai/provider-capabilities";
+import { parseReleaseResearchRequest } from "@/lib/ai/release-research-input";
+
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
-
-  if (!userId) {
-    return NextResponse.json({ error: "请先登录后再搜索发行资料" }, { status: 401 });
-  }
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
+  const userId = auth.owner.id;
 
   try {
-    const body = (await request.json()) as ReleaseResearchRequest;
-    const task = await createAndRunReleaseResearchTask(body, userId);
-    return NextResponse.json(task);
+    const input = parseReleaseResearchRequest(await request.json());
+    const providerConfig = await requireRuntimeAiProviderConfig();
+    const task = await createReleaseResearchTask(input, userId);
+
+    after(async () => {
+      try {
+        await runReleaseResearchTask(task.id, input, providerConfig.apiKey);
+      } catch {
+        console.error("Background release research task failed", { taskId: task.id });
+      }
+    });
+
+    return NextResponse.json(task, { status: 202 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "AI 搜索失败" },

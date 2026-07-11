@@ -1,18 +1,32 @@
 # CD-BOX Product Spec
 
-CD-BOX is a WebUI collection manager for physical CD collectors. Users sign in, create artist-specific libraries, and manage release information for original albums, singles, best albums, collections, live releases, remixes, box sets, EPs, and other physical CD formats.
+CD-BOX is a private WebUI collection manager for one physical CD collector. The owner signs in with GitHub, maintains a shared artist and release catalog, and tracks original albums, singles, best albums, collections, live releases, remixes, box sets, EPs, and other physical CD formats.
+
+This document describes the production MVP target. Historical implementation milestones remain in `docs/PROGRESS.md`; when an older milestone differs from this specification, this document is authoritative.
 
 ## MVP Goals
 
 - Run as a Next.js App Router application with TypeScript, Tailwind CSS, shadcn/ui, Prisma, PostgreSQL, and NextAuth.
-- Store user data in the cloud database so collection status can sync across devices.
+- Use GitHub as the only authentication provider and allow only stable GitHub numeric ID `26319181` through `AUTH_GITHUB_ALLOWED_ID`; the login is display-only.
+- Do not provide registration, invitations, roles, teams, or user administration.
+- Store one shared artist/release catalog and the owner's collection state in PostgreSQL so it can sync across the owner's devices.
 - Use the existing Excel template as the data prototype.
 - Replace the WebUI table's final `Source URL` column with `Cover Image`.
 - Preserve source URLs as `ReleaseSource` records and show them on release detail pages.
-- Store `coverImageUrl` as a URL in MVP. Object storage can be added later through Supabase Storage or Cloudflare R2.
-- Route all AI text calls through `src/lib/ai/client.ts` with `OPENAI_TEXT_MODEL=gpt-5.5`.
-- Route UI illustration, empty state, decoration, and placeholder generation through the same AI wrapper using `OPENAI_IMAGE_MODEL=gpt-image-2`.
+- Store `coverImageUrl` as a URL in MVP. Object storage is out of scope for the production MVP.
+- Route all AI text calls through `src/lib/ai/client.ts`; production uses Vercel AI Gateway with `OPENAI_TEXT_MODEL=openai/gpt-5.4-mini` and deployment OIDC authentication.
+- Require real online release research through the Responses API `web_search` tool for launch.
+- Keep image generation disabled for the production MVP even though an image-model setting is reserved for future UI assets.
 - Never generate fake CD covers with AI. Real CD cover art must come from a real source URL or manual user input.
+- Deploy the production application to Vercel with Neon PostgreSQL.
+
+## Identity and Data Boundary
+
+- GitHub OAuth is the only sign-in method.
+- Only the configured stable GitHub numeric ID may create a valid session. Login and email are display/profile data and are not sufficient for authorization.
+- Every protected page and API route resolves the authenticated owner server-side.
+- Artists and releases form one shared catalog. The database may retain user-linked follow and collection-status records, but these support the single-owner boundary and do not constitute user-management functionality.
+- No anonymous mutation or cross-user data access is permitted.
 
 ## Pages
 
@@ -30,16 +44,14 @@ CD-BOX is a WebUI collection manager for physical CD collectors. Users sign in, 
 The artist detail table displays these fields in order:
 
 1. Collection status
-2. Priority
-3. Category
-4. Title
-5. Original release date
+2. Category
+3. Title
+4. Original release date
+5. Original catalog number
 6. Format
-7. Original catalog number
-8. Label
-9. Reissue flag
-10. Notes
-11. Cover image
+7. Source count
+8. Notes
+9. Cover image
 
 `coverImageUrl` is the final visible column. Source URLs are not discarded; they are persisted in `ReleaseSource`.
 
@@ -52,7 +64,7 @@ Lean UX defaults:
 - Default filters are keyword, category, collection status, missing cover, and pending review.
 - Missing source, missing catalog number, reissue/remaster, exclusion, year range, and confidence filters are advanced.
 - Category completion rates and advanced bulk operations are folded by default.
-- `/ai-search` is presented as "资料整理" first. Pasted source structuring is the default workflow, while online search appears only when `webSearchSupported=true`; otherwise it is folded into a relay capability note.
+- `/ai-search` is online-search first when the required relay capability is available. Pasted-source structuring is secondary and cannot satisfy the production launch gate.
 
 ## Excel Import Workflow
 
@@ -82,9 +94,9 @@ Duplicate handling:
 
 ## GPT Release Research Workflow
 
-The `/ai-search` page lets a signed-in user create release candidates before importing anything into the formal collection library.
+The `/ai-search` page lets the authenticated owner create release candidates before importing anything into the formal collection library.
 
-It has two modes:
+It has two modes, in this order:
 
 - Online search
 - Pasted source structuring
@@ -109,10 +121,11 @@ AI requirements:
 - User-started searches set `tool_choice: "required"` to force web search.
 - If the relay does not support Responses API or `web_search`, online release research is blocked and the UI asks the user to run `npm run probe:ai`.
 - Chat Completions fallback may only be used for non-search text tasks. It must not be used to fabricate online search results.
+- A deployment that cannot complete a real `web_search` call is not release-ready.
 
 ## Pasted Source Structuring
 
-When `web_search` is unavailable, users can paste source material from official sites, labels, retailers, CD databases, MusicBrainz, VGMdb, or CSV/table text. This mode is called "Pasted source structuring"; it is not search and must not claim network access.
+The owner can paste source material from official sites, labels, retailers, CD databases, MusicBrainz, VGMdb, or CSV/table text. This secondary mode is called "Pasted source structuring"; it is not search, must not claim network access, and does not replace the launch requirement for working online search.
 
 Rules:
 
@@ -172,3 +185,24 @@ Import rules:
 - Image model configuration only; image generation is deferred to a later phase
 
 The probe emits a summary object with `textSupported`, `jsonSupported`, `responsesSupported`, `webSearchSupported`, `chatCompletionsSupported`, and `imageModelConfigured`.
+
+## Production Deployment and Acceptance
+
+Target infrastructure:
+
+- Vercel for the Next.js application and GitHub-connected deployments.
+- Neon PostgreSQL through Vercel Marketplace.
+- GitHub OAuth with the production callback URL.
+- Vercel AI Gateway, or another verified OpenAI-compatible provider, whose Responses API can execute and report `web_search` calls.
+
+The production MVP is accepted only after all of the following pass in the deployed environment:
+
+1. Database migrations apply cleanly to Neon.
+2. GitHub numeric ID `26319181` can sign in and a non-allowlisted GitHub ID is rejected, regardless of login text.
+3. The owner can create an artist and access only authenticated pages and APIs.
+4. Excel preview, duplicate handling, and confirmed import persist correctly.
+5. The provider probe reports Responses API and `web_search` support, and a real online release search returns evidence-backed candidates.
+6. Candidate review/edit/import, collection-status updates, source handling, and Excel export work end to end.
+7. Type checking, tests, lint, production build, and production dependency audit pass.
+
+Vercel deployment, Neon migration, stable-domain GitHub OAuth, owner login, unauthenticated API protection, Responses API generation, and a real AI Gateway `web_search` call are complete. Full collection-workflow acceptance remains tracked in `docs/PROGRESS.md`.

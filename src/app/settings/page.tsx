@@ -2,19 +2,25 @@ import { AppShell } from "@/components/app/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { requirePageOwner } from "@/lib/auth/current-user";
 
 const envItems = [
   "DATABASE_URL",
   "AUTH_SECRET",
   "AUTH_GITHUB_ID",
-  "AUTH_GOOGLE_ID",
+  "AUTH_GITHUB_ALLOWED_ID",
+  "AUTH_GITHUB_ALLOWED_LOGIN",
   "OPENAI_API_KEY",
+  "AI_GATEWAY_API_KEY",
   "OPENAI_BASE_URL",
   "OPENAI_TEXT_MODEL",
   "OPENAI_IMAGE_MODEL",
+  "AI_PROVIDER_MODE",
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requirePageOwner();
+
   return (
     <AppShell>
       <div className="max-w-3xl">

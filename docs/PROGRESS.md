@@ -1,5 +1,43 @@
 # CD-BOX Progress
 
+## 2026-07-11 — Production MVP Integration (In Progress)
+
+### Decisions Locked
+
+- CD-BOX is a single-owner application. GitHub is the only authentication provider, `AUTH_GITHUB_ALLOWED_ID=26319181` is the stable owner allowlist, and the login is display-only.
+- The product has one shared artist/release catalog and no registration, invitations, roles, teams, or user-management UI.
+- User-linked follow and collection-status records remain internal persistence details for the authenticated owner; they do not make the product a multi-user workspace.
+- Real online release research is required for the first production release. Responses API plus an actual `web_search` tool call must pass; pasted-source structuring alone is insufficient.
+- The production stack is Vercel in `hkg1`, Neon PostgreSQL, GitHub OAuth, and Vercel AI Gateway with OIDC authentication.
+
+### Implemented on the Current Working Branch
+
+- Replaced the previous multi-provider authentication assumptions with GitHub-only owner authentication and stable numeric-ID allowlist checks in the sign-in, JWT, session, and server-side owner boundary.
+- Added authentication guards to owner pages and API routes, owner identity display, and logout handling.
+- Implemented `/artists/new` with validated creation and owner-follow behavior.
+- Added initial Prisma migration files and production migration scripts to the current working tree.
+- Standardized collection states as `OWNED`, `NOT_OWNED`, `WANTED`, `EXCLUDED`, and `PENDING_REVIEW`, with priority constrained to 1–5.
+- Made online search the first AI workflow when relay capability is configured and added editable candidate fields before import.
+- Hardened relay URL validation, provider probing, response-source inspection, security headers, dependency versions, Node/npm pins, and CI checks.
+- Added a production deployment runbook for Vercel, Neon, GitHub OAuth, encrypted environment variables, migration, and release verification.
+- Deployed the application to `https://cd-box.vercel.app`, applied the committed Neon migration, created the production GitHub OAuth application, and verified owner login.
+- Replaced username-only authorization with stable GitHub numeric-ID checks across sign-in, JWT, session, and every server-side owner boundary.
+- Added owner-only production provider diagnostics and streaming Responses API collection so slow providers can return incremental events without a gateway timeout.
+- Verified the original `linkapi.shop` endpoint is not publicly routable from Vercel and the replacement `new-api.xiron.net.cn` provider exposes only `gpt-5.6-terra` but fails generation with upstream timeouts / `666 openai_error`.
+- Configured Vercel AI Gateway as the production provider using the deployment OIDC token, free-tier-eligible `openai/gpt-5.4-mini`, and `openai/gpt-image-2` (image generation remains disabled).
+- Verified production Responses API generation (`200`, completed output) and a forced `web_search` call (`200`, one reported search call) through the owner-only diagnostics page.
+- Re-ran a clean npm install, production dependency audit, Prisma generation, type check, all 16 tests, ESLint, and the production build successfully before the release commit.
+
+The current working tree is deployed to production for acceptance testing. It is not yet tagged as the accepted MVP release.
+
+### Remaining Before Production Acceptance
+
+- Complete deployed acceptance for artist creation, Excel import, online research, candidate edit/import, status updates, export, and logout.
+
+Production deployment, owner authentication, and the AI Gateway release gate are complete; full collection-workflow acceptance is still in progress.
+
+> The entries below are historical milestones. Older statements that made pasted-source structuring primary or described general per-user behavior are superseded by the production MVP decisions above.
+
 ## 2026-06-08
 
 ### Phase 4
@@ -12,7 +50,7 @@
 - Added a one-click gap view.
 - Simplified stats cards to completion rate, owned/collectible total, gap count, pending review, and missing cover; moved category completion behind a details section.
 - Simplified bulk actions and moved priority/default-exclusion operations into an advanced bulk section.
-- Reworked `/ai-search` copy and layout so pasted source structuring is primary and unsupported web search is folded into a capability note.
+- At that phase, reworked `/ai-search` so pasted-source structuring was primary and unsupported web search was folded into a capability note. This ordering is superseded by the 2026-07-11 online-first launch decision.
 - Added `docs/LEAN_UX_CHECKLIST.md`.
 
 ### Phase 3.9
@@ -25,7 +63,7 @@
   - `src/lib/releases/release-stats.ts`
   - `src/lib/releases/release-export.ts`
 - Added inline release editing for title, category, date, format, catalog number, label, price, edition type, reissue/remaster flags, default exclusion, cover URL, and notes.
-- Added direct per-user collection status editing with automatic `UserReleaseStatus` creation.
+- Added direct collection-status editing backed by automatic `UserReleaseStatus` creation. The production product uses this only for the allowlisted owner.
 - Added multi-select bulk updates for status, priority, and `isExcludedByDefault`, scoped to the current artist.
 - Added filter panel for keyword, category, status, confidence, flags, missing cover/source/catalog, pending review, and decade/year ranges.
 - Added collection stats cards and category completion rates.
@@ -193,6 +231,6 @@ Smoke result:
 
 ## Next
 
-- Add authentication provider credentials and database migration in the target deployment environment.
-- Add async/background execution for long-running AI search tasks.
-- Add row-level edit controls before candidate import.
+- Complete the 2026-07-11 production acceptance checklist above.
+- Configure credentials only in ignored local environment files or encrypted Vercel environment variables; never commit secrets.
+- Do not call the MVP released until GitHub OAuth, Neon migration, and real relay `web_search` have passed in production.

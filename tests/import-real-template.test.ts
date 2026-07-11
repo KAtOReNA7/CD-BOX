@@ -70,7 +70,7 @@ assert.equal(rows[0].format, "CD");
 assert.equal(rows[0].notes, "真实表头 fixture");
 assert.equal(rows[0].sourceUrl, "https://example.com/source");
 assert.equal(rows[0].priority, 1);
-assert.equal(rows[0].status, "SKIP");
+assert.equal(rows[0].status, "NOT_OWNED");
 assert.equal(rows[1].category, "SINGLE");
 assert.equal(rows[1].originalReleaseDate, "1985-10-01");
 assert.equal(rows[2].category, "LIVE");

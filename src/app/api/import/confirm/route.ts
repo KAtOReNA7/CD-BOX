@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requireApiOwner } from "@/lib/auth/current-user";
 import { confirmImport, normalizeDuplicateStrategy } from "@/lib/import/import-service";
 import type { ImportConfirmInput } from "@/lib/import/import-types";
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
-
-  if (!userId) {
-    return NextResponse.json({ error: "请先登录后再确认导入" }, { status: 401 });
-  }
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
+  const userId = auth.owner.id;
 
   try {
     const body = (await request.json()) as ImportConfirmInput;

@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
-import type { CollectionStatus, ReleaseCategory, ReleaseFormat } from "@prisma/client";
+import type { ReleaseCategory, ReleaseFormat } from "@prisma/client";
 import type { ParsedReleaseRow } from "@/lib/import/import-types";
+import { clampCollectionPriority, type EditableCollectionStatus } from "@/lib/releases/release-types";
 
 const ignoredSheets = new Set(["总览", "收藏口径", "术语与排除项", "选项"]);
 
@@ -114,7 +115,7 @@ function parseIncluded(value: unknown) {
   return !["否", "false", "no", "n", "0", "排除"].includes(text);
 }
 
-function parseStatus(value: unknown, included: boolean): CollectionStatus {
+function parseStatus(value: unknown, included: boolean): EditableCollectionStatus {
   if (!included) {
     return "EXCLUDED";
   }
@@ -126,18 +127,18 @@ function parseStatus(value: unknown, included: boolean): CollectionStatus {
   }
 
   if (["未拥有", "skip", "跳过"].includes(text)) {
-    return "SKIP";
+    return "NOT_OWNED";
   }
 
   if (["想买", "want", "wishlist"].includes(text)) {
-    return "WANT";
+    return "WANTED";
   }
 
   if (["排除", "excluded"].includes(text)) {
     return "EXCLUDED";
   }
 
-  return "UNKNOWN";
+  return "NOT_OWNED";
 }
 
 function parseFormat(value: unknown): ReleaseFormat {
@@ -164,7 +165,7 @@ function parsePriority(value: unknown) {
   }
 
   const priority = Number.parseInt(text, 10);
-  return Number.isFinite(priority) ? Math.max(1, Math.min(priority, 9)) : 3;
+  return Number.isFinite(priority) ? clampCollectionPriority(priority) : 3;
 }
 
 function inferCategory(sheetName: string, typeValue: unknown): ReleaseCategory {

@@ -59,8 +59,15 @@ assert.equal(codeBlock.releases[0].confidence, "HIGH");
 const wrapped = parseReleaseResearchResponse(`Here is the result:\n${JSON.stringify(baseJson)}\nPlease verify.`);
 assert.equal(wrapped.releases[0].sources.length, 1);
 
-const missingCatalog = structuredClone(baseJson);
-missingCatalog.releases[0].catalogNumber = null;
+const missingCatalog = {
+  ...structuredClone(baseJson),
+  releases: [
+    {
+      ...structuredClone(baseJson.releases[0]),
+      catalogNumber: null,
+    },
+  ],
+};
 missingCatalog.releases[0].confidence = "HIGH";
 const missingCatalogParsed = parseReleaseResearchResponse(JSON.stringify(missingCatalog));
 assert.equal(missingCatalogParsed.releases[0].confidence, "MEDIUM");

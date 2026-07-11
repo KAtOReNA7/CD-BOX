@@ -1,7 +1,16 @@
 import type { AiSearchTask, Prisma, ReleaseFormat } from "@prisma/client";
 import { aiConfig, createWebSearchResponse } from "@/lib/ai/client";
-import { assertCanUseWebSearch, getConfiguredProviderCapabilities } from "@/lib/ai/provider-capabilities";
+import {
+  assertCanUseWebSearch,
+  getConfiguredProviderCapabilities,
+  sanitizeErrorMessage,
+} from "@/lib/ai/provider-capabilities";
+import {
+  parseReleaseResearchImportInput,
+  parseReleaseResearchRequest,
+} from "@/lib/ai/release-research-input";
 import { parseReleaseResearchResponse } from "@/lib/ai/release-research-parser";
+import { applyReleaseQualityGate } from "@/lib/ai/release-research-quality";
 import type {
   AiSearchTaskView,
   ReleaseResearchCandidate,
@@ -130,23 +139,72 @@ function toJsonSafe(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-export async function createAndRunReleaseResearchTask(input: ReleaseResearchRequest, userId: string) {
+export async function createReleaseResearchTask(input: ReleaseResearchRequest, userId: string) {
+  const validatedInput = parseReleaseResearchRequest(input);
   assertCanUseWebSearch(getConfiguredProviderCapabilities());
+
+  const activeTask = await prisma.aiSearchTask.findFirst({
+    where: {
+      userId,
+      status: { in: ["QUEUED", "RUNNING"] },
+      updatedAt: { gte: new Date(Date.now() - 15 * 60_000) },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+
+  if (activeTask) {
+    throw new Error("An online research task is already running. Wait for it to finish before starting another.");
+  }
+
+  const recentTaskCount = await prisma.aiSearchTask.count({
+    where: {
+      userId,
+      createdAt: { gte: new Date(Date.now() - 60_000) },
+    },
+  });
+
+  if (recentTaskCount >= 3) {
+    throw new Error("Too many online research requests. Wait one minute and try again.");
+  }
 
   const task = await prisma.aiSearchTask.create({
     data: {
       userId,
-      query: JSON.stringify(input),
+      query: JSON.stringify(validatedInput),
       model: aiConfig.textModel,
       status: "QUEUED",
     },
   });
 
-  return runReleaseResearchTask(task.id, input);
+  return toTaskView(task);
 }
 
-export async function runReleaseResearchTask(taskId: string, input: ReleaseResearchRequest) {
-  assertCanUseWebSearch(getConfiguredProviderCapabilities());
+export async function createAndRunReleaseResearchTask(
+  input: ReleaseResearchRequest,
+  userId: string,
+  apiKeyOverride?: string,
+) {
+  const validatedInput = parseReleaseResearchRequest(input);
+  const task = await createReleaseResearchTask(validatedInput, userId);
+  return runReleaseResearchTask(task.id, validatedInput, apiKeyOverride);
+}
+
+export async function runReleaseResearchTask(
+  taskId: string,
+  input: ReleaseResearchRequest,
+  apiKeyOverride?: string,
+) {
+  const validatedInput = parseReleaseResearchRequest(input);
+  const capabilityEnv = apiKeyOverride
+    ? {
+        ...process.env,
+        ...(process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
+          ? { AI_GATEWAY_API_KEY: apiKeyOverride }
+          : { OPENAI_API_KEY: apiKeyOverride }),
+      }
+    : process.env;
+  assertCanUseWebSearch(getConfiguredProviderCapabilities(capabilityEnv));
 
   await prisma.aiSearchTask.update({
     where: { id: taskId },
@@ -154,12 +212,20 @@ export async function runReleaseResearchTask(taskId: string, input: ReleaseResea
   });
 
   try {
-    const response = await createWebSearchResponse({
-      forceSearch: true,
-      systemPrompt:
-        "You are a meticulous discography researcher for physical CD collectors. Use web_search and return strict JSON only.",
-      userPrompt: buildResearchPrompt(input),
-    });
+    const response = await createWebSearchResponse(
+      {
+        forceSearch: true,
+        systemPrompt:
+          "You are a meticulous discography researcher for physical CD collectors. Use web_search and return strict JSON only.",
+        userPrompt: buildResearchPrompt(validatedInput),
+      },
+      apiKeyOverride,
+    );
+
+    if (!hasWebSearchCall(response)) {
+      throw new Error("The AI provider returned no web_search call, so the result was rejected as offline-only.");
+    }
+
     const rawText = outputTextFromResponse(response);
     const parsed = parseReleaseResearchResponse(rawText);
 
@@ -181,7 +247,10 @@ export async function runReleaseResearchTask(taskId: string, input: ReleaseResea
       where: { id: taskId },
       data: {
         status: "FAILED",
-        errorMessage: error instanceof Error ? error.message : "Release research failed.",
+        errorMessage: sanitizeErrorMessage(
+          error instanceof Error ? error.message : "Release research failed.",
+          apiKeyOverride ?? process.env.OPENAI_API_KEY,
+        ).slice(0, 2_000),
       },
     });
 
@@ -217,16 +286,22 @@ function toDate(value: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-async function resolveArtist(input: ReleaseResearchImportInput, parsed: ReleaseResearchResult) {
+async function resolveArtist(
+  input: ReleaseResearchImportInput,
+  parsed: ReleaseResearchResult,
+  db: Prisma.TransactionClient,
+) {
   if (input.artistMode === "existing" && input.artistId) {
-    return prisma.artist.findUniqueOrThrow({ where: { id: input.artistId } });
+    return db.artist.findUniqueOrThrow({ where: { id: input.artistId } });
   }
 
   const name = (input.artistName ?? parsed.artist.name).trim();
-  const existing = await prisma.artist.findFirst({ where: { name } });
+  if (!name) throw new Error("artistName is required.");
+
+  const existing = await db.artist.findFirst({ where: { name } });
   if (existing) return existing;
 
-  return prisma.artist.create({
+  return db.artist.create({
     data: {
       name,
       country: parsed.artist.country,
@@ -253,6 +328,7 @@ export async function importReleaseResearchCandidates(
   userId: string,
   input: ReleaseResearchImportInput,
 ) {
+  const validatedInput = parseReleaseResearchImportInput(input);
   const task = await prisma.aiSearchTask.findFirstOrThrow({
     where: {
       id: taskId,
@@ -266,112 +342,140 @@ export async function importReleaseResearchCandidates(
     throw new Error("No parsed research result is available for this task.");
   }
 
-  const artist = await resolveArtist(input, parsed);
-  const selected = new Set(input.selectedCandidateIds);
-  const excluded = new Set(input.excludedCandidateIds);
-  const pendingReview = new Set(input.pendingReviewCandidateIds);
-  let imported = 0;
-  let skippedDuplicates = 0;
-  let pendingReviewCount = 0;
-  let excludedCount = 0;
+  const selected = new Set(validatedInput.selectedCandidateIds);
+  const excluded = new Set(validatedInput.excludedCandidateIds);
+  const pendingReview = new Set(validatedInput.pendingReviewCandidateIds);
+  const candidateIds = new Set(parsed.releases.map((candidate) => candidate.id));
+  const unknownSelectedId = validatedInput.selectedCandidateIds.find((candidateId) => !candidateIds.has(candidateId));
+  if (unknownSelectedId) throw new Error(`Unknown release candidate: ${unknownSelectedId}`);
 
-  for (const candidate of parsed.releases) {
-    if (!selected.has(candidate.id)) {
-      continue;
-    }
+  const candidates = parsed.releases.map((candidate) => {
+    const edit = validatedInput.candidateEdits[candidate.id];
+    if (!edit) return candidate;
 
-    const forcedPendingReview =
-      pendingReview.has(candidate.id) ||
-      candidate.confidence !== "HIGH" ||
-      !candidate.catalogNumber ||
-      candidate.sources.length === 0 ||
-      candidate.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
-    const forcedExcluded = excluded.has(candidate.id) || candidate.isExcludedByDefault;
-
-    if (candidate.catalogNumber) {
-      const duplicate = await prisma.release.findFirst({
-        where: {
-          artistId: artist.id,
-          title: candidate.title,
-          originalCatalogNo: candidate.catalogNumber,
+    return {
+      ...applyReleaseQualityGate(
+        { ...candidate, ...edit },
+        {
+          target: parsed.collectionScope.target,
+          excludeReissues: parsed.collectionScope.excludeReissues,
         },
-        select: { id: true },
-      });
-
-      if (duplicate) {
-        skippedDuplicates += 1;
-        continue;
-      }
-    }
-
-    const release = await prisma.release.create({
-      data: {
-        artistId: artist.id,
-        category: candidate.category,
-        title: candidate.title,
-        originalReleaseDate: toDate(candidate.originalReleaseDate ?? candidate.releaseDate),
-        format: normalizeFormat(candidate.format),
-        originalCatalogNo: candidate.catalogNumber,
-        label: candidate.label,
-        originalPrice: candidate.originalPrice,
-        editionType: candidate.editionType,
-        isReissue: candidate.isReissue ?? false,
-        isRemaster: candidate.isRemaster ?? false,
-        isExcludedByDefault: candidate.isExcludedByDefault,
-        confidence: candidate.confidence,
-        warnings: candidate.warnings,
-        notes: candidateNotes(candidate, forcedPendingReview),
-        coverImageUrl: candidate.coverImageUrl,
-      },
-    });
-
-    await prisma.userReleaseStatus.create({
-      data: {
-        userId,
-        releaseId: release.id,
-        status: forcedExcluded ? "EXCLUDED" : "UNKNOWN",
-        priority: candidate.confidence === "HIGH" ? 2 : candidate.confidence === "MEDIUM" ? 3 : 5,
-        notes: forcedPendingReview ? "PENDING_REVIEW" : null,
-      },
-    });
-
-    const sourceRows = [
-      ...candidate.sources,
-      candidate.coverImageSourceUrl
-        ? {
-            title: "Cover image source",
-            url: candidate.coverImageSourceUrl,
-            sourceType: "other" as const,
-          }
-        : null,
-    ].filter((source): source is NonNullable<typeof source> => Boolean(source));
-
-    for (const source of sourceRows) {
-      await prisma.releaseSource.create({
-        data: {
-          releaseId: release.id,
-          url: source.url,
-          label: source.title,
-          description: source.sourceType,
-        },
-      });
-    }
-
-    imported += 1;
-    if (forcedPendingReview) pendingReviewCount += 1;
-    if (forcedExcluded) excludedCount += 1;
-  }
-
-  await prisma.aiSearchTask.update({
-    where: { id: taskId },
-    data: { artistId: artist.id },
+      ),
+      id: candidate.id,
+    };
   });
 
-  return {
-    artistId: artist.id,
-    imported,
-    skippedDuplicates,
-    pendingReview: pendingReviewCount,
-    excluded: excludedCount,
-  };
+  return prisma.$transaction(async (tx) => {
+    const artist = await resolveArtist(validatedInput, parsed, tx);
+    let imported = 0;
+    let skippedDuplicates = 0;
+    let pendingReviewCount = 0;
+    let excludedCount = 0;
+
+    for (const candidate of candidates) {
+      if (!selected.has(candidate.id)) {
+        continue;
+      }
+
+      const forcedPendingReview =
+        pendingReview.has(candidate.id) ||
+        candidate.confidence !== "HIGH" ||
+        !candidate.catalogNumber ||
+        candidate.sources.length === 0 ||
+        candidate.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
+      const forcedExcluded = excluded.has(candidate.id) || candidate.isExcludedByDefault;
+
+      if (candidate.catalogNumber) {
+        const duplicate = await tx.release.findFirst({
+          where: {
+            artistId: artist.id,
+            title: candidate.title,
+            originalCatalogNo: candidate.catalogNumber,
+          },
+          select: { id: true },
+        });
+
+        if (duplicate) {
+          skippedDuplicates += 1;
+          continue;
+        }
+      }
+
+      const release = await tx.release.create({
+        data: {
+          artistId: artist.id,
+          category: candidate.category,
+          title: candidate.title,
+          originalReleaseDate: toDate(candidate.originalReleaseDate ?? candidate.releaseDate),
+          format: normalizeFormat(candidate.format),
+          originalCatalogNo: candidate.catalogNumber,
+          label: candidate.label,
+          originalPrice: candidate.originalPrice,
+          editionType: candidate.editionType,
+          isReissue: candidate.isReissue ?? false,
+          isRemaster: candidate.isRemaster ?? false,
+          isExcludedByDefault: candidate.isExcludedByDefault,
+          confidence: candidate.confidence,
+          warnings: candidate.warnings,
+          notes: candidateNotes(candidate, forcedPendingReview),
+          coverImageUrl: candidate.coverImageUrl,
+        },
+      });
+
+      await tx.userReleaseStatus.create({
+        data: {
+          userId,
+          releaseId: release.id,
+          status: forcedExcluded ? "EXCLUDED" : forcedPendingReview ? "PENDING_REVIEW" : "NOT_OWNED",
+          priority: candidate.confidence === "HIGH" ? 2 : candidate.confidence === "MEDIUM" ? 3 : 5,
+          notes: forcedPendingReview ? "PENDING_REVIEW" : null,
+        },
+      });
+
+      const sourceRows = [
+        ...candidate.sources,
+        candidate.coverImageSourceUrl
+          ? {
+              title: "Cover image source",
+              url: candidate.coverImageSourceUrl,
+              sourceType: "other" as const,
+            }
+          : null,
+      ].filter((source): source is NonNullable<typeof source> => Boolean(source));
+      const uniqueSources = [...new Map(sourceRows.map((source) => [source.url, source])).values()];
+
+      if (uniqueSources.length > 0) {
+        await tx.releaseSource.createMany({
+          data: uniqueSources.map((source) => ({
+            releaseId: release.id,
+            url: source.url,
+            label: source.title,
+            description: source.sourceType,
+          })),
+        });
+      }
+
+      imported += 1;
+      if (forcedPendingReview) pendingReviewCount += 1;
+      if (forcedExcluded) excludedCount += 1;
+    }
+
+    await tx.aiSearchTask.update({
+      where: { id: taskId },
+      data: { artistId: artist.id },
+    });
+
+    return {
+      artistId: artist.id,
+      imported,
+      skippedDuplicates,
+      pendingReview: pendingReviewCount,
+      excluded: excludedCount,
+    };
+  }, { maxWait: 5_000, timeout: 30_000 });
+}
+
+function hasWebSearchCall(response: unknown) {
+  const output = (response as { output?: Array<{ type?: string }> }).output;
+  return output?.some((item) => item.type === "web_search_call") ?? false;
 }

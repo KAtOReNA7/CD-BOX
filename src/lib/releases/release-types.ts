@@ -1,7 +1,36 @@
-import type { CollectionStatus, ReleaseCategory, ReleaseFormat } from "@prisma/client";
+import type { ReleaseCategory, ReleaseFormat } from "@prisma/client";
 
 export const collectionStatuses = ["OWNED", "NOT_OWNED", "WANTED", "EXCLUDED", "PENDING_REVIEW"] as const;
 export type EditableCollectionStatus = (typeof collectionStatuses)[number];
+
+const legacyCollectionStatusAliases = {
+  WANT: "WANTED",
+  SKIP: "NOT_OWNED",
+  UNKNOWN: "NOT_OWNED",
+  ORDERED: "WANTED",
+} as const satisfies Record<string, EditableCollectionStatus>;
+
+/**
+ * Normalizes both the production status contract and values written by the
+ * pre-migration prototype. Legacy values are accepted at system boundaries,
+ * but are never written back to the database.
+ */
+export function canonicalCollectionStatus(value: unknown): EditableCollectionStatus | null {
+  if (typeof value !== "string") return null;
+
+  const status = value.trim().toUpperCase();
+  if (collectionStatuses.includes(status as EditableCollectionStatus)) {
+    return status as EditableCollectionStatus;
+  }
+
+  return legacyCollectionStatusAliases[status as keyof typeof legacyCollectionStatusAliases] ?? null;
+}
+
+export function clampCollectionPriority(value: unknown, fallback = 3) {
+  const priority = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(priority)) return fallback;
+  return Math.max(1, Math.min(priority, 5));
+}
 
 export const releaseCategories: ReleaseCategory[] = [
   "ORIGINAL_ALBUM",
@@ -36,7 +65,7 @@ export type ReleaseSourceView = {
 
 export type ReleaseStatusView = {
   id: string;
-  status: CollectionStatus;
+  status: EditableCollectionStatus;
   priority: number;
   ownedCondition: string | null;
   ownedNotes: string | null;

@@ -50,4 +50,8 @@ assert.equal(filterReleases(rows, { gap: "true" }).length, 1);
 assert.equal(filterReleases(rows, { decade: "1980s" }).length, 1);
 assert.equal(filterReleases(rows, { decade: "custom", yearFrom: "1990", yearTo: "1999" }).length, 1);
 
+const releaseWithoutStatus = row({ id: "r3", userStatus: null });
+assert.deepEqual(filterReleases([releaseWithoutStatus], { status: "NOT_OWNED" }), [releaseWithoutStatus]);
+assert.deepEqual(filterReleases([releaseWithoutStatus], { gap: "true" }), [releaseWithoutStatus]);
+
 console.log("Release library filter test passed.");

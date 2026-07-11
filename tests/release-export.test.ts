@@ -26,12 +26,34 @@ const rows = releaseExportRows([
     ],
     userStatus: { id: "u1", status: "OWNED", priority: 1, ownedCondition: "VG+", ownedNotes: "obi", notes: null },
   },
+  {
+    id: "r2",
+    artistId: "a1",
+    category: "SINGLE",
+    title: "No status",
+    originalReleaseDate: null,
+    format: "CD",
+    originalCatalogNo: null,
+    label: null,
+    originalPrice: null,
+    editionType: null,
+    isReissue: false,
+    isRemaster: false,
+    isExcludedByDefault: false,
+    confidence: null,
+    warnings: [],
+    notes: null,
+    coverImageUrl: null,
+    sources: [],
+    userStatus: null,
+  },
 ]);
 
 assert.equal(rows[0]["收藏状态"], "OWNED");
 assert.equal(rows[0]["原版品番"], "KIDS-111");
 assert.equal(rows[0]["来源 URL"], "https://tower.example/release\nhttps://label.example/release");
 assert.equal(rows[0]["拥有状态备注"], "obi");
+assert.equal(rows[1]["收藏状态"], "NOT_OWNED");
 assert.equal(exportFileName("A/B", new Date("2026-06-08T00:00:00.000Z")), "CD-BOX_A_B_20260608.xlsx");
 
 console.log("Release export test passed.");

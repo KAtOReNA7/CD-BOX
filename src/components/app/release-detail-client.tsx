@@ -114,7 +114,7 @@ export function ReleaseDetailClient({
         <h1 className="mt-2 text-3xl font-semibold">{release.title}</h1>
         {message ? <div className="mt-4 border bg-white p-3 text-sm text-muted-foreground">{message}</div> : null}
         <dl className="mt-6 grid gap-4 border bg-white p-6 text-sm md:grid-cols-2">
-          <div><dt className="text-muted-foreground">收藏状态</dt><dd className="mt-1">{release.userStatus?.status ?? "UNKNOWN"}</dd></div>
+          <div><dt className="text-muted-foreground">收藏状态</dt><dd className="mt-1">{release.userStatus?.status ?? "NOT_OWNED"}</dd></div>
           <div><dt className="text-muted-foreground">排除原因</dt><dd className="mt-1">{excludedReason ?? "未排除"}</dd></div>
           <div><dt className="text-muted-foreground">来源数量</dt><dd className="mt-1">{release.sources.length}</dd></div>
           <div><dt className="text-muted-foreground">当前品番</dt><dd className="mt-1">{release.originalCatalogNo ?? "-"}</dd></div>

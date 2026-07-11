@@ -1,3 +1,7 @@
+import "server-only";
+
+import { getVercelOidcToken } from "@vercel/oidc";
+
 export type AiProviderCapabilitySummary = {
   baseUrlConfigured: boolean;
   textModel: string | null;
@@ -21,16 +25,53 @@ export function sanitizeErrorMessage(message: string, apiKey?: string | null) {
   return message.split(apiKey).join(redactSecret(apiKey));
 }
 
+export function normalizeRelayBaseUrl(value: string) {
+  const url = new URL(value);
+  const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+
+  if (url.protocol !== "https:" && !(isLocal && url.protocol === "http:")) {
+    throw new Error("OPENAI_BASE_URL must use HTTPS (HTTP is only allowed for localhost).");
+  }
+
+  url.search = "";
+  url.hash = "";
+  url.pathname = url.pathname.replace(/\/+$/, "") || "/v1";
+  if (!url.pathname.endsWith("/v1")) {
+    throw new Error("OPENAI_BASE_URL must point to an OpenAI-compatible /v1 base URL.");
+  }
+
+  return url.toString().replace(/\/$/, "");
+}
+
 export function requireRelayBaseUrl(env: NodeJS.ProcessEnv = process.env) {
   if (!env.OPENAI_BASE_URL) {
     throw new Error("CD-BOX requires an OpenAI-compatible relay base URL. Set OPENAI_BASE_URL before using AI features.");
   }
 
-  return env.OPENAI_BASE_URL;
+  try {
+    return normalizeRelayBaseUrl(env.OPENAI_BASE_URL);
+  } catch (error) {
+    throw new Error(
+      `Invalid OPENAI_BASE_URL: ${error instanceof Error ? error.message : "unknown URL error"}`,
+    );
+  }
+}
+
+export function resolveAiCredential(env: NodeJS.ProcessEnv = process.env) {
+  if (env.AI_PROVIDER_MODE === "vercel-ai-gateway") {
+    return env.AI_GATEWAY_API_KEY ?? env.VERCEL_OIDC_TOKEN ?? null;
+  }
+
+  return env.OPENAI_API_KEY ?? null;
 }
 
 export function requireAiProviderConfig(env: NodeJS.ProcessEnv = process.env) {
-  const missing = ["OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_TEXT_MODEL"].filter((key) => !env[key]);
+  const providerMode = env.AI_PROVIDER_MODE ?? "openai-compatible";
+  const apiKey = resolveAiCredential(env);
+  const missing = ["OPENAI_BASE_URL", "OPENAI_TEXT_MODEL"].filter((key) => !env[key]);
+  if (!apiKey) {
+    missing.unshift(providerMode === "vercel-ai-gateway" ? "AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN" : "OPENAI_API_KEY");
+  }
 
   if (missing.length > 0) {
     throw new Error(
@@ -39,21 +80,50 @@ export function requireAiProviderConfig(env: NodeJS.ProcessEnv = process.env) {
   }
 
   return {
-    apiKey: env.OPENAI_API_KEY!,
-    baseURL: env.OPENAI_BASE_URL!,
+    apiKey: apiKey!,
+    baseURL: requireRelayBaseUrl(env),
     textModel: env.OPENAI_TEXT_MODEL!,
     imageModel: env.OPENAI_IMAGE_MODEL ?? null,
-    providerMode: env.AI_PROVIDER_MODE ?? "openai-compatible",
+    providerMode,
     webSearchEnabled: env.AI_ENABLE_WEB_SEARCH === "true",
     imageGenerationEnabled: env.AI_ENABLE_IMAGE_GENERATION === "true",
   };
 }
 
+export async function requireRuntimeAiProviderConfig(
+  env: NodeJS.ProcessEnv = process.env,
+  apiKeyOverride?: string,
+) {
+  const providerMode = env.AI_PROVIDER_MODE ?? "openai-compatible";
+  let apiKey = apiKeyOverride ?? resolveAiCredential(env);
+
+  if (!apiKey && providerMode === "vercel-ai-gateway") {
+    apiKey = await getVercelOidcToken();
+  }
+
+  const runtimeEnv = {
+    ...env,
+    ...(providerMode === "vercel-ai-gateway"
+      ? { AI_GATEWAY_API_KEY: apiKey ?? undefined }
+      : { OPENAI_API_KEY: apiKey ?? undefined }),
+  };
+
+  return requireAiProviderConfig(runtimeEnv);
+}
+
 export function getConfiguredProviderCapabilities(env: NodeJS.ProcessEnv = process.env): AiProviderCapabilitySummary {
-  const baseUrlConfigured = Boolean(env.OPENAI_BASE_URL);
+  let baseUrlConfigured = false;
+  try {
+    baseUrlConfigured = Boolean(requireRelayBaseUrl(env));
+  } catch {
+    baseUrlConfigured = false;
+  }
   const textModel = env.OPENAI_TEXT_MODEL ?? null;
   const imageModel = env.OPENAI_IMAGE_MODEL ?? null;
-  const hasTextConfig = Boolean(env.OPENAI_API_KEY && env.OPENAI_BASE_URL && env.OPENAI_TEXT_MODEL);
+  const hasRuntimeCredential =
+    Boolean(resolveAiCredential(env)) ||
+    (env.AI_PROVIDER_MODE === "vercel-ai-gateway" && env.VERCEL === "1");
+  const hasTextConfig = Boolean(hasRuntimeCredential && baseUrlConfigured && env.OPENAI_TEXT_MODEL);
 
   return {
     baseUrlConfigured,

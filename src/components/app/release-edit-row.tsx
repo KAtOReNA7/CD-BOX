@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { ReleaseListItem } from "@/lib/releases/release-types";
 
-const statuses = ["OWNED", "WANTED", "PENDING_REVIEW", "EXCLUDED"];
+const statuses = ["OWNED", "NOT_OWNED", "WANTED", "PENDING_REVIEW", "EXCLUDED"];
 
 function Cover({ release }: { release: ReleaseListItem }) {
   return release.coverImageUrl ? (
@@ -80,7 +80,7 @@ export function ReleaseEditRow({
       <TableCell className="min-w-36">
         <select
           className="w-full border bg-white px-2 py-1 text-xs"
-          value={release.userStatus?.status ?? "WANTED"}
+          value={release.userStatus?.status ?? "NOT_OWNED"}
           onChange={(event) => saveStatus(event.target.value)}
         >
           {statuses.map((value) => <option key={value} value={value}>{value}</option>)}

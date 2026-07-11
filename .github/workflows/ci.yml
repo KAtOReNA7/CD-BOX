@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cd_box_ci?schema=public"
+      AUTH_SECRET: "ci-placeholder-auth-secret-not-used-at-runtime"
+      NEXTAUTH_SECRET: "ci-placeholder-auth-secret-not-used-at-runtime"
+      NEXTAUTH_URL: "http://localhost:3000"
+      AUTH_GITHUB_ID: "ci-placeholder-github-client-id"
+      AUTH_GITHUB_SECRET: "ci-placeholder-github-client-secret"
+      AUTH_GITHUB_ALLOWED_LOGIN: "KAtOReNA7"
+      OPENAI_API_KEY: "ci-placeholder-openai-key"
+      OPENAI_BASE_URL: "https://example.invalid/v1"
+      OPENAI_TEXT_MODEL: "ci-placeholder-model"
+      AI_PROVIDER_MODE: "openai-compatible"
+      AI_ENABLE_WEB_SEARCH: "true"
+      AI_ENABLE_IMAGE_GENERATION: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Use pinned npm
+        run: npm install --global npm@11.13.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

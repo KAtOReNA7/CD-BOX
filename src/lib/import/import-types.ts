@@ -1,4 +1,5 @@
-import type { CollectionStatus, ReleaseCategory, ReleaseFormat } from "@prisma/client";
+import type { ReleaseCategory, ReleaseFormat } from "@prisma/client";
+import type { EditableCollectionStatus } from "@/lib/releases/release-types";
 
 export const IMPORTABLE_SHEETS = [
   "A_原创专辑原版CD",
@@ -34,7 +35,7 @@ export type ParsedReleaseRow = {
   coverImageUrl: string | null;
   sourceUrl: string | null;
   priority: number;
-  status: CollectionStatus;
+  status: EditableCollectionStatus;
   included: boolean;
   duplicate: boolean;
   duplicateReleaseId: string | null;

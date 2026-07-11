@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app/app-shell";
 import { ReleaseDetailClient } from "@/components/app/release-detail-client";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requirePageOwner } from "@/lib/auth/current-user";
 import { getReleaseDetailView } from "@/lib/releases/release-service";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +11,9 @@ export default async function ReleaseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const owner = await requirePageOwner();
   const { id } = await params;
-  const userId = await getCurrentUserId();
-  const detail = await getReleaseDetailView(id, userId);
+  const detail = await getReleaseDetailView(id, owner.id);
 
   if (!detail) {
     notFound();

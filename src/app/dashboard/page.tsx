@@ -3,11 +3,13 @@ import { Plus } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requirePageOwner } from "@/lib/auth/current-user";
 import { listDashboardArtists } from "@/lib/services/artists";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await requirePageOwner();
   const artists = await listDashboardArtists();
 
   return (

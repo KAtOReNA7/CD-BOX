@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requireApiOwner } from "@/lib/auth/current-user";
 import { addReleaseSource } from "@/lib/releases/release-service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
 
   try {
     const { id } = await params;

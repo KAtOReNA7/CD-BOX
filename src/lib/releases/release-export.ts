@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import type { ReleaseListItem } from "@/lib/releases/release-types";
 
 function statusLabel(release: ReleaseListItem) {
-  return release.userStatus?.status ?? "UNKNOWN";
+  return release.userStatus?.status ?? "NOT_OWNED";
 }
 
 export function releaseExportRows(releases: ReleaseListItem[]) {

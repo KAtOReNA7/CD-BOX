@@ -11,6 +11,15 @@ const nonCdFormatPattern =
 const unknownFormatPattern = /unknown|unclear|不明|未確認|不詳/i;
 const riskyWarningPattern =
   /no explicit source url|fabricated|guessed|unknown catalog|suspected hallucination|hallucination/i;
+const managedQualityWarnings = new Set([
+  "PENDING_REVIEW: missing catalogNumber.",
+  "PENDING_REVIEW: no source URL provided.",
+  "PENDING_REVIEW: only wiki source.",
+  "EXCLUDED_BY_DEFAULT: non-CD format excluded under ORIGINAL_CD scope.",
+  "EXCLUDED_BY_DEFAULT: reissue excluded by scope.",
+  "EXCLUDED_BY_DEFAULT: remaster excluded by scope.",
+  "PENDING_REVIEW: unknown release format.",
+]);
 
 function capConfidence(confidence: ResearchConfidence, max: ResearchConfidence): ResearchConfidence {
   const rank = { LOW: 1, MEDIUM: 2, HIGH: 3 };
@@ -57,7 +66,7 @@ export function applyReleaseQualityGate(
     excludeReissues: boolean;
   },
 ) {
-  const warnings = [...release.warnings];
+  const warnings = release.warnings.filter((warning) => !managedQualityWarnings.has(warning));
   let confidence = release.confidence;
   let isExcludedByDefault = release.isExcludedByDefault;
   let pendingReview = false;

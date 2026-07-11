@@ -2,6 +2,10 @@ import { loadLocalEnv } from "./load-local-env.mjs";
 
 const envDebug = loadLocalEnv();
 const env = process.env;
+const apiKey =
+  env.AI_PROVIDER_MODE === "vercel-ai-gateway"
+    ? env.AI_GATEWAY_API_KEY ?? env.VERCEL_OIDC_TOKEN
+    : env.OPENAI_API_KEY;
 
 function redact(value) {
   if (!value) return "missing";
@@ -10,19 +14,21 @@ function redact(value) {
 }
 
 function sanitize(message) {
-  if (!env.OPENAI_API_KEY) return message;
-  return String(message).split(env.OPENAI_API_KEY).join(redact(env.OPENAI_API_KEY));
+  if (!apiKey) return message;
+  return String(message).split(apiKey).join(redact(apiKey));
 }
 
 function baseUrl(path) {
-  return `${env.OPENAI_BASE_URL.replace(/\/$/, "")}${path}`;
+  const configured = env.OPENAI_BASE_URL.replace(/\/$/, "");
+  const versioned = configured.endsWith("/v1") ? configured : `${configured}/v1`;
+  return `${versioned}${path}`;
 }
 
 async function postJson(path, body) {
   const response = await fetch(baseUrl(path), {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -66,13 +72,24 @@ function extractJsonObject(text) {
   return JSON.parse(match[0]);
 }
 
+function extractWebSearchEvidence(payload) {
+  const output = Array.isArray(payload?.output) ? payload.output : [];
+  const calls = output.filter((item) => item?.type === "web_search_call");
+  const sourceCount = calls.reduce((count, call) => {
+    const sources = Array.isArray(call?.action?.sources) ? call.action.sources : [];
+    return count + sources.length;
+  }, 0);
+
+  return { callCount: calls.length, sourceCount };
+}
+
 function logProbe(name, result) {
   console.log(`[${name}] ${JSON.stringify(result, null, 2)}`);
 }
 
 const config = {
-  apiKeyConfigured: Boolean(env.OPENAI_API_KEY),
-  apiKeyRedacted: redact(env.OPENAI_API_KEY),
+  apiKeyConfigured: Boolean(apiKey),
+  apiKeyRedacted: redact(apiKey),
   baseUrlConfigured: Boolean(env.OPENAI_BASE_URL),
   baseUrl: env.OPENAI_BASE_URL ?? null,
   textModel: env.OPENAI_TEXT_MODEL ?? null,
@@ -142,11 +159,18 @@ if (!config.apiKeyConfigured || !config.baseUrlConfigured || !config.textModel) 
         model: config.textModel,
         tools: [{ type: "web_search" }],
         tool_choice: "required",
+        include: ["web_search_call.action.sources"],
         input: "Search: Miho Nakayama King Records discography CD. Return one sentence.",
       });
       const text = extractText(web);
-      summary.webSearchSupported = Boolean(text);
-      logProbe("web-search", { ok: summary.webSearchSupported, text: text.slice(0, 240) });
+      const evidence = extractWebSearchEvidence(web);
+      summary.webSearchSupported = Boolean(text) && evidence.callCount > 0;
+      logProbe("web-search", {
+        ok: summary.webSearchSupported,
+        callCount: evidence.callCount,
+        sourceCount: evidence.sourceCount,
+        text: text.slice(0, 240),
+      });
     } catch (error) {
       summary.webSearchSupported = false;
       logProbe("web-search", { ok: false, error });

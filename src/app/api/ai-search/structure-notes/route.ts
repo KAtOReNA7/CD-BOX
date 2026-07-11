@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAndRunReleaseStructureTask } from "@/lib/ai/release-structure";
 import type { ReleaseStructureRequest } from "@/lib/ai/release-structure-types";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requireApiOwner } from "@/lib/auth/current-user";
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId();
-
-  if (!userId) {
-    return NextResponse.json({ error: "Please sign in before structuring pasted source material." }, { status: 401 });
-  }
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
+  const userId = auth.owner.id;
 
   try {
     const body = (await request.json()) as ReleaseStructureRequest;

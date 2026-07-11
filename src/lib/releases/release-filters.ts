@@ -33,7 +33,7 @@ export function filterReleases(releases: ReleaseListItem[], filters: ReleaseFilt
 
   return releases.filter((release) => {
     if (filters.gap === "true") {
-      const status = release.userStatus?.status;
+      const status = release.userStatus?.status ?? "NOT_OWNED";
       const isGap =
         status === "NOT_OWNED" ||
         status === "WANTED" ||
@@ -54,7 +54,7 @@ export function filterReleases(releases: ReleaseListItem[], filters: ReleaseFilt
     }
 
     if (filters.category && release.category !== filters.category) return false;
-    if (filters.status && (release.userStatus?.status ?? "UNKNOWN") !== filters.status) return false;
+    if (filters.status && (release.userStatus?.status ?? "NOT_OWNED") !== filters.status) return false;
     if (filters.confidence && (release.confidence ?? "") !== filters.confidence) return false;
     if (filters.excluded && release.isExcludedByDefault !== (filters.excluded === "true")) return false;
     if (filters.reissue && release.isReissue !== (filters.reissue === "true")) return false;

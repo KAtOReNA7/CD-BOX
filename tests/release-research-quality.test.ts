@@ -45,6 +45,13 @@ const missingCatalog = applyReleaseQualityGate(candidate({ catalogNumber: null }
 assert.equal(missingCatalog.confidence, "MEDIUM");
 assert.ok(missingCatalog.warnings.some((warning) => warning.includes("catalogNumber")));
 
+const correctedCatalog = applyReleaseQualityGate(
+  candidate({ warnings: missingCatalog.warnings, catalogNumber: "K32X-30" }),
+  options,
+);
+assert.equal(correctedCatalog.confidence, "HIGH");
+assert.equal(correctedCatalog.warnings.some((warning) => warning.includes("catalogNumber")), false);
+
 const missingSources = applyReleaseQualityGate(candidate({ sources: [] }), options);
 assert.equal(missingSources.confidence, "LOW");
 assert.ok(missingSources.warnings.some((warning) => warning.includes("source")));

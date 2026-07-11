@@ -19,6 +19,7 @@ import type {
   AiSearchTaskView,
   CollectionScopeTarget,
   ReleaseResearchCandidate,
+  ReleaseResearchCandidateEdit,
   ResearchConfidence,
 } from "@/lib/ai/release-research-types";
 import type { AiProviderCapabilitySummary as ProviderSummary } from "@/lib/ai/provider-capabilities";
@@ -27,6 +28,12 @@ type ArtistOption = { id: string; name: string };
 
 const categories = ["ALL", "ORIGINAL_ALBUM", "SINGLE", "BEST", "COLLECTION", "LIVE", "REMIX", "BOX", "EP", "OTHER"];
 const confidences = ["ALL", "HIGH", "MEDIUM", "LOW"];
+const taskPollIntervalMs = 1_500;
+const maxTaskPolls = 220;
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function isSafeByDefault(release: ReleaseResearchCandidate) {
   return release.confidence === "HIGH" && !release.isExcludedByDefault && release.sources.length > 0 && Boolean(release.catalogNumber);
@@ -34,6 +41,22 @@ function isSafeByDefault(release: ReleaseResearchCandidate) {
 
 function isPendingReview(release: ReleaseResearchCandidate) {
   return release.confidence !== "HIGH" || !release.catalogNumber || release.sources.length === 0 || release.warnings.some((warning) => warning.includes("PENDING_REVIEW"));
+}
+
+function toCandidateEdit(candidate: ReleaseResearchCandidate): ReleaseResearchCandidateEdit {
+  return {
+    title: candidate.title,
+    category: candidate.category,
+    artistCredit: candidate.artistCredit,
+    originalReleaseDate: candidate.originalReleaseDate,
+    format: candidate.format,
+    catalogNumber: candidate.catalogNumber,
+    label: candidate.label,
+    coverImageUrl: candidate.coverImageUrl,
+    isReissue: candidate.isReissue,
+    isRemaster: candidate.isRemaster,
+    notes: candidate.notes,
+  };
 }
 
 export function AiSearchClient({ artists, capabilities }: { artists: ArtistOption[]; capabilities: ProviderSummary }) {
@@ -59,8 +82,12 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const [artistMode, setArtistMode] = useState<"create" | "existing">("create");
   const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
   const [importArtistName, setImportArtistName] = useState("Miho Nakayama");
+  const [candidateEdits, setCandidateEdits] = useState<Record<string, ReleaseResearchCandidate>>({});
 
-  const releases = useMemo(() => task?.parsedResult?.releases ?? [], [task?.parsedResult?.releases]);
+  const releases = useMemo(
+    () => (task?.parsedResult?.releases ?? []).map((release) => candidateEdits[release.id] ?? release),
+    [candidateEdits, task?.parsedResult?.releases],
+  );
   const summary = useMemo(() => summarizeResearchQuality(releases), [releases]);
   const visibleReleases = useMemo(
     () =>
@@ -88,6 +115,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
 
   function applyTaskPayload(payload: AiSearchTaskView) {
     setTask(payload);
+    setCandidateEdits({});
     const nextSelected = new Set<string>();
     const nextExcluded = new Set<string>();
     const nextPending = new Set<string>();
@@ -104,26 +132,62 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
     setImportArtistName(payload.parsedResult?.artist?.name ?? artistName);
   }
 
+  async function pollTask(taskId: string) {
+    for (let attempt = 0; attempt < maxTaskPolls; attempt += 1) {
+      await wait(taskPollIntervalMs);
+      const response = await fetch(`/api/ai-search/tasks/${taskId}`, { cache: "no-store" });
+      const payload = (await response.json()) as AiSearchTaskView & { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "读取联网搜索任务失败。");
+      }
+
+      setTask(payload);
+      if (payload.status === "succeeded" || payload.status === "failed") {
+        return payload;
+      }
+    }
+
+    throw new Error("联网搜索仍在后台运行，请稍后刷新任务页面。");
+  }
+
   async function startSearch() {
     if (!capabilities.webSearchSupported) return;
     setLoading(true);
     setMessage(null);
     setPendingTask();
 
-    const response = await fetch("/api/ai-search/release-research", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ artistName, country, target, excludeReissues, includeCollaborations, includeLiveRemixBest }),
-    });
-    const payload = await response.json();
-    setLoading(false);
+    try {
+      const response = await fetch("/api/ai-search/release-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artistName, country, target, excludeReissues, includeCollaborations, includeLiveRemixBest }),
+      });
+      const payload = (await response.json()) as AiSearchTaskView & { error?: string };
 
-    if (!response.ok) {
+      if (!response.ok) {
+        throw new Error(payload.error ?? "联网搜索失败。");
+      }
+
+      if (payload.status === "pending" || payload.status === "running") {
+        setTask(payload);
+      }
+      const completed =
+        payload.status === "pending" || payload.status === "running" ? await pollTask(payload.id) : payload;
+
+      if (completed.status === "failed") {
+        setTask(completed);
+        setMessage(completed.errorMessage ?? "联网搜索失败。");
+        return;
+      }
+
+      applyTaskPayload(completed);
+    } catch (error) {
       setTask(null);
-      setMessage(payload.error ?? "联网搜索失败。");
-      return;
+      setMessage(error instanceof Error ? error.message : "联网搜索失败。");
+    } finally {
+      setLoading(false);
     }
-    applyTaskPayload(payload);
   }
 
   async function structureNotes() {
@@ -177,6 +241,11 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         selectedCandidateIds: [...selectedIds],
         excludedCandidateIds: [...excludedIds],
         pendingReviewCandidateIds: [...pendingIds],
+        candidateEdits: Object.fromEntries(
+          Object.entries(candidateEdits)
+            .filter(([candidateId]) => selectedIds.has(candidateId))
+            .map(([candidateId, candidate]) => [candidateId, toCandidateEdit(candidate)]),
+        ),
       }),
     });
     const payload = await response.json();
@@ -202,7 +271,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         <p className="text-sm font-medium text-muted-foreground">AI Workspace</p>
         <h1 className="mt-2 text-3xl font-semibold">资料整理</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          粘贴官网、唱片公司、唱片店或数据库资料，把已有信息整理成可核对的发行候选。不会假装联网，也不会编造来源或封面。
+          通过联网搜索建立可核对的实体 CD 发行候选；也可以粘贴官网、唱片公司、唱片店或数据库资料进行补充整理。
         </p>
       </div>
 
@@ -215,8 +284,12 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
       ) : null}
 
       {!capabilities.webSearchSupported ? (
-        <details className="border bg-white p-4">
-          <summary className="cursor-pointer text-sm font-medium">当前中转站不支持联网搜索</summary>
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>联网搜索尚未就绪</AlertTitle>
+          <AlertDescription>
+            <details>
+              <summary className="cursor-pointer text-sm font-medium">查看中转站能力</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-4">
             <Capability label="Text model" ok={capabilities.textSupported} />
             <Capability label="JSON output" ok={capabilities.jsonSupported} />
@@ -226,13 +299,15 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
               联网搜索不会降级为普通聊天模型执行。当前请使用粘贴资料整理。
             </p>
           </div>
-        </details>
+            </details>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      <Tabs defaultValue="pasted-structure">
+      <Tabs defaultValue={capabilities.webSearchSupported ? "online-search" : "pasted-structure"}>
         <TabsList>
-          <TabsTrigger value="pasted-structure">粘贴资料整理</TabsTrigger>
           {capabilities.webSearchSupported ? <TabsTrigger value="online-search">联网搜索</TabsTrigger> : null}
+          <TabsTrigger value="pasted-structure">粘贴资料整理</TabsTrigger>
         </TabsList>
         <TabsContent value="pasted-structure" className="mt-4">
           <Card>
@@ -371,6 +446,9 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
             toggleExcluded={(id) => toggle(setExcludedIds, excludedIds, id)}
             togglePending={(id) => toggle(setPendingIds, pendingIds, id)}
             toggleExpanded={(id) => toggle(setExpandedIds, expandedIds, id)}
+            updateCandidate={(candidate) =>
+              setCandidateEdits((current) => ({ ...current, [candidate.id]: candidate }))
+            }
           />
 
           <Card>
@@ -500,6 +578,7 @@ function ReleaseCandidateTable({
   toggleExcluded,
   togglePending,
   toggleExpanded,
+  updateCandidate,
 }: {
   releases: ReleaseResearchCandidate[];
   selectedIds: Set<string>;
@@ -510,6 +589,7 @@ function ReleaseCandidateTable({
   toggleExcluded: (id: string) => void;
   togglePending: (id: string) => void;
   toggleExpanded: (id: string) => void;
+  updateCandidate: (candidate: ReleaseResearchCandidate) => void;
 }) {
   return (
     <div className="overflow-x-auto border bg-white">
@@ -557,6 +637,7 @@ function ReleaseCandidateTable({
                           <label className="flex items-center gap-2"><input type="checkbox" checked={pendingIds.has(release.id)} onChange={() => togglePending(release.id)} />待核对</label>
                         </div>
                         {release.warnings.length ? <p className="text-muted-foreground">Warnings: {release.warnings.join("; ")}</p> : null}
+                        <CandidateEditor candidate={release} onChange={updateCandidate} />
                         <div className="grid gap-2">
                           {release.sources.length === 0 ? (
                             <p className="text-muted-foreground">没有来源 URL。</p>
@@ -578,6 +659,95 @@ function ReleaseCandidateTable({
           })}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function CandidateEditor({
+  candidate,
+  onChange,
+}: {
+  candidate: ReleaseResearchCandidate;
+  onChange: (candidate: ReleaseResearchCandidate) => void;
+}) {
+  function update<K extends keyof ReleaseResearchCandidate>(key: K, value: ReleaseResearchCandidate[K]) {
+    onChange({ ...candidate, [key]: value });
+  }
+
+  return (
+    <div className="grid gap-3 border bg-white p-4 md:grid-cols-2 lg:grid-cols-4">
+      <Field label="标题">
+        <Input value={candidate.title} onChange={(event) => update("title", event.target.value)} />
+      </Field>
+      <Field label="分类">
+        <Select
+          value={candidate.category}
+          onValueChange={(value) => update("category", value as ReleaseResearchCandidate["category"])}
+        >
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {categories.filter((category) => category !== "ALL").map((category) => (
+              <SelectItem key={category} value={category}>{category}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="原始发行日">
+        <Input
+          type="date"
+          value={candidate.originalReleaseDate?.slice(0, 10) ?? ""}
+          onChange={(event) => update("originalReleaseDate", event.target.value || null)}
+        />
+      </Field>
+      <Field label="格式">
+        <Input value={candidate.format ?? ""} onChange={(event) => update("format", event.target.value || null)} />
+      </Field>
+      <Field label="品番">
+        <Input
+          value={candidate.catalogNumber ?? ""}
+          onChange={(event) => update("catalogNumber", event.target.value || null)}
+        />
+      </Field>
+      <Field label="厂牌">
+        <Input value={candidate.label ?? ""} onChange={(event) => update("label", event.target.value || null)} />
+      </Field>
+      <Field label="封面 URL">
+        <Input
+          type="url"
+          value={candidate.coverImageUrl ?? ""}
+          onChange={(event) => update("coverImageUrl", event.target.value || null)}
+        />
+      </Field>
+      <Field label="艺人名义">
+        <Input value={candidate.artistCredit} onChange={(event) => update("artistCredit", event.target.value)} />
+      </Field>
+      <label className="flex h-10 items-center gap-3 border px-3 text-sm">
+        <input
+          type="checkbox"
+          checked={candidate.isReissue === true}
+          onChange={(event) => update("isReissue", event.target.checked)}
+        />
+        再版
+      </label>
+      <label className="flex h-10 items-center gap-3 border px-3 text-sm">
+        <input
+          type="checkbox"
+          checked={candidate.isRemaster === true}
+          onChange={(event) => update("isRemaster", event.target.checked)}
+        />
+        重制
+      </label>
+      <div className="grid gap-2 md:col-span-2 lg:col-span-4">
+        <Label>备注</Label>
+        <Textarea
+          value={candidate.notes ?? ""}
+          onChange={(event) => update("notes", event.target.value || null)}
+          rows={3}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground md:col-span-2 lg:col-span-4">
+        手工修改会在服务器端重新执行置信度、来源和收藏范围质量门控。
+      </p>
     </div>
   );
 }

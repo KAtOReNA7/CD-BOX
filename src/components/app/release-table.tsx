@@ -61,7 +61,7 @@ export function ReleaseTable({
             payload.status || payload.priority
               ? {
                   id: row.userStatus?.id ?? `local-${row.id}`,
-                  status: (payload.status as never) ?? row.userStatus?.status ?? "UNKNOWN",
+                  status: (payload.status as never) ?? row.userStatus?.status ?? "NOT_OWNED",
                   priority: payload.priority ?? row.userStatus?.priority ?? 3,
                   ownedCondition: row.userStatus?.ownedCondition ?? null,
                   ownedNotes: row.userStatus?.ownedNotes ?? null,

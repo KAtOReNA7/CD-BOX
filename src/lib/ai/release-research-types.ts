@@ -81,4 +81,20 @@ export type ReleaseResearchImportInput = {
   selectedCandidateIds: string[];
   excludedCandidateIds: string[];
   pendingReviewCandidateIds: string[];
+  candidateEdits: Record<string, ReleaseResearchCandidateEdit>;
 };
+
+export type ReleaseResearchCandidateEdit = Pick<
+  ReleaseResearchCandidate,
+  | "title"
+  | "category"
+  | "artistCredit"
+  | "originalReleaseDate"
+  | "format"
+  | "catalogNumber"
+  | "label"
+  | "coverImageUrl"
+  | "isReissue"
+  | "isRemaster"
+  | "notes"
+>;

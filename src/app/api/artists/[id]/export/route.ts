@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requireApiOwner } from "@/lib/auth/current-user";
 import { buildReleaseExportBuffer, exportFileName } from "@/lib/releases/release-export";
 import { getArtistLibrary } from "@/lib/releases/release-service";
 import type { ReleaseFilters } from "@/lib/releases/release-types";
@@ -10,8 +10,9 @@ function filtersFromUrl(url: string): ReleaseFilters {
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+  const auth = await requireApiOwner();
+  if (!auth.authorized) return auth.response;
+  const userId = auth.owner.id;
 
   const { id } = await params;
   const filters = filtersFromUrl(request.url);

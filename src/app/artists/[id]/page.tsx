@@ -4,7 +4,7 @@ import { ArtistStatsCards } from "@/components/app/artist-stats-cards";
 import { ReleaseFilterPanel } from "@/components/app/release-filter-panel";
 import { ReleaseTable } from "@/components/app/release-table";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUserId } from "@/lib/auth/current-user";
+import { requirePageOwner } from "@/lib/auth/current-user";
 import { getArtistLibrary } from "@/lib/releases/release-service";
 import type { ReleaseFilters } from "@/lib/releases/release-types";
 
@@ -23,10 +23,10 @@ export default async function ArtistDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const owner = await requirePageOwner();
   const { id } = await params;
   const filters = normalizeSearchParams(await searchParams);
-  const userId = await getCurrentUserId();
-  const library = await getArtistLibrary(id, userId, filters);
+  const library = await getArtistLibrary(id, owner.id, filters);
 
   if (!library) {
     notFound();

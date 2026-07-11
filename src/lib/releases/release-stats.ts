@@ -30,7 +30,7 @@ export function computeArtistStats(releases: ReleaseListItem[]): ArtistStats {
     total: releases.length,
     owned: releases.filter(isOwned).length,
     notOwned: releases.filter((release) => release.userStatus?.status === "NOT_OWNED").length,
-    wanted: releases.filter((release) => release.userStatus?.status === "WANTED" || release.userStatus?.status === "WANT").length,
+    wanted: releases.filter((release) => release.userStatus?.status === "WANTED").length,
     pendingReview: releases.filter(
       (release) => release.userStatus?.status === "PENDING_REVIEW" || hasPendingReviewWarning(release),
     ).length,

@@ -11,9 +11,20 @@ export function loadLocalEnv() {
     dotenv.config({ path: envFilePath, override: false, quiet: true });
   }
 
-  const missingKeys = ["OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_TEXT_MODEL", "OPENAI_IMAGE_MODEL"].filter(
+  const providerCredential =
+    process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
+      ? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN
+      : process.env.OPENAI_API_KEY;
+  const missingKeys = ["OPENAI_BASE_URL", "OPENAI_TEXT_MODEL", "OPENAI_IMAGE_MODEL"].filter(
     (key) => !process.env[key],
   );
+  if (!providerCredential) {
+    missingKeys.unshift(
+      process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
+        ? "AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN"
+        : "OPENAI_API_KEY",
+    );
+  }
 
   return {
     cwd,

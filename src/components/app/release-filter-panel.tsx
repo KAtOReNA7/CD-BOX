@@ -30,7 +30,7 @@ export function ReleaseFilterPanel({
         </select>
         <select name="status" defaultValue={filters.status ?? ""} className="border bg-white px-3 py-2 text-sm">
           <option value="">全部状态</option>
-          {["OWNED", "WANTED", "PENDING_REVIEW", "EXCLUDED"].map((value) => (
+          {["OWNED", "NOT_OWNED", "WANTED", "PENDING_REVIEW", "EXCLUDED"].map((value) => (
             <option key={value} value={value}>{value}</option>
           ))}
         </select>

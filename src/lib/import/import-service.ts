@@ -7,6 +7,7 @@ import type {
   ImportPreviewResult,
   ParsedReleaseRow,
 } from "@/lib/import/import-types";
+import { canonicalCollectionStatus } from "@/lib/releases/release-types";
 
 function toDate(value: string | null) {
   return value ? new Date(`${value}T00:00:00.000Z`) : null;
@@ -28,7 +29,10 @@ function releaseWhereForDuplicate(artistId: string, row: ParsedReleaseRow): Pris
   };
 }
 
-async function resolvePreviewArtistId(input: ImportPreviewResult["artist"]) {
+async function resolvePreviewArtistId(
+  input: ImportPreviewResult["artist"],
+  db: Prisma.TransactionClient = prisma,
+) {
   if (input.mode === "existing") {
     return input.artistId;
   }
@@ -37,7 +41,7 @@ async function resolvePreviewArtistId(input: ImportPreviewResult["artist"]) {
     return null;
   }
 
-  const artist = await prisma.artist.findFirst({
+  const artist = await db.artist.findFirst({
     where: { name: input.artistName.trim() },
     select: { id: true },
   });
@@ -49,8 +53,8 @@ export async function buildImportPreview(input: {
   fileName: string;
   artist: ImportPreviewResult["artist"];
   rows: ParsedReleaseRow[];
-}): Promise<ImportPreviewResult> {
-  const artistId = await resolvePreviewArtistId(input.artist);
+}, db: Prisma.TransactionClient = prisma): Promise<ImportPreviewResult> {
+  const artistId = await resolvePreviewArtistId(input.artist, db);
   const rows: ParsedReleaseRow[] = input.rows.map((row) => ({
     ...row,
     duplicate: false,
@@ -64,7 +68,7 @@ export async function buildImportPreview(input: {
           return;
         }
 
-        const duplicate = await prisma.release.findFirst({
+        const duplicate = await db.release.findFirst({
           where: releaseWhereForDuplicate(artistId, row),
           select: { id: true },
         });
@@ -90,14 +94,14 @@ export async function buildImportPreview(input: {
   };
 }
 
-async function resolveConfirmArtist(input: ImportConfirmInput["artist"]) {
+async function resolveConfirmArtist(input: ImportConfirmInput["artist"], db: Prisma.TransactionClient) {
   if (input.mode === "existing") {
-    return prisma.artist.findUniqueOrThrow({
+    return db.artist.findUniqueOrThrow({
       where: { id: input.artistId },
     });
   }
 
-  const existing = await prisma.artist.findFirst({
+  const existing = await db.artist.findFirst({
     where: { name: input.artistName.trim() },
   });
 
@@ -105,15 +109,20 @@ async function resolveConfirmArtist(input: ImportConfirmInput["artist"]) {
     return existing;
   }
 
-  return prisma.artist.create({
+  return db.artist.create({
     data: {
       name: input.artistName.trim(),
     },
   });
 }
 
-async function upsertReleaseStatus(userId: string, releaseId: string, row: ParsedReleaseRow) {
-  await prisma.userReleaseStatus.upsert({
+async function upsertReleaseStatus(
+  userId: string,
+  releaseId: string,
+  row: ParsedReleaseRow,
+  db: Prisma.TransactionClient,
+) {
+  await db.userReleaseStatus.upsert({
     where: {
       userId_releaseId: {
         userId,
@@ -133,12 +142,12 @@ async function upsertReleaseStatus(userId: string, releaseId: string, row: Parse
   });
 }
 
-async function addReleaseSource(releaseId: string, row: ParsedReleaseRow) {
+async function addReleaseSource(releaseId: string, row: ParsedReleaseRow, db: Prisma.TransactionClient) {
   if (!row.sourceUrl) {
     return;
   }
 
-  const existing = await prisma.releaseSource.findFirst({
+  const existing = await db.releaseSource.findFirst({
     where: {
       releaseId,
       url: row.sourceUrl,
@@ -147,7 +156,7 @@ async function addReleaseSource(releaseId: string, row: ParsedReleaseRow) {
   });
 
   if (!existing) {
-    await prisma.releaseSource.create({
+    await db.releaseSource.create({
       data: {
         releaseId,
         url: row.sourceUrl,
@@ -174,81 +183,99 @@ function releaseData(row: ParsedReleaseRow, artistId: string, batchId: string) {
 }
 
 export async function confirmImport(input: ImportConfirmInput, userId: string): Promise<ImportConfirmResult> {
-  const artist = await resolveConfirmArtist(input.artist);
-  const rowsWithPreview = await buildImportPreview({
-    fileName: input.fileName,
-    artist: { mode: "existing", artistId: artist.id, artistName: artist.name },
-    rows: input.rows,
-  });
-
-  const batch = await prisma.importBatch.create({
-    data: {
-      userId,
-      artistId: artist.id,
-      fileName: input.fileName,
-      status: "DRAFT",
-      rowCount: input.rows.length,
-      errorJson: rowsWithPreview.rows
-        .filter((row) => row.errors.length > 0)
-        .map((row) => ({
-          sheetName: row.sheetName,
-          rowNumber: row.rowNumber,
-          errors: row.errors,
-        })),
-    },
-  });
-
-  let created = 0;
-  let updated = 0;
-  let skipped = 0;
-  let errors = 0;
-
-  for (const row of rowsWithPreview.rows) {
-    if (row.errors.length > 0) {
-      errors += 1;
-      continue;
-    }
-
-    if (row.duplicate && input.duplicateStrategy === "skip") {
-      skipped += 1;
-      continue;
-    }
-
-    if (row.duplicate && row.duplicateReleaseId && input.duplicateStrategy === "update") {
-      const release = await prisma.release.update({
-        where: { id: row.duplicateReleaseId },
-        data: releaseData(row, artist.id, batch.id),
-      });
-      await upsertReleaseStatus(userId, release.id, row);
-      await addReleaseSource(release.id, row);
-      updated += 1;
-      continue;
-    }
-
-    const release = await prisma.release.create({
-      data: releaseData(row, artist.id, batch.id),
-    });
-    await upsertReleaseStatus(userId, release.id, row);
-    await addReleaseSource(release.id, row);
-    created += 1;
+  if (input.artist.mode === "create" && !input.artist.artistName.trim()) {
+    throw new Error("artistName is required.");
   }
 
-  await prisma.importBatch.update({
-    where: { id: batch.id },
-    data: {
-      status: errors > 0 && created === 0 && updated === 0 ? "FAILED" : "IMPORTED",
-      importedAt: new Date(),
-    },
+  const rows = input.rows.map((row) => {
+    const status = canonicalCollectionStatus(row.status);
+    if (!status) throw new Error(`Invalid collection status on row ${row.rowNumber}.`);
+    if (!Number.isInteger(row.priority) || row.priority < 1 || row.priority > 5) {
+      throw new Error(`priority must be an integer from 1 to 5 on row ${row.rowNumber}.`);
+    }
+
+    const errors = [...row.errors];
+    if (!row.title.trim() && !errors.includes("Missing title")) errors.push("Missing title");
+    return { ...row, title: row.title.trim(), status, errors };
   });
 
-  return {
-    artistId: artist.id,
-    batchId: batch.id,
-    created,
-    updated,
-    skipped,
-    errors,
-  };
+  return prisma.$transaction(async (tx) => {
+    const artist = await resolveConfirmArtist(input.artist, tx);
+    const rowsWithPreview = await buildImportPreview({
+      fileName: input.fileName,
+      artist: { mode: "existing", artistId: artist.id, artistName: artist.name },
+      rows,
+    }, tx);
+
+    const batch = await tx.importBatch.create({
+      data: {
+        userId,
+        artistId: artist.id,
+        fileName: input.fileName,
+        status: "DRAFT",
+        rowCount: rows.length,
+        errorJson: rowsWithPreview.rows
+          .filter((row) => row.errors.length > 0)
+          .map((row) => ({
+            sheetName: row.sheetName,
+            rowNumber: row.rowNumber,
+            errors: row.errors,
+          })),
+      },
+    });
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const row of rowsWithPreview.rows) {
+      if (row.errors.length > 0) {
+        errors += 1;
+        continue;
+      }
+
+      if (row.duplicate && input.duplicateStrategy === "skip") {
+        skipped += 1;
+        continue;
+      }
+
+      if (row.duplicate && row.duplicateReleaseId && input.duplicateStrategy === "update") {
+        const release = await tx.release.update({
+          where: { id: row.duplicateReleaseId },
+          data: releaseData(row, artist.id, batch.id),
+        });
+        await upsertReleaseStatus(userId, release.id, row, tx);
+        await addReleaseSource(release.id, row, tx);
+        updated += 1;
+        continue;
+      }
+
+      const release = await tx.release.create({
+        data: releaseData(row, artist.id, batch.id),
+      });
+      await upsertReleaseStatus(userId, release.id, row, tx);
+      await addReleaseSource(release.id, row, tx);
+      created += 1;
+    }
+
+    await tx.importBatch.update({
+      where: { id: batch.id },
+      data: {
+        status: errors > 0 && created === 0 && updated === 0 ? "FAILED" : "IMPORTED",
+        importedAt: new Date(),
+      },
+    });
+
+    return {
+      artistId: artist.id,
+      batchId: batch.id,
+      created,
+      updated,
+      skipped,
+      errors,
+    };
+  }, { maxWait: 5_000, timeout: 30_000 });
 }
 
 export function normalizeDuplicateStrategy(value: unknown): DuplicateStrategy {
