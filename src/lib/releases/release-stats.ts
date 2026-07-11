@@ -1,5 +1,6 @@
 import type { ArtistStats, ReleaseListItem } from "@/lib/releases/release-types";
 import { hasPendingReviewWarning } from "@/lib/releases/release-filters";
+import { releaseEvidenceSources } from "@/lib/releases/cover-source";
 
 const categoryGroups = [
   { key: "ORIGINAL_ALBUM", label: "ORIGINAL_ALBUM", categories: ["ORIGINAL_ALBUM"] },
@@ -36,7 +37,9 @@ export function computeArtistStats(releases: ReleaseListItem[]): ArtistStats {
     ).length,
     excluded: releases.filter(isExcluded).length,
     missingCover: releases.filter((release) => !release.coverImageUrl).length,
-    missingSource: releases.filter((release) => release.sources.length === 0).length,
+    missingSource: releases.filter(
+      (release) => releaseEvidenceSources(release.sources).length === 0,
+    ).length,
     missingCatalog: releases.filter((release) => !release.originalCatalogNo).length,
     completionRate: rate(ownedDenominator.length, denominator.length),
     categoryCompletion: categoryGroups.map((group) => {

@@ -75,8 +75,11 @@ function errorMetadata(payload: unknown) {
 }
 
 export async function runProviderCheck(check: ProviderCheck) {
+  let runtimeApiKey: string | null = null;
+
   try {
     const config = await requireRuntimeAiProviderConfig();
+    runtimeApiKey = config.apiKey;
 
     if (check === "models") {
       const { response, payload } = await providerRequest("/models");
@@ -88,12 +91,14 @@ export async function runProviderCheck(check: ProviderCheck) {
               )
               .filter((id): id is string => Boolean(id))
           : [];
+      const configuredModelAvailable = models.includes(config.textModel);
 
       return {
         check,
-        ok: response.ok,
+        ok: response.ok && configuredModelAvailable,
         status: response.status,
         configuredTextModel: config.textModel,
+        configuredModelAvailable,
         configuredImageModel: config.imageModel,
         models,
         ...errorMetadata(payload),
@@ -195,10 +200,11 @@ export async function runProviderCheck(check: ProviderCheck) {
 
     throw new Error(`Unsupported provider check: ${check}`);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error
-        ? sanitizeErrorMessage(error.message, process.env.OPENAI_API_KEY).slice(0, 500)
-        : "Unknown provider error";
+    const errorMessage = error instanceof Error
+      ? [runtimeApiKey, process.env.OPENAI_API_KEY, process.env.AI_GATEWAY_API_KEY, process.env.VERCEL_OIDC_TOKEN]
+          .reduce<string>((message, secret) => sanitizeErrorMessage(message, secret), error.message)
+          .slice(0, 500)
+      : "Unknown provider error";
 
     return {
       check,

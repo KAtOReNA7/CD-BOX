@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { filterReleases } from "@/lib/releases/release-filters";
+import { COVER_IMAGE_SOURCE_DESCRIPTION } from "@/lib/releases/cover-source";
 import type { ReleaseListItem } from "@/lib/releases/release-types";
 
 function row(overrides: Partial<ReleaseListItem> = {}): ReleaseListItem {
@@ -53,5 +54,20 @@ assert.equal(filterReleases(rows, { decade: "custom", yearFrom: "1990", yearTo: 
 const releaseWithoutStatus = row({ id: "r3", userStatus: null });
 assert.deepEqual(filterReleases([releaseWithoutStatus], { status: "NOT_OWNED" }), [releaseWithoutStatus]);
 assert.deepEqual(filterReleases([releaseWithoutStatus], { gap: "true" }), [releaseWithoutStatus]);
+
+const releaseWithCoverProvenanceOnly = row({
+  id: "r4",
+  sources: [{
+    id: "cover-source",
+    url: "https://music.apple.com/jp/album/example/1",
+    label: "Apple Music",
+    description: COVER_IMAGE_SOURCE_DESCRIPTION,
+  }],
+});
+assert.deepEqual(
+  filterReleases([releaseWithCoverProvenanceOnly], { missingSource: "true" }),
+  [releaseWithCoverProvenanceOnly],
+);
+assert.deepEqual(filterReleases([releaseWithCoverProvenanceOnly], { gap: "true" }), [releaseWithCoverProvenanceOnly]);
 
 console.log("Release library filter test passed.");

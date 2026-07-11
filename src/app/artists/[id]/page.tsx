@@ -32,6 +32,8 @@ export default async function ArtistDetailPage({
     notFound();
   }
 
+  const releaseTableKey = JSON.stringify(Object.entries(filters).sort(([left], [right]) => left.localeCompare(right)));
+
   return (
     <AppShell>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -54,7 +56,12 @@ export default async function ArtistDetailPage({
           filteredCount={library.filteredReleases.length}
           totalCount={library.releases.length}
         />
-        <ReleaseTable artistId={library.artist.id} releases={library.filteredReleases} totalCount={library.releases.length} />
+        <ReleaseTable
+          key={releaseTableKey}
+          artistId={library.artist.id}
+          releases={library.filteredReleases}
+          totalCount={library.releases.length}
+        />
       </div>
     </AppShell>
   );

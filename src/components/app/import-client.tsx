@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OperationProgress } from "@/components/app/operation-progress";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,8 @@ type ArtistOption = {
   name: string;
 };
 
+type ImportOperation = "preview" | "import" | null;
+
 export function ImportClient({ artists }: { artists: ArtistOption[] }) {
   const router = useRouter();
   const [artistMode, setArtistMode] = useState<"create" | "existing">("create");
@@ -38,8 +41,10 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
   const [duplicateStrategy, setDuplicateStrategy] = useState<DuplicateStrategy>("skip");
-  const [loading, setLoading] = useState(false);
+  const [operation, setOperation] = useState<ImportOperation>(null);
+  const [navigationPending, startNavigation] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const busy = operation !== null || navigationPending;
 
   const canPreview = useMemo(() => {
     if (!file) return false;
@@ -48,59 +53,67 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
   }, [artistId, artistMode, artistName, file]);
 
   async function createPreview() {
-    if (!file || !canPreview) return;
+    if (!file || !canPreview || busy) return;
 
-    setLoading(true);
+    setOperation("preview");
     setMessage(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("artistMode", artistMode);
-    formData.append("artistId", artistId);
-    formData.append("artistName", artistName);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("artistMode", artistMode);
+      formData.append("artistId", artistId);
+      formData.append("artistName", artistName);
 
-    const response = await fetch("/api/import/preview", {
-      method: "POST",
-      body: formData,
-    });
-    const payload = await response.json();
+      const response = await fetch("/api/import/preview", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json();
 
-    setLoading(false);
+      if (!response.ok) {
+        setMessage(payload.error ?? "预览失败");
+        return;
+      }
 
-    if (!response.ok) {
-      setMessage(payload.error ?? "预览失败");
-      return;
+      setPreview(payload);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "预览失败，请检查网络后重试。");
+    } finally {
+      setOperation(null);
     }
-
-    setPreview(payload);
   }
 
   async function confirmImport() {
-    if (!preview) return;
+    if (!preview || busy) return;
 
-    setLoading(true);
+    setOperation("import");
     setMessage(null);
 
-    const response = await fetch("/api/import/confirm", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...preview,
-        duplicateStrategy,
-      }),
-    });
-    const payload = await response.json();
+    try {
+      const response = await fetch("/api/import/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...preview,
+          duplicateStrategy,
+        }),
+      });
+      const payload = await response.json();
 
-    setLoading(false);
+      if (!response.ok) {
+        setMessage(payload.error ?? "确认导入失败");
+        return;
+      }
 
-    if (!response.ok) {
-      setMessage(payload.error ?? "确认导入失败");
-      return;
+      startNavigation(() => router.push(`/artists/${payload.artistId}`));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "确认导入失败，请检查网络后重试。");
+    } finally {
+      setOperation(null);
     }
-
-    router.push(`/artists/${payload.artistId}`);
   }
 
   return (
@@ -126,7 +139,14 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label>目标艺人库</Label>
-            <Select value={artistMode} onValueChange={(value) => setArtistMode(value as "create" | "existing")}>
+            <Select
+              value={artistMode}
+              disabled={busy}
+              onValueChange={(value) => {
+                setArtistMode(value as "create" | "existing");
+                setPreview(null);
+              }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -139,12 +159,27 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
           {artistMode === "create" ? (
             <div className="grid gap-2">
               <Label htmlFor="artistName">艺人名称</Label>
-              <Input id="artistName" value={artistName} onChange={(event) => setArtistName(event.target.value)} />
+              <Input
+                id="artistName"
+                value={artistName}
+                disabled={busy}
+                onChange={(event) => {
+                  setArtistName(event.target.value);
+                  setPreview(null);
+                }}
+              />
             </div>
           ) : (
             <div className="grid gap-2">
               <Label>已有艺人</Label>
-              <Select value={artistId} onValueChange={setArtistId}>
+              <Select
+                value={artistId}
+                disabled={busy}
+                onValueChange={(value) => {
+                  setArtistId(value);
+                  setPreview(null);
+                }}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择艺人库" />
                 </SelectTrigger>
@@ -165,10 +200,12 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
+            if (busy) return;
             setFile(event.dataTransfer.files[0] ?? null);
             setPreview(null);
           }}
-          className="flex min-h-48 cursor-pointer flex-col items-center justify-center border border-dashed bg-stone-50 p-6 text-center transition hover:bg-stone-100"
+          aria-disabled={busy}
+          className={`flex min-h-48 flex-col items-center justify-center border border-dashed bg-stone-50 p-6 text-center transition ${busy ? "pointer-events-none cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-stone-100"}`}
         >
           <FileSpreadsheet className="size-8 text-stone-500" />
           <span className="mt-3 text-sm font-medium">{file ? file.name : "拖拽 .xlsx 到这里，或点击选择"}</span>
@@ -177,6 +214,7 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
             id="file"
             type="file"
             accept=".xlsx"
+            disabled={busy}
             className="hidden"
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
@@ -186,11 +224,20 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
         </label>
 
         <div className="lg:col-span-2">
-          <Button type="button" onClick={createPreview} disabled={!canPreview || loading} className="gap-2">
+          <Button type="button" onClick={createPreview} disabled={!canPreview || busy} className="gap-2">
             <Upload className="size-4" />
-            生成预览
+            {operation === "preview" ? "正在生成预览…" : "生成预览"}
           </Button>
         </div>
+        {operation === "preview" ? (
+          <div className="lg:col-span-2">
+            <OperationProgress
+              compact
+              label="正在解析 Excel 并检查重复条目…"
+              detail={file ? `文件：${file.name}` : undefined}
+            />
+          </div>
+        ) : null}
       </section>
 
       {preview ? (
@@ -208,7 +255,11 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
               <span className="text-sm font-medium">确认导入前选择重复条目策略</span>
             </div>
             <div className="flex items-center gap-3">
-              <Select value={duplicateStrategy} onValueChange={(value) => setDuplicateStrategy(value as DuplicateStrategy)}>
+              <Select
+                value={duplicateStrategy}
+                disabled={busy}
+                onValueChange={(value) => setDuplicateStrategy(value as DuplicateStrategy)}
+              >
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -218,11 +269,22 @@ export function ImportClient({ artists }: { artists: ArtistOption[] }) {
                   <SelectItem value="create">作为新条目</SelectItem>
                 </SelectContent>
               </Select>
-              <Button type="button" onClick={confirmImport} disabled={loading}>
-                确认导入
+              <Button type="button" onClick={confirmImport} disabled={busy}>
+                {operation === "import" ? "正在导入…" : navigationPending ? "正在打开艺人库…" : "确认导入"}
               </Button>
             </div>
           </div>
+
+          {operation === "import" || navigationPending ? (
+            <OperationProgress
+              label={operation === "import" ? "正在导入收藏条目…" : "导入完成，正在打开艺人库…"}
+              detail={
+                operation === "import"
+                  ? `将处理 ${preview.summary.importableRows} 条可导入记录，请勿关闭页面。`
+                  : undefined
+              }
+            />
+          ) : null}
 
           <div className="overflow-x-auto border bg-white">
             <Table>

@@ -84,4 +84,30 @@ reissue.releases[0].isExcludedByDefault = false;
 const reissueParsed = parseReleaseResearchResponse(JSON.stringify(reissue));
 assert.equal(reissueParsed.releases[0].isExcludedByDefault, true);
 
+const unsafeUrls = {
+  ...structuredClone(baseJson),
+  artist: {
+    ...structuredClone(baseJson.artist),
+    officialSiteUrl: "javascript:alert(1)",
+  },
+  releases: [
+    {
+      ...structuredClone(baseJson.releases[0]),
+      coverImageUrl: "data:image/svg+xml,test",
+      coverImageSourceUrl: "ftp://example.com/cover",
+      sources: [
+        {
+          ...structuredClone(baseJson.releases[0].sources[0]),
+          url: "javascript:alert(1)",
+        },
+      ],
+    },
+  ],
+};
+const safeUrlParsed = parseReleaseResearchResponse(JSON.stringify(unsafeUrls));
+assert.equal(safeUrlParsed.artist.officialSiteUrl, null);
+assert.equal(safeUrlParsed.releases[0].coverImageUrl, null);
+assert.equal(safeUrlParsed.releases[0].coverImageSourceUrl, null);
+assert.deepEqual(safeUrlParsed.releases[0].sources, []);
+
 console.log("Release research parser test passed.");

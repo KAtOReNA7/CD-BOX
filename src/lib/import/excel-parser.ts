@@ -14,7 +14,7 @@ const headerAliases = {
   label: ["厂牌"],
   isReissue: ["是否再版"],
   notes: ["备注"],
-  coverImageUrl: ["封面图"],
+  coverImageUrl: ["封面图", "封面图 URL", "封面 URL", "Cover Image URL"],
   sourceUrl: ["来源 URL", "来源URL", "来源 url", "Source URL"],
   priority: ["优先级", "优先度"],
   status: ["收集状态", "收藏状态"],

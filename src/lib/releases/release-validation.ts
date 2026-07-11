@@ -25,6 +25,21 @@ export function textOrNull(value: unknown) {
   return text ? text : null;
 }
 
+export function httpUrlOrNull(value: unknown) {
+  const text = textOrNull(value);
+  if (!text) return null;
+  if (text.length > 2_048 || !/^https?:\/\//i.test(text)) {
+    throw new Error("URL must use HTTP or HTTPS and be at most 2048 characters.");
+  }
+  try {
+    const url = new URL(text);
+    if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error();
+  } catch {
+    throw new Error("URL must use HTTP or HTTPS and be valid.");
+  }
+  return text;
+}
+
 function boolValue(value: unknown) {
   return value === true || value === "true";
 }
@@ -71,7 +86,7 @@ export function parseReleasePatchInput(body: Record<string, unknown>): ReleasePa
   if ("isReissue" in body) input.isReissue = boolValue(body.isReissue);
   if ("isRemaster" in body) input.isRemaster = boolValue(body.isRemaster);
   if ("isExcludedByDefault" in body) input.isExcludedByDefault = boolValue(body.isExcludedByDefault);
-  if ("coverImageUrl" in body) input.coverImageUrl = textOrNull(body.coverImageUrl);
+  if ("coverImageUrl" in body) input.coverImageUrl = httpUrlOrNull(body.coverImageUrl);
   if ("notes" in body) input.notes = textOrNull(body.notes);
 
   return input;

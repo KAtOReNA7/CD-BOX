@@ -33,6 +33,9 @@ const updateRelease = releaseService.slice(
 );
 assert.match(releaseRoute, /updateRelease\(id, auth\.owner\.id, parseReleasePatchInput\(body\)\)/);
 assert.match(updateRelease, /userStatus: \{ where: \{ userId \} \}/);
+assert.match(updateRelease, /prisma\.\$transaction\(async \(tx\) =>/);
+assert.match(updateRelease, /description: COVER_IMAGE_SOURCE_DESCRIPTION/);
+assert.match(updateRelease, /await tx\.releaseSource\.deleteMany/);
 assert.match(updateRelease, /release: serializeRelease\(release, userId\)/);
 
 assert.match(artistService, /isolationLevel: "Serializable"/);

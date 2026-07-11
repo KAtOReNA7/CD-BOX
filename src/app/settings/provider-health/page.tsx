@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePageOwner } from "@/lib/auth/current-user";
 import { isProviderCheck, providerChecks, runProviderCheck } from "@/lib/ai/provider-health";
 
@@ -22,9 +23,9 @@ export default async function ProviderHealthPage({
       </div>
       <nav className="flex flex-wrap gap-3">
         {providerChecks.map((item) => (
-          <a className="border px-3 py-2 text-sm" href={`/settings/provider-health?check=${item}`} key={item}>
+          <Link className="border px-3 py-2 text-sm" href={`/settings/provider-health?check=${item}`} prefetch={false} key={item}>
             {item}
-          </a>
+          </Link>
         ))}
       </nav>
       <pre className="overflow-auto border bg-white p-4 text-sm" data-testid="provider-health-result">

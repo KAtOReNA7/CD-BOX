@@ -65,6 +65,8 @@ export type ReleaseResearchResult = {
 export type AiSearchTaskView = {
   id: string;
   status: ResearchTaskStatus;
+  progress?: number;
+  stage?: string | null;
   query: string;
   model: string;
   errorMessage: string | null;

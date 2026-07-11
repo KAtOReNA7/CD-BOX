@@ -46,7 +46,7 @@ AUTH_GITHUB_ALLOWED_LOGIN=KAtOReNA7
 OPENAI_API_KEY=
 AI_GATEWAY_API_KEY=
 OPENAI_BASE_URL=https://ai-gateway.vercel.sh/v1
-OPENAI_TEXT_MODEL=openai/gpt-5.4-mini
+OPENAI_TEXT_MODEL=openai/gpt-5.6-sol
 OPENAI_IMAGE_MODEL=openai/gpt-image-2
 AI_PROVIDER_MODE=vercel-ai-gateway
 AI_ENABLE_WEB_SEARCH=true
@@ -111,10 +111,11 @@ The `/ai-search` launch workflow is online-first:
 
 1. Enter an artist, region, scope, and inclusion rules.
 2. Run Responses API research with `tools: [{ type: "web_search" }]` and required tool use.
-3. Review and edit candidates before import.
-4. Import only explicitly selected candidates; source URLs are preserved as `ReleaseSource` rows.
+3. Enrich missing covers and native-script artist names only from uniquely matched Apple Music album metadata; unmatched or ambiguous rows stay unchanged.
+4. Review and edit candidates before import.
+5. Import only explicitly selected candidates; source URLs are preserved as `ReleaseSource` rows.
 
-Quality gates cap or lower confidence for missing catalog numbers, missing sources, wiki-only evidence, reissues, and out-of-scope physical formats. AI-generated images are never accepted as real CD covers. Duplicate `title + catalogNumber` candidates for the same artist are skipped instead of overwriting curated data.
+Quality gates cap or lower confidence for missing catalog numbers, missing sources, wiki-only evidence, reissues, and out-of-scope physical formats. AI-generated images are never accepted as real CD covers. Apple Music artwork is linked to its store source and is accepted only after at least two distinct, uniquely matched Apple collections establish one dominant artist ID, followed by a unique exact title/year album match. Cover metadata never raises release confidence or substitutes for physical-edition evidence. Duplicate `title + catalogNumber` candidates for the same artist are skipped instead of overwriting curated data.
 
 Pasted-source structuring remains available as a secondary workflow for organizing user-supplied text, tables, or URLs. It is not a substitute for the required launch-time online search and must never claim network access.
 

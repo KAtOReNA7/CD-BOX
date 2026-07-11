@@ -4,6 +4,10 @@ import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./load-local-env.mjs";
 
 loadLocalEnv();
+const providerCredential =
+  process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
+    ? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN
+    : process.env.OPENAI_API_KEY;
 
 const { structurePastedSourceText } = await import(pathToFileURL(path.resolve("src/lib/ai/release-structure.ts")));
 const { summarizeResearchQuality } = await import(pathToFileURL(path.resolve("src/lib/ai/release-research-quality.ts")));
@@ -11,7 +15,7 @@ const { summarizeResearchQuality } = await import(pathToFileURL(path.resolve("sr
 const fixturesDir = path.resolve("sample-data", "pasted-sources");
 const fixtureFiles = fs.readdirSync(fixturesDir).filter((file) => file.endsWith(".txt")).sort();
 
-if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_BASE_URL || !process.env.OPENAI_TEXT_MODEL) {
+if (!providerCredential || !process.env.OPENAI_BASE_URL || !process.env.OPENAI_TEXT_MODEL) {
   throw new Error("Missing AI relay configuration. Configure .env.local before running smoke:pasted-structure.");
 }
 

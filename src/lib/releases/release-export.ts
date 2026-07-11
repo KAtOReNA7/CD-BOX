@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { ReleaseListItem } from "@/lib/releases/release-types";
+import { findCoverSource, releaseEvidenceSources } from "@/lib/releases/cover-source";
 
 function statusLabel(release: ReleaseListItem) {
   return release.userStatus?.status ?? "NOT_OWNED";
@@ -21,7 +22,8 @@ export function releaseExportRows(releases: ReleaseListItem[]) {
     "是否 Remaster": release.isRemaster ? "是" : "否",
     "是否默认排除": release.isExcludedByDefault ? "是" : "否",
     "封面图 URL": release.coverImageUrl ?? "",
-    "来源 URL": release.sources.map((source) => source.url).join("\n"),
+    "封面来源 URL": findCoverSource(release.sources)?.url ?? "",
+    "来源 URL": releaseEvidenceSources(release.sources).map((source) => source.url).join("\n"),
     "备注": release.notes ?? "",
     "拥有状态备注": release.userStatus?.ownedNotes ?? release.userStatus?.notes ?? "",
   }));

@@ -6,9 +6,12 @@ import {
   type ReleaseStatusPatchInput,
 } from "@/lib/releases/release-types";
 import { serializeRelease } from "@/lib/releases/release-serialization";
-import { textOrNull, toReleaseDate } from "@/lib/releases/release-validation";
+import { httpUrlOrNull, textOrNull, toReleaseDate } from "@/lib/releases/release-validation";
 import { filterReleases } from "@/lib/releases/release-filters";
 import { computeArtistStats } from "@/lib/releases/release-stats";
+import {
+  COVER_IMAGE_SOURCE_DESCRIPTION,
+} from "@/lib/releases/cover-source";
 
 export {
   normalizeStatus,
@@ -67,7 +70,7 @@ export async function getReleaseDetailView(releaseId: string, userId?: string | 
 export async function updateRelease(releaseId: string, userId: string, input: ReleasePatchInput) {
   const existing = await prisma.release.findUniqueOrThrow({
     where: { id: releaseId },
-    select: { artistId: true },
+    select: { artistId: true, coverImageUrl: true },
   });
   const duplicate =
     input.catalogNumber === undefined || input.catalogNumber === null
@@ -81,27 +84,40 @@ export async function updateRelease(releaseId: string, userId: string, input: Re
           select: { id: true, title: true },
         });
 
-  const release = await prisma.release.update({
-    where: { id: releaseId },
-    data: {
-      title: input.title,
-      category: input.category,
-      originalReleaseDate: input.releaseDate === undefined ? undefined : toReleaseDate(input.releaseDate),
-      format: input.format,
-      originalCatalogNo: input.catalogNumber,
-      label: input.label,
-      originalPrice: input.originalPrice,
-      editionType: input.editionType,
-      isReissue: input.isReissue,
-      isRemaster: input.isRemaster,
-      isExcludedByDefault: input.isExcludedByDefault,
-      coverImageUrl: input.coverImageUrl,
-      notes: input.notes,
-    },
-    include: {
-      sources: true,
-      userStatus: { where: { userId } },
-    },
+  const coverChanged =
+    input.coverImageUrl !== undefined && input.coverImageUrl !== existing.coverImageUrl;
+  const release = await prisma.$transaction(async (tx) => {
+    if (coverChanged) {
+      await tx.releaseSource.deleteMany({
+        where: {
+          releaseId,
+          description: COVER_IMAGE_SOURCE_DESCRIPTION,
+        },
+      });
+    }
+
+    return tx.release.update({
+      where: { id: releaseId },
+      data: {
+        title: input.title,
+        category: input.category,
+        originalReleaseDate: input.releaseDate === undefined ? undefined : toReleaseDate(input.releaseDate),
+        format: input.format,
+        originalCatalogNo: input.catalogNumber,
+        label: input.label,
+        originalPrice: input.originalPrice,
+        editionType: input.editionType,
+        isReissue: input.isReissue,
+        isRemaster: input.isRemaster,
+        isExcludedByDefault: input.isExcludedByDefault,
+        coverImageUrl: input.coverImageUrl,
+        notes: input.notes,
+      },
+      include: {
+        sources: true,
+        userStatus: { where: { userId } },
+      },
+    });
   });
 
   return {
@@ -190,7 +206,7 @@ export async function bulkUpdateReleases(userId: string, input: BulkUpdateInput)
 }
 
 export async function addReleaseSource(releaseId: string, input: { url: string; label?: string | null }) {
-  const url = textOrNull(input.url);
+  const url = httpUrlOrNull(input.url);
   if (!url) throw new Error("url is required.");
 
   return prisma.releaseSource.create({

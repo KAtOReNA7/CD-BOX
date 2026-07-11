@@ -5,6 +5,7 @@ import {
   createArtistAction,
   type ArtistCreateActionState,
 } from "@/app/artists/new/actions";
+import { OperationProgress } from "@/components/app/operation-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ export function ArtistCreateForm() {
           placeholder="例如：宇多田ヒカル"
           required
           maxLength={160}
+          disabled={pending}
           aria-invalid={Boolean(state.errors?.name)}
           aria-describedby={state.errors?.name ? "name-errors" : undefined}
         />
@@ -52,6 +54,7 @@ export function ArtistCreateForm() {
           name="sortName"
           placeholder="例如：Utada Hikaru"
           maxLength={160}
+          disabled={pending}
           aria-invalid={Boolean(state.errors?.sortName)}
           aria-describedby={state.errors?.sortName ? "sort-name-errors" : undefined}
         />
@@ -64,6 +67,7 @@ export function ArtistCreateForm() {
           name="country"
           placeholder="Japan"
           maxLength={80}
+          disabled={pending}
           aria-invalid={Boolean(state.errors?.country)}
           aria-describedby={state.errors?.country ? "country-errors" : undefined}
         />
@@ -76,6 +80,7 @@ export function ArtistCreateForm() {
           name="description"
           placeholder="收藏范围、版本偏好、资料来源说明"
           maxLength={4_000}
+          disabled={pending}
           aria-invalid={Boolean(state.errors?.description)}
           aria-describedby={state.errors?.description ? "description-errors" : undefined}
         />
@@ -85,6 +90,13 @@ export function ArtistCreateForm() {
         <p className="text-sm text-destructive" role="alert">
           {state.message}
         </p>
+      ) : null}
+      {pending ? (
+        <OperationProgress
+          compact
+          label="正在创建艺人库…"
+          detail="创建完成后会自动打开新的艺人库。"
+        />
       ) : null}
       <Button type="submit" className="w-fit" disabled={pending}>
         {pending ? "正在保存…" : "保存艺人库"}

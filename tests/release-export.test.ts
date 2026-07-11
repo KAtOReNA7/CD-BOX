@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { releaseExportRows, exportFileName } from "@/lib/releases/release-export";
+import { COVER_IMAGE_SOURCE_DESCRIPTION } from "@/lib/releases/cover-source";
 
 const rows = releaseExportRows([
   {
@@ -23,6 +24,12 @@ const rows = releaseExportRows([
     sources: [
       { id: "s1", url: "https://tower.example/release", label: null, description: null },
       { id: "s2", url: "https://label.example/release", label: null, description: null },
+      {
+        id: "cover-source",
+        url: "https://music.apple.com/jp/album/example/1",
+        label: "Apple Music",
+        description: COVER_IMAGE_SOURCE_DESCRIPTION,
+      },
     ],
     userStatus: { id: "u1", status: "OWNED", priority: 1, ownedCondition: "VG+", ownedNotes: "obi", notes: null },
   },
@@ -52,6 +59,7 @@ const rows = releaseExportRows([
 assert.equal(rows[0]["收藏状态"], "OWNED");
 assert.equal(rows[0]["原版品番"], "KIDS-111");
 assert.equal(rows[0]["来源 URL"], "https://tower.example/release\nhttps://label.example/release");
+assert.equal(rows[0]["封面来源 URL"], "https://music.apple.com/jp/album/example/1");
 assert.equal(rows[0]["拥有状态备注"], "obi");
 assert.equal(rows[1]["收藏状态"], "NOT_OWNED");
 assert.equal(exportFileName("A/B", new Date("2026-06-08T00:00:00.000Z")), "CD-BOX_A_B_20260608.xlsx");

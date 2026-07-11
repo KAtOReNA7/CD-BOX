@@ -7,7 +7,7 @@ CD-BOX 的生产基线采用以下组合：
 - Vercel：托管 Next.js App Router 应用与 GitHub 持续部署。
 - Vercel Marketplace 的 Neon PostgreSQL：保存单一 owner 身份、共享发行目录与 owner 收藏状态。
 - GitHub OAuth：唯一登录方式；`AUTH_GITHUB_ALLOWED_ID=26319181` 以稳定 numeric ID 限制为仓库所有者账号。
-- Vercel AI Gateway：通过部署自动注入的 OIDC token 调用流式 Responses API、免费层可用的 `openai/gpt-5.4-mini` 和强制 `web_search`。
+- Vercel AI Gateway：通过部署自动注入的 OIDC token 调用中等推理强度的流式 Responses API、当前默认的 `openai/gpt-5.6-sol` 和强制 `web_search`。
 
 ## 1. GitHub OAuth
 
@@ -52,7 +52,7 @@ AUTH_GITHUB_ALLOWED_LOGIN=KAtOReNA7
 OPENAI_API_KEY=
 AI_GATEWAY_API_KEY=
 OPENAI_BASE_URL=https://ai-gateway.vercel.sh/v1
-OPENAI_TEXT_MODEL=openai/gpt-5.4-mini
+OPENAI_TEXT_MODEL=openai/gpt-5.6-sol
 OPENAI_IMAGE_MODEL=openai/gpt-image-2
 AI_PROVIDER_MODE=vercel-ai-gateway
 AI_ENABLE_WEB_SEARCH=true
@@ -73,9 +73,11 @@ npm run probe:ai
 
 - `responsesSupported=true`
 - `webSearchSupported=true`
-- `textModel="openai/gpt-5.4-mini"`
+- `textModel="openai/gpt-5.6-sol"`
 
-2026-07-11 的生产诊断结果为：Responses API `status=200, ok=true`；联网搜索 `status=200, ok=true, webSearchCalls=1`。
+如果中转站不能完成 GPT-5.6 Sol 的 Responses API 或强制 `web_search` 探测，将 `OPENAI_TEXT_MODEL` 显式改为 `openai/gpt-5.5` 并重新部署、重新执行全部探测。应用不在单次请求内自动切换模型；若 GPT-5.5 也失败，则回滚到最近一次已经通过生产探测的模型配置。
+
+每次修改模型变量并重新部署后，都必须重新执行 `models`、`responses` 与 `web-search` 三项生产诊断。2026-07-11 记录的 `status=200` 仅是变更前配置的历史结果，不能替代 GPT-5.6 Sol 的本次验收。
 
 如果 `webSearchSupported=false`，联网发行研究保持关闭；应用不得回退到普通聊天补全并声称已经搜索互联网。
 

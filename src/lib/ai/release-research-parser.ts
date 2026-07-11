@@ -7,10 +7,15 @@ const categorySchema = z
   .catch("OTHER");
 
 const confidenceSchema = z.enum(["HIGH", "MEDIUM", "LOW"]).catch("LOW");
+const httpUrlSchema = z
+  .string()
+  .url()
+  .max(2_048)
+  .refine((value) => /^https?:\/\//i.test(value), "URL must use HTTP or HTTPS.");
 
 const sourceSchema = z.object({
   title: z.string().catch("Untitled source"),
-  url: z.string().url(),
+  url: httpUrlSchema,
   sourceType: z.enum(["official", "retailer", "database", "news", "other"]).catch("other"),
 });
 
@@ -30,8 +35,8 @@ const releaseSchema = z.object({
   isReissue: z.boolean().nullable().catch(null),
   isRemaster: z.boolean().nullable().catch(null),
   isExcludedByDefault: z.boolean().catch(false),
-  coverImageUrl: z.string().url().nullable().catch(null),
-  coverImageSourceUrl: z.string().url().nullable().catch(null),
+  coverImageUrl: httpUrlSchema.nullable().catch(null),
+  coverImageSourceUrl: httpUrlSchema.nullable().catch(null),
   notes: z.string().nullable().catch(null),
   confidence: confidenceSchema,
   warnings: z.array(z.string()).catch([]),
@@ -44,7 +49,7 @@ const resultSchema = z.object({
     nameKana: z.string().nullable().catch(null),
     nameRomaji: z.string().nullable().catch(null),
     country: z.string().min(1),
-    officialSiteUrl: z.string().url().nullable().catch(null),
+    officialSiteUrl: httpUrlSchema.nullable().catch(null),
   }),
   collectionScope: z.object({
     target: z.enum(["ORIGINAL_CD", "ALL_CD", "ALL_PHYSICAL"]),

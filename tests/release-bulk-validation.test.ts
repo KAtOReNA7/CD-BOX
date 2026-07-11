@@ -25,5 +25,10 @@ assert.deepEqual(parseStatusPatchInput({ status: "WANT", priority: 5 }), { statu
 assert.throws(() => parseStatusPatchInput({ priority: 0 }), /priority/);
 assert.throws(() => parseStatusPatchInput({ priority: 6 }), /priority/);
 assert.throws(() => parseReleasePatchInput({ releaseDate: "2025-02-30" }), /releaseDate/);
+assert.equal(
+  parseReleasePatchInput({ coverImageUrl: "https://example.com/cover.jpg" }).coverImageUrl,
+  "https://example.com/cover.jpg",
+);
+assert.throws(() => parseReleasePatchInput({ coverImageUrl: "javascript:alert(1)" }), /HTTP or HTTPS/);
 
 console.log("Release bulk validation test passed.");

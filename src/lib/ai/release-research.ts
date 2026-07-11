@@ -1,6 +1,9 @@
 import type { AiSearchTask, Prisma, ReleaseFormat } from "@prisma/client";
 import { aiConfig, createWebSearchResponse } from "@/lib/ai/client";
 import {
+  enrichReleaseResearchResultWithItunes,
+} from "@/lib/ai/itunes-enrichment";
+import {
   assertCanUseWebSearch,
   getConfiguredProviderCapabilities,
   sanitizeErrorMessage,
@@ -19,6 +22,7 @@ import type {
   ReleaseResearchResult,
 } from "@/lib/ai/release-research-types";
 import { prisma } from "@/lib/db/prisma";
+import { buildImportedReleaseSourceRows } from "@/lib/releases/cover-source";
 
 function buildResearchPrompt(input: ReleaseResearchRequest) {
   return `Research physical CD releases for a Japanese artist collection database.
@@ -31,14 +35,17 @@ Include collaborations: ${input.includeCollaborations}
 Include Live / Remix / Best: ${input.includeLiveRemixBest}
 
 Search strategy:
-1. Prefer official artist discography and label pages.
-2. Then use King Records, Sony Music, Universal Music Japan, Avex, Victor, and other label pages.
-3. Then use Tower Records, HMV, CDJapan, CDJournal, ORICON.
-4. For ACG, voice actor, or game music, VGMdb may be used.
-5. Do not use Wikipedia as the only source.
+1. Resolve the artist's official native-script name first, then search with both that name and romanized aliases.
+2. Prefer official artist discography and label pages.
+3. Then use King Records, Sony Music, Universal Music Japan, Avex, Victor, and other label pages.
+4. Then use Tower Records, HMV, CDJapan, CDJournal, ORICON, and Apple Music.
+5. For ACG, voice actor, or game music, VGMdb may be used.
+6. Do not use Wikipedia as the only source.
 
 Rules:
 - Return only JSON matching the requested schema. No markdown.
+- artist.name must use the official native-script name whenever one exists. For Japanese artists use Japanese kanji/kana, and for Chinese artists use Chinese characters.
+- Put a Latin-script romanization in artist.nameRomaji and Japanese phonetic kana in artist.nameKana when available.
 - Preserve collaboration credits such as "Miho Nakayama & WANDS" in artistCredit.
 - Do not invent catalog numbers, dates, covers, or source URLs.
 - coverImageUrl may only be filled when a real source explicitly provides the cover image URL.
@@ -99,6 +106,7 @@ JSON schema:
 }
 
 function toTaskView(task: AiSearchTask): AiSearchTaskView {
+  const progressState = readTaskProgress(task);
   return {
     id: task.id,
     status:
@@ -109,6 +117,7 @@ function toTaskView(task: AiSearchTask): AiSearchTaskView {
           : task.status === "SUCCEEDED"
             ? "succeeded"
             : "failed",
+    ...progressState,
     query: task.query,
     model: task.model,
     errorMessage: task.errorMessage,
@@ -117,6 +126,46 @@ function toTaskView(task: AiSearchTask): AiSearchTaskView {
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   };
+}
+
+function readTaskProgress(task: AiSearchTask) {
+  if (task.status === "SUCCEEDED") return { progress: 100, stage: "候选资料已准备完成" };
+  if (task.status === "FAILED") return { progress: 100, stage: "任务执行失败" };
+
+  const rawResult = task.rawResult;
+  if (!rawResult || typeof rawResult !== "object" || Array.isArray(rawResult)) {
+    return task.status === "QUEUED"
+      ? { progress: 5, stage: "等待后台任务启动" }
+      : { progress: 15, stage: "正在联网检索发行资料" };
+  }
+
+  const progress = "progress" in rawResult && typeof rawResult.progress === "number"
+    ? Math.max(0, Math.min(100, rawResult.progress))
+    : task.status === "QUEUED" ? 5 : 15;
+  const stage = "stage" in rawResult && typeof rawResult.stage === "string"
+    ? rawResult.stage
+    : task.status === "QUEUED" ? "等待后台任务启动" : "正在联网检索发行资料";
+
+  return { progress, stage };
+}
+
+function progressPayload(progress: number, stage: string): Prisma.InputJsonObject {
+  return { kind: "research-progress", progress, stage };
+}
+
+async function updateResearchProgress(taskId: string, progress: number, stage: string) {
+  try {
+    await prisma.aiSearchTask.update({
+      where: { id: taskId },
+      data: { rawResult: progressPayload(progress, stage) },
+    });
+  } catch (error) {
+    console.warn("Unable to persist optional AI research progress.", {
+      taskId,
+      progress,
+      error: error instanceof Error ? error.message : "Unknown database error",
+    });
+  }
 }
 
 function outputTextFromResponse(response: unknown) {
@@ -174,6 +223,7 @@ export async function createReleaseResearchTask(input: ReleaseResearchRequest, u
       query: JSON.stringify(validatedInput),
       model: aiConfig.textModel,
       status: "QUEUED",
+      rawResult: progressPayload(5, "等待后台任务启动"),
     },
   });
 
@@ -208,7 +258,11 @@ export async function runReleaseResearchTask(
 
   await prisma.aiSearchTask.update({
     where: { id: taskId },
-    data: { status: "RUNNING", errorMessage: null },
+    data: {
+      status: "RUNNING",
+      errorMessage: null,
+      rawResult: progressPayload(15, "正在联网检索发行资料"),
+    },
   });
 
   try {
@@ -226,8 +280,16 @@ export async function runReleaseResearchTask(
       throw new Error("The AI provider returned no web_search call, so the result was rejected as offline-only.");
     }
 
+    await updateResearchProgress(taskId, 68, "正在解析和校验搜索结果");
     const rawText = outputTextFromResponse(response);
     const parsed = parseReleaseResearchResponse(rawText);
+
+    await updateResearchProgress(taskId, 78, "正在补全原文艺人名与发行封面");
+    const enriched = await enrichReleaseResearchResultWithItunes(parsed, {
+      artistQuery: validatedInput.artistName,
+    });
+
+    await updateResearchProgress(taskId, 92, "正在保存候选资料");
 
     const task = await prisma.aiSearchTask.update({
       where: { id: taskId },
@@ -237,7 +299,7 @@ export async function runReleaseResearchTask(
           outputText: rawText,
           response: toJsonSafe(response),
         } satisfies Prisma.InputJsonObject,
-        parsedResult: toJsonSafe(parsed),
+        parsedResult: toJsonSafe(enriched),
       },
     });
 
@@ -353,9 +415,14 @@ export async function importReleaseResearchCandidates(
     const edit = validatedInput.candidateEdits[candidate.id];
     if (!edit) return candidate;
 
+    const coverImageSourceUrl =
+      edit.coverImageUrl === candidate.coverImageUrl
+        ? candidate.coverImageSourceUrl
+        : null;
+
     return {
       ...applyReleaseQualityGate(
-        { ...candidate, ...edit },
+        { ...candidate, ...edit, coverImageSourceUrl },
         {
           target: parsed.collectionScope.target,
           excludeReissues: parsed.collectionScope.excludeReissues,
@@ -432,25 +499,18 @@ export async function importReleaseResearchCandidates(
         },
       });
 
-      const sourceRows = [
-        ...candidate.sources,
-        candidate.coverImageSourceUrl
-          ? {
-              title: "Cover image source",
-              url: candidate.coverImageSourceUrl,
-              sourceType: "other" as const,
-            }
-          : null,
-      ].filter((source): source is NonNullable<typeof source> => Boolean(source));
-      const uniqueSources = [...new Map(sourceRows.map((source) => [source.url, source])).values()];
+      const uniqueSources = buildImportedReleaseSourceRows(
+        candidate.sources,
+        candidate.coverImageSourceUrl,
+      );
 
       if (uniqueSources.length > 0) {
         await tx.releaseSource.createMany({
           data: uniqueSources.map((source) => ({
             releaseId: release.id,
             url: source.url,
-            label: source.title,
-            description: source.sourceType,
+            label: source.label,
+            description: source.description,
           })),
         });
       }

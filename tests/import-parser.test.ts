@@ -16,7 +16,7 @@ XLSX.utils.book_append_sheet(
       厂牌: "King",
       是否再版: "原版",
       备注: "sample album",
-      封面图: "https://example.com/cover-c.jpg",
+      "封面图 URL": "https://example.com/cover-c.jpg",
       "来源 URL": "https://example.com/source-c",
       优先级: "1",
       收集状态: "想买",

@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import type React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ChevronDown, ChevronRight, ExternalLink, FileText, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OperationProgress } from "@/components/app/operation-progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,6 +33,7 @@ import type {
 import type { AiProviderCapabilitySummary as ProviderSummary } from "@/lib/ai/provider-capabilities";
 
 type ArtistOption = { id: string; name: string };
+type ActiveOperation = "search" | "structure" | "import" | "navigating";
 
 const categories = ["ALL", "ORIGINAL_ALBUM", "SINGLE", "BEST", "COLLECTION", "LIVE", "REMIX", "BOX", "EP", "OTHER"];
 const confidences = ["ALL", "HIGH", "MEDIUM", "LOW"];
@@ -67,7 +70,8 @@ function toCandidateEdit(candidate: ReleaseResearchCandidate): ReleaseResearchCa
 
 export function AiSearchClient({ artists, capabilities }: { artists: ArtistOption[]; capabilities: ProviderSummary }) {
   const router = useRouter();
-  const [artistName, setArtistName] = useState("Miho Nakayama");
+  const [navigationPending, startNavigation] = useTransition();
+  const [artistName, setArtistName] = useState("中山美穂");
   const [country, setCountry] = useState("Japan");
   const [target, setTarget] = useState<CollectionScopeTarget>("ORIGINAL_CD");
   const [excludeReissues, setExcludeReissues] = useState(true);
@@ -78,7 +82,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const [defaultCoverSourceUrl, setDefaultCoverSourceUrl] = useState("");
   const [task, setTask] = useState<AiSearchTaskView | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [activeOperation, setActiveOperation] = useState<ActiveOperation | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -87,7 +91,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const [confidenceFilter, setConfidenceFilter] = useState("ALL");
   const [artistMode, setArtistMode] = useState<"create" | "existing">("create");
   const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
-  const [importArtistName, setImportArtistName] = useState("Miho Nakayama");
+  const [importArtistName, setImportArtistName] = useState("中山美穂");
   const [candidateEdits, setCandidateEdits] = useState<Record<string, ReleaseResearchCandidate>>({});
 
   const releases = useMemo(
@@ -106,11 +110,22 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   );
   const visibleCandidateIds = visibleReleases.map((release) => release.id);
   const visibleSelectedCount = visibleCandidateIds.filter((candidateId) => selectedIds.has(candidateId)).length;
+  const progressOperation: ActiveOperation | null = navigationPending ? "navigating" : activeOperation;
+  const busy = progressOperation !== null;
+  const recognizedArtistNames = task?.parsedResult
+    ? [...new Set([
+        task.parsedResult.artist.name,
+        task.parsedResult.artist.nameKana,
+        task.parsedResult.artist.nameRomaji,
+      ].filter((name): name is string => Boolean(name?.trim())))]
+    : [];
 
   function setPendingTask() {
     setTask({
       id: "pending",
       status: "pending",
+      progress: 5,
+      stage: "正在提交任务",
       query: "",
       model: "",
       errorMessage: null,
@@ -161,7 +176,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
 
   async function startSearch() {
     if (!capabilities.webSearchSupported) return;
-    setLoading(true);
+    setActiveOperation("search");
     setMessage(null);
     setPendingTask();
 
@@ -194,39 +209,43 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
       setTask(null);
       setMessage(error instanceof Error ? error.message : "联网搜索失败。");
     } finally {
-      setLoading(false);
+      setActiveOperation(null);
     }
   }
 
   async function structureNotes() {
-    setLoading(true);
+    setActiveOperation("structure");
     setMessage(null);
     setPendingTask();
 
-    const response = await fetch("/api/ai-search/structure-notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        artistName,
-        country,
-        target,
-        excludeReissues,
-        includeCollaborations,
-        includeLiveRemixBest,
-        sourceText,
-        sourceUrl: sourceUrl.trim() || null,
-        defaultCoverSourceUrl: defaultCoverSourceUrl.trim() || null,
-      }),
-    });
-    const payload = await response.json();
-    setLoading(false);
+    try {
+      const response = await fetch("/api/ai-search/structure-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artistName,
+          country,
+          target,
+          excludeReissues,
+          includeCollaborations,
+          includeLiveRemixBest,
+          sourceText,
+          sourceUrl: sourceUrl.trim() || null,
+          defaultCoverSourceUrl: defaultCoverSourceUrl.trim() || null,
+        }),
+      });
+      const payload = await response.json();
 
-    if (!response.ok) {
+      if (!response.ok) {
+        throw new Error(payload.error ?? "资料整理失败。");
+      }
+      applyTaskPayload(payload);
+    } catch (error) {
       setTask(null);
-      setMessage(payload.error ?? "资料整理失败。");
-      return;
+      setMessage(error instanceof Error ? error.message : "资料整理失败。");
+    } finally {
+      setActiveOperation(null);
     }
-    applyTaskPayload(payload);
   }
 
   async function importCandidates() {
@@ -237,33 +256,38 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
     const ok = window.confirm(`将导入 ${selected.length} 条，跳过 ${skipped} 条，其中 ${pending} 条待核对。是否继续？`);
     if (!ok) return;
 
-    setLoading(true);
+    setActiveOperation("import");
     setMessage(null);
-    const response = await fetch(`/api/ai-search/tasks/${task.id}/import`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        artistMode,
-        artistId,
-        artistName: importArtistName,
-        selectedCandidateIds: [...selectedIds],
-        excludedCandidateIds: intersectCandidateIds(excludedIds, selectedIds),
-        pendingReviewCandidateIds: intersectCandidateIds(pendingIds, selectedIds),
-        candidateEdits: Object.fromEntries(
-          Object.entries(candidateEdits)
-            .filter(([candidateId]) => selectedIds.has(candidateId))
-            .map(([candidateId, candidate]) => [candidateId, toCandidateEdit(candidate)]),
-        ),
-      }),
-    });
-    const payload = await response.json();
-    setLoading(false);
-    if (!response.ok) {
-      setMessage(payload.error ?? "候选导入失败。");
-      return;
+    try {
+      const response = await fetch(`/api/ai-search/tasks/${task.id}/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artistMode,
+          artistId,
+          artistName: importArtistName,
+          selectedCandidateIds: [...selectedIds],
+          excludedCandidateIds: intersectCandidateIds(excludedIds, selectedIds),
+          pendingReviewCandidateIds: intersectCandidateIds(pendingIds, selectedIds),
+          candidateEdits: Object.fromEntries(
+            Object.entries(candidateEdits)
+              .filter(([candidateId]) => selectedIds.has(candidateId))
+              .map(([candidateId, candidate]) => [candidateId, toCandidateEdit(candidate)]),
+          ),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "候选导入失败。");
+      }
+      setMessage(`创建 ${payload.imported} 条，跳过重复 ${payload.skippedDuplicates} 条，待核对 ${payload.pendingReview} 条，排除 ${payload.excluded} 条。`);
+      setActiveOperation(null);
+      startNavigation(() => router.push(`/artists/${payload.artistId}`));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "候选导入失败。");
+    } finally {
+      setActiveOperation(null);
     }
-    setMessage(`创建 ${payload.imported} 条，跳过重复 ${payload.skippedDuplicates} 条，待核对 ${payload.pendingReview} 条，排除 ${payload.excluded} 条。`);
-    router.push(`/artists/${payload.artistId}`);
   }
 
   function toggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
@@ -309,6 +333,31 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
         </Alert>
       ) : null}
 
+      {progressOperation ? (
+        <OperationProgress
+          label={
+            progressOperation === "search"
+              ? (task?.stage ?? "正在联网搜索发行资料…")
+              : progressOperation === "structure"
+                ? "正在整理粘贴资料…"
+                : progressOperation === "import"
+                  ? `正在导入 ${selectedIds.size} 条候选…`
+                  : "导入成功，正在打开艺人库…"
+          }
+          detail={
+            progressOperation === "search"
+              ? "正在核对来源、发行信息、原文艺人名与封面，通常需要 1–3 分钟。"
+              : progressOperation === "structure"
+                ? "正在解析字段并执行收藏范围与置信度检查。"
+                : progressOperation === "import"
+                  ? "正在创建发行记录并保存来源，请勿重复提交。"
+                  : "页面即将自动跳转。"
+          }
+          value={progressOperation === "search" ? task?.progress : undefined}
+          max={progressOperation === "search" && task?.progress !== undefined ? 100 : undefined}
+        />
+      ) : null}
+
       <Tabs defaultValue={capabilities.webSearchSupported ? "online-search" : "pasted-structure"}>
         <TabsList>
           {capabilities.webSearchSupported ? <TabsTrigger value="online-search">联网搜索</TabsTrigger> : null}
@@ -323,7 +372,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-5 lg:grid-cols-3">
-              <SharedSettings
+              <fieldset disabled={busy} className="contents">
+                <SharedSettings
                 artistName={artistName}
                 setArtistName={setArtistName}
                 country={country}
@@ -352,12 +402,13 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
                   placeholder="粘贴官网、厂牌、唱片店、数据库、表格或 CSV 文本。这里只整理已有事实，不联网搜索。"
                 />
               </div>
-              <div className="lg:col-span-3">
-                <Button onClick={structureNotes} disabled={loading || !artistName.trim() || !sourceText.trim()} className="gap-2">
-                  <FileText className="size-4" />
-                  整理为候选清单
-                </Button>
-              </div>
+                <div className="lg:col-span-3">
+                  <Button onClick={structureNotes} disabled={busy || !artistName.trim() || !sourceText.trim()} className="gap-2">
+                    <FileText className="size-4" />
+                    {activeOperation === "structure" ? "正在整理…" : "整理为候选清单"}
+                  </Button>
+                </div>
+              </fieldset>
             </CardContent>
           </Card>
         </TabsContent>
@@ -372,7 +423,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-5 lg:grid-cols-3">
-                <SharedSettings
+                <fieldset disabled={busy} className="contents">
+                  <SharedSettings
                   artistName={artistName}
                   setArtistName={setArtistName}
                   country={country}
@@ -386,12 +438,13 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
                   includeLiveRemixBest={includeLiveRemixBest}
                   setIncludeLiveRemixBest={setIncludeLiveRemixBest}
                 />
-                <div className="lg:col-span-3">
-                  <Button onClick={startSearch} disabled={loading || !artistName.trim()} className="gap-2">
-                    <Search className="size-4" />
-                    搜索发行资料
-                  </Button>
-                </div>
+                  <div className="lg:col-span-3">
+                    <Button onClick={startSearch} disabled={busy || !artistName.trim()} className="gap-2">
+                      <Search className="size-4" />
+                      {activeOperation === "search" ? "正在联网搜索…" : "搜索发行资料"}
+                    </Button>
+                  </div>
+                </fieldset>
               </CardContent>
             </Card>
           </TabsContent>
@@ -403,7 +456,6 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
           <div className="flex flex-wrap items-center gap-3 border bg-white p-4">
             <Badge variant={task.status === "failed" ? "destructive" : "secondary"}>{task.status}</Badge>
             <span className="text-sm text-muted-foreground">model: {task.model || "pending"}</span>
-            {loading ? <span className="text-sm text-muted-foreground">处理中...</span> : null}
           </div>
           {task.status === "failed" ? (
             <pre className="max-h-72 overflow-auto border bg-white p-4 text-xs">
@@ -415,22 +467,49 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
 
       {task?.parsedResult ? (
         <section className="grid gap-4">
-          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+              <div>
+                <p className="text-xs text-muted-foreground">识别到的艺人名称</p>
+                <p className="mt-1 text-xl font-semibold">{task.parsedResult.artist.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {[task.parsedResult.artist.nameKana, task.parsedResult.artist.nameRomaji].filter(Boolean).join(" · ") || "暂无其他名称"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2" aria-label="选择导入艺人名称">
+                {recognizedArtistNames.map((name) => (
+                  <Button
+                    key={name}
+                    type="button"
+                    size="sm"
+                    variant={importArtistName === name ? "secondary" : "outline"}
+                    onClick={() => setImportArtistName(name)}
+                    disabled={busy}
+                  >
+                    使用 {name}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-7">
             <Metric label="候选" value={summary.total} />
             <Metric label="可安全导入" value={summary.safeToImport} />
             <Metric label="待核对" value={summary.pendingReview} />
             <Metric label="缺品番" value={summary.missingCatalog} />
             <Metric label="缺来源" value={summary.missingSources} />
+            <Metric label="已有封面" value={releases.filter((release) => Boolean(release.coverImageUrl)).length} />
             <Metric label="默认排除" value={summary.defaultExcluded} />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border bg-white p-4">
             <div className="flex flex-wrap gap-3">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={busy}>
                 <SelectTrigger className="w-44" aria-label="分类筛选"><SelectValue /></SelectTrigger>
                 <SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent>
               </Select>
-              <Select value={confidenceFilter} onValueChange={setConfidenceFilter}>
+              <Select value={confidenceFilter} onValueChange={setConfidenceFilter} disabled={busy}>
                 <SelectTrigger className="w-36" aria-label="置信度筛选"><SelectValue /></SelectTrigger>
                 <SelectContent>{confidences.map((confidence) => <SelectItem key={confidence} value={confidence}>{confidence}</SelectItem>)}</SelectContent>
               </Select>
@@ -442,19 +521,19 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
               <Button
                 variant="outline"
                 onClick={() => setSelectedIds((current) => addCandidateIds(current, visibleCandidateIds))}
-                disabled={visibleCandidateIds.length === 0 || visibleSelectedCount === visibleCandidateIds.length}
+                disabled={busy || visibleCandidateIds.length === 0 || visibleSelectedCount === visibleCandidateIds.length}
               >
                 全选当前结果
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setSelectedIds((current) => removeCandidateIds(current, visibleCandidateIds))}
-                disabled={visibleSelectedCount === 0}
+                disabled={busy || visibleSelectedCount === 0}
               >
                 取消全选当前结果
               </Button>
-              <Button variant="outline" onClick={() => setExcludedIds((current) => addCandidateIds(current, selectedIds))}>全部已选：批量排除</Button>
-              <Button variant="outline" onClick={() => setPendingIds((current) => addCandidateIds(current, selectedIds))}>全部已选：标为待核对</Button>
+              <Button variant="outline" disabled={busy} onClick={() => setExcludedIds((current) => addCandidateIds(current, selectedIds))}>全部已选：批量排除</Button>
+              <Button variant="outline" disabled={busy} onClick={() => setPendingIds((current) => addCandidateIds(current, selectedIds))}>全部已选：标为待核对</Button>
             </div>
           </div>
 
@@ -464,6 +543,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
             excludedIds={excludedIds}
             pendingIds={pendingIds}
             expandedIds={expandedIds}
+            disabled={busy}
             toggleSelected={(id) => toggle(setSelectedIds, id)}
             toggleExcluded={(id) => toggle(setExcludedIds, id)}
             togglePending={(id) => toggle(setPendingIds, id)}
@@ -472,12 +552,15 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
               setCandidateEdits((current) => ({ ...current, [candidate.id]: candidate }))
             }
           />
+          <p className="text-xs text-muted-foreground">
+            自动补全的封面来自严格匹配的 Apple Music 专辑元数据；系统会先用至少两个不同且唯一匹配的 Apple 专辑确认同一艺人，再逐张精确核对标题和年份。点击封面可查看商店来源；封面不会计作发行证据或提高资料置信度，无法唯一匹配时保持空白。
+          </p>
 
           <Card>
             <CardHeader><CardTitle className="text-lg">导入候选</CardTitle></CardHeader>
             <CardContent className="grid gap-4 lg:grid-cols-3">
               <Field label="导入目标">
-                <Select value={artistMode} onValueChange={(value) => setArtistMode(value as "create" | "existing")}>
+                <Select value={artistMode} disabled={busy} onValueChange={(value) => setArtistMode(value as "create" | "existing")}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="create">新建艺人</SelectItem>
@@ -486,17 +569,19 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
                 </Select>
               </Field>
               {artistMode === "create" ? (
-                <Field label="艺人名"><Input value={importArtistName} onChange={(event) => setImportArtistName(event.target.value)} /></Field>
+                <Field label="艺人名"><Input value={importArtistName} disabled={busy} onChange={(event) => setImportArtistName(event.target.value)} /></Field>
               ) : (
                 <Field label="已有艺人">
-                  <Select value={artistId} onValueChange={setArtistId}>
+                  <Select value={artistId} disabled={busy} onValueChange={setArtistId}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>{artists.map((artist) => <SelectItem key={artist.id} value={artist.id}>{artist.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
               )}
               <div className="flex items-end">
-                <Button onClick={importCandidates} disabled={loading || selectedIds.size === 0}>导入 {selectedIds.size}</Button>
+                <Button onClick={importCandidates} disabled={busy || selectedIds.size === 0}>
+                  {activeOperation === "import" || activeOperation === "navigating" ? "正在导入…" : `导入 ${selectedIds.size}`}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -596,6 +681,7 @@ function ReleaseCandidateTable({
   excludedIds,
   pendingIds,
   expandedIds,
+  disabled,
   toggleSelected,
   toggleExcluded,
   togglePending,
@@ -607,6 +693,7 @@ function ReleaseCandidateTable({
   excludedIds: Set<string>;
   pendingIds: Set<string>;
   expandedIds: Set<string>;
+  disabled: boolean;
   toggleSelected: (id: string) => void;
   toggleExcluded: (id: string) => void;
   togglePending: (id: string) => void;
@@ -614,11 +701,13 @@ function ReleaseCandidateTable({
   updateCandidate: (candidate: ReleaseResearchCandidate) => void;
 }) {
   return (
-    <div className="overflow-x-auto border bg-white">
-      <Table>
+    <div className="overflow-x-auto border bg-white" aria-busy={disabled}>
+      <fieldset disabled={disabled} className="contents">
+        <Table>
         <TableHeader>
           <TableRow>
             <TableHead>选择</TableHead>
+            <TableHead>封面</TableHead>
             <TableHead>置信度</TableHead>
             <TableHead>分类</TableHead>
             <TableHead className="min-w-56">标题</TableHead>
@@ -643,6 +732,28 @@ function ReleaseCandidateTable({
                       aria-label={`选择候选：${release.title}，${release.originalReleaseDate ?? release.releaseDate ?? "日期未知"}`}
                     />
                   </TableCell>
+                  <TableCell>
+                    {release.coverImageUrl ? (
+                      <a
+                        href={release.coverImageSourceUrl ?? release.coverImageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`查看 ${release.title} 的封面来源`}
+                        className="block size-14 overflow-hidden border bg-stone-100"
+                      >
+                        <Image
+                          src={release.coverImageUrl}
+                          alt={`${release.title} 封面`}
+                          width={56}
+                          height={56}
+                          unoptimized
+                          className="size-full object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">无封面</span>
+                    )}
+                  </TableCell>
                   <TableCell><Badge variant={confidenceVariant(release.confidence)}>{release.confidence}</Badge></TableCell>
                   <TableCell>{release.category}</TableCell>
                   <TableCell>
@@ -659,7 +770,7 @@ function ReleaseCandidateTable({
                 </TableRow>
                 {expanded ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="bg-stone-50">
+                    <TableCell colSpan={10} className="bg-stone-50">
                       <div className="grid gap-3 text-sm">
                         <div className="flex flex-wrap gap-4">
                           <label className="flex items-center gap-2"><input type="checkbox" checked={excludedIds.has(release.id)} onChange={() => toggleExcluded(release.id)} aria-label={`排除候选：${release.title}`} />排除</label>
@@ -687,7 +798,8 @@ function ReleaseCandidateTable({
             );
           })}
         </TableBody>
-      </Table>
+        </Table>
+      </fieldset>
     </div>
   );
 }
@@ -701,6 +813,17 @@ function CandidateEditor({
 }) {
   function update<K extends keyof ReleaseResearchCandidate>(key: K, value: ReleaseResearchCandidate[K]) {
     onChange({ ...candidate, [key]: value });
+  }
+
+  function updateCover(coverImageUrl: string | null) {
+    onChange({
+      ...candidate,
+      coverImageUrl,
+      coverImageSourceUrl:
+        coverImageUrl === candidate.coverImageUrl
+          ? candidate.coverImageSourceUrl
+          : null,
+    });
   }
 
   return (
@@ -744,7 +867,7 @@ function CandidateEditor({
         <Input
           type="url"
           value={candidate.coverImageUrl ?? ""}
-          onChange={(event) => update("coverImageUrl", event.target.value || null)}
+          onChange={(event) => updateCover(event.target.value || null)}
         />
       </Field>
       <Field label="艺人名义">

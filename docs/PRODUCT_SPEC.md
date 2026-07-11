@@ -14,7 +14,7 @@ This document describes the production MVP target. Historical implementation mil
 - Replace the WebUI table's final `Source URL` column with `Cover Image`.
 - Preserve source URLs as `ReleaseSource` records and show them on release detail pages.
 - Store `coverImageUrl` as a URL in MVP. Object storage is out of scope for the production MVP.
-- Route all AI text calls through `src/lib/ai/client.ts`; production uses Vercel AI Gateway with `OPENAI_TEXT_MODEL=openai/gpt-5.4-mini` and deployment OIDC authentication.
+- Route all AI text calls through `src/lib/ai/client.ts`; production uses Vercel AI Gateway with `OPENAI_TEXT_MODEL=openai/gpt-5.6-sol` and deployment OIDC authentication.
 - Require real online release research through the Responses API `web_search` tool for launch.
 - Keep image generation disabled for the production MVP even though an image-model setting is reserved for future UI assets.
 - Never generate fake CD covers with AI. Real CD cover art must come from a real source URL or manual user input.
@@ -122,6 +122,7 @@ AI requirements:
 - If the relay does not support Responses API or `web_search`, online release research is blocked and the UI asks the user to run `npm run probe:ai`.
 - Chat Completions fallback may only be used for non-search text tasks. It must not be used to fabricate online search results.
 - A deployment that cannot complete a real `web_search` call is not release-ready.
+- Online results may enrich a missing cover and native-script artist name from Apple Music Search metadata only after at least two distinct, uniquely matched Apple collections establish one majority artist ID; each cover still requires one unique exact title/year album within that artist. Existing covers are never overwritten, ambiguous matches remain empty, every accepted Apple cover retains a separate Apple Music provenance link, and cover-only metadata is excluded from release-evidence counts and never raises release confidence.
 
 ## Pasted Source Structuring
 

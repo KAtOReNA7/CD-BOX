@@ -50,17 +50,18 @@ const gatewayConfig = requireAiProviderConfig({
   VERCEL_OIDC_TOKEN: "oidc-test",
   OPENAI_API_KEY: "ignored-custom-key",
   OPENAI_BASE_URL: "https://ai-gateway.vercel.sh/v1",
-  OPENAI_TEXT_MODEL: "openai/gpt-5.4-mini",
+  OPENAI_TEXT_MODEL: "openai/gpt-5.6-sol",
 });
 assert.equal(gatewayConfig.apiKey, "oidc-test");
 assert.equal(gatewayConfig.providerMode, "vercel-ai-gateway");
+assert.equal(gatewayConfig.textModel, "openai/gpt-5.6-sol");
 assert.equal(
   getConfiguredProviderCapabilities({
     NODE_ENV: "test",
     AI_PROVIDER_MODE: "vercel-ai-gateway",
     VERCEL_OIDC_TOKEN: "oidc-test",
     OPENAI_BASE_URL: "https://ai-gateway.vercel.sh/v1",
-    OPENAI_TEXT_MODEL: "openai/gpt-5.4-mini",
+    OPENAI_TEXT_MODEL: "openai/gpt-5.6-sol",
     AI_ENABLE_WEB_SEARCH: "true",
   }).webSearchSupported,
   true,
@@ -83,7 +84,7 @@ async function main() {
       NODE_ENV: "test",
       AI_PROVIDER_MODE: "vercel-ai-gateway",
       OPENAI_BASE_URL: "https://ai-gateway.vercel.sh/v1",
-      OPENAI_TEXT_MODEL: "openai/gpt-5.4-mini",
+      OPENAI_TEXT_MODEL: "openai/gpt-5.6-sol",
     },
     "request-oidc-token",
   );

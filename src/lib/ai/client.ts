@@ -5,7 +5,7 @@ import type {
 } from "openai/resources/responses/responses";
 import { requireRelayBaseUrl, requireRuntimeAiProviderConfig } from "@/lib/ai/provider-capabilities";
 
-const textModel = process.env.OPENAI_TEXT_MODEL ?? "openai/gpt-5.4-mini";
+const textModel = process.env.OPENAI_TEXT_MODEL ?? "openai/gpt-5.6-sol";
 const imageModel = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
 
 export const aiConfig = {
@@ -71,7 +71,7 @@ export async function createWebSearchResponse(input: {
 
   return createCompletedStreamingResponse({
     model: textModel,
-    reasoning: { effort: "low" },
+    reasoning: { effort: "medium" },
     tools: [{ type: "web_search" }],
     tool_choice: input.forceSearch ? "required" : "auto",
     include: ["web_search_call.action.sources"],
@@ -96,7 +96,7 @@ export async function createTextResponse(input: {
 
   return createCompletedStreamingResponse({
     model: textModel,
-    reasoning: { effort: "low" },
+    reasoning: { effort: "medium" },
     input: [
       {
         role: "system",

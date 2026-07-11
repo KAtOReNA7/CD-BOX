@@ -4,6 +4,10 @@ import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "./load-local-env.mjs";
 
 const envDebug = loadLocalEnv();
+const providerCredential =
+  process.env.AI_PROVIDER_MODE === "vercel-ai-gateway"
+    ? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN
+    : process.env.OPENAI_API_KEY;
 
 function parseProbeSummary(output) {
   const matches = [...output.matchAll(/\{\s*"baseUrlConfigured"[\s\S]*?\n\}/g)];
@@ -13,12 +17,12 @@ function parseProbeSummary(output) {
   return JSON.parse(matches[matches.length - 1][0]);
 }
 
-if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_BASE_URL || !process.env.OPENAI_TEXT_MODEL) {
+if (!providerCredential || !process.env.OPENAI_BASE_URL || !process.env.OPENAI_TEXT_MODEL) {
   console.log(
     JSON.stringify(
       {
         skipped: true,
-        reason: "Missing OPENAI_API_KEY, OPENAI_BASE_URL, or OPENAI_TEXT_MODEL. Run npm run probe:ai after configuring the relay.",
+        reason: "Missing AI provider credential, OPENAI_BASE_URL, or OPENAI_TEXT_MODEL. Run npm run probe:ai after configuring the relay.",
         debug: envDebug,
         probeSummary: {
           baseUrlConfigured: Boolean(process.env.OPENAI_BASE_URL),

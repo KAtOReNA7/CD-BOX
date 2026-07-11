@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { computeArtistStats } from "@/lib/releases/release-stats";
 import { serializeRelease, type SerializableRelease } from "@/lib/releases/release-serialization";
 import type { ReleaseListItem } from "@/lib/releases/release-types";
+import { COVER_IMAGE_SOURCE_DESCRIPTION } from "@/lib/releases/cover-source";
 
 function row(id: string, status: "OWNED" | "WANTED" | "NOT_OWNED" | "EXCLUDED", excluded = false): ReleaseListItem {
   return {
@@ -42,6 +43,15 @@ assert.equal(stats.excluded, 2);
 assert.equal(stats.completionRate, 33);
 assert.equal(stats.missingCover, 5);
 assert.equal(stats.missingSource, 5);
+
+const coverOnlySource = row("cover-only", "OWNED");
+coverOnlySource.sources = [{
+  id: "cover-source",
+  url: "https://music.apple.com/jp/album/example/1",
+  label: "Apple Music",
+  description: COVER_IMAGE_SOURCE_DESCRIPTION,
+}];
+assert.equal(computeArtistStats([coverOnlySource]).missingSource, 1);
 
 const serializedRelease = {
   id: "private-status",

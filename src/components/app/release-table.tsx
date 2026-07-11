@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { OperationProgress } from "@/components/app/operation-progress";
 import { ReleaseBulkToolbar } from "@/components/app/release-bulk-toolbar";
 import { ReleaseEditRow } from "@/components/app/release-edit-row";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +19,25 @@ export function ReleaseTable({
   const [rows, setRows] = useState(releases);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
+  const [bulkOperation, setBulkOperation] = useState<string | null>(null);
+  const [rowOperationId, setRowOperationId] = useState<string | null>(null);
+  const activeMutationRef = useRef<"bulk" | `row:${string}` | null>(null);
+
+  const tableBusy = bulkOperation !== null || rowOperationId !== null;
+
+  function beginRowMutation(releaseId: string) {
+    if (activeMutationRef.current) return false;
+    activeMutationRef.current = `row:${releaseId}`;
+    setRowOperationId(releaseId);
+    setMessage(null);
+    return true;
+  }
+
+  function endRowMutation(releaseId: string) {
+    if (activeMutationRef.current !== `row:${releaseId}`) return;
+    activeMutationRef.current = null;
+    setRowOperationId(null);
+  }
 
   function toggleSelected(id: string) {
     const next = new Set(selectedIds);
@@ -37,41 +57,55 @@ export function ReleaseTable({
   }
 
   async function bulk(payload: { status?: string; priority?: number; isExcludedByDefault?: boolean }) {
-    if (selectedIds.size === 0) return;
-    const ok = window.confirm(`将更新 ${selectedIds.size} 条收藏记录，是否继续？`);
+    if (selectedIds.size === 0 || bulkOperation || activeMutationRef.current) return;
+    const releaseIds = [...selectedIds];
+    const selectedSnapshot = new Set(releaseIds);
+    const ok = window.confirm(`将更新 ${releaseIds.length} 条收藏记录，是否继续？`);
     if (!ok) return;
+    if (activeMutationRef.current) return;
 
-    const response = await fetch("/api/releases/bulk-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ artistId, releaseIds: [...selectedIds], ...payload }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setMessage(result.error ?? "批量操作失败。");
-      return;
+    activeMutationRef.current = "bulk";
+    setBulkOperation(`正在更新 ${releaseIds.length} 条收藏记录…`);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/releases/bulk-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artistId, releaseIds, ...payload }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setMessage(result.error ?? "批量操作失败。");
+        return;
+      }
+      setRows((current) =>
+        current.map((row) => {
+          if (!selectedSnapshot.has(row.id)) return row;
+          return {
+            ...row,
+            isExcludedByDefault: payload.isExcludedByDefault ?? row.isExcludedByDefault,
+            userStatus:
+              payload.status || payload.priority
+                ? {
+                    id: row.userStatus?.id ?? `local-${row.id}`,
+                    status: (payload.status as never) ?? row.userStatus?.status ?? "NOT_OWNED",
+                    priority: payload.priority ?? row.userStatus?.priority ?? 3,
+                    ownedCondition: row.userStatus?.ownedCondition ?? null,
+                    ownedNotes: row.userStatus?.ownedNotes ?? null,
+                    notes: row.userStatus?.notes ?? null,
+                  }
+                : row.userStatus,
+          };
+        }),
+      );
+      setMessage(`已更新状态 ${result.updatedStatuses} 条，Release 字段 ${result.updatedReleases} 条。`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "批量操作失败，请检查网络后重试。");
+    } finally {
+      if (activeMutationRef.current === "bulk") activeMutationRef.current = null;
+      setBulkOperation(null);
     }
-    setRows((current) =>
-      current.map((row) => {
-        if (!selectedIds.has(row.id)) return row;
-        return {
-          ...row,
-          isExcludedByDefault: payload.isExcludedByDefault ?? row.isExcludedByDefault,
-          userStatus:
-            payload.status || payload.priority
-              ? {
-                  id: row.userStatus?.id ?? `local-${row.id}`,
-                  status: (payload.status as never) ?? row.userStatus?.status ?? "NOT_OWNED",
-                  priority: payload.priority ?? row.userStatus?.priority ?? 3,
-                  ownedCondition: row.userStatus?.ownedCondition ?? null,
-                  ownedNotes: row.userStatus?.ownedNotes ?? null,
-                  notes: row.userStatus?.notes ?? null,
-                }
-              : row.userStatus,
-        };
-      }),
-    );
-    setMessage(`已更新状态 ${result.updatedStatuses} 条，Release 字段 ${result.updatedReleases} 条。`);
   }
 
   if (rows.length === 0) {
@@ -87,8 +121,15 @@ export function ReleaseTable({
 
   return (
     <div className="grid gap-3">
-      <ReleaseBulkToolbar selectedCount={selectedIds.size} onBulk={bulk} onClear={() => setSelectedIds(new Set())} />
-      {message ? <div className="border bg-white p-3 text-sm text-muted-foreground">{message}</div> : null}
+      <ReleaseBulkToolbar
+        selectedCount={selectedIds.size}
+        pending={Boolean(bulkOperation)}
+        disabled={rowOperationId !== null}
+        onBulk={bulk}
+        onClear={() => setSelectedIds(new Set())}
+      />
+      {bulkOperation ? <OperationProgress compact label={bulkOperation} detail="请勿重复提交批量操作。" /> : null}
+      {message ? <div className="border bg-white p-3 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</div> : null}
       <div className="overflow-x-auto border bg-white">
         <Table>
           <TableHeader>
@@ -96,6 +137,8 @@ export function ReleaseTable({
               <TableHead className="w-10">
                 <input
                   type="checkbox"
+                  disabled={tableBusy}
+                  aria-label="选择当前列表中的全部发行"
                   checked={selectedIds.size > 0 && selectedIds.size === rows.length}
                   onChange={(event) => setSelectedIds(event.target.checked ? new Set(rows.map((row) => row.id)) : new Set())}
                 />
@@ -120,6 +163,9 @@ export function ReleaseTable({
                 onSelect={() => toggleSelected(release.id)}
                 onReleaseSaved={updateRow}
                 onStatusSaved={updateStatus}
+                disabled={tableBusy}
+                onMutationStart={() => beginRowMutation(release.id)}
+                onMutationEnd={() => endRowMutation(release.id)}
               />
             ))}
           </TableBody>

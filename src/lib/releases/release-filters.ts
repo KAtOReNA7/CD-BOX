@@ -1,4 +1,5 @@
 import type { ReleaseFilters, ReleaseListItem } from "@/lib/releases/release-types";
+import { releaseEvidenceSources } from "@/lib/releases/cover-source";
 
 function includesText(value: string | null | undefined, query: string) {
   return (value ?? "").toLowerCase().includes(query);
@@ -32,6 +33,7 @@ export function filterReleases(releases: ReleaseListItem[], filters: ReleaseFilt
     : decadeBounds(filters.decade);
 
   return releases.filter((release) => {
+    const evidenceSources = releaseEvidenceSources(release.sources);
     if (filters.gap === "true") {
       const status = release.userStatus?.status ?? "NOT_OWNED";
       const isGap =
@@ -39,7 +41,7 @@ export function filterReleases(releases: ReleaseListItem[], filters: ReleaseFilt
         status === "WANTED" ||
         status === "PENDING_REVIEW" ||
         !release.coverImageUrl ||
-        release.sources.length === 0 ||
+        evidenceSources.length === 0 ||
         hasPendingReviewWarning(release);
       if (!isGap) return false;
     }
@@ -60,7 +62,7 @@ export function filterReleases(releases: ReleaseListItem[], filters: ReleaseFilt
     if (filters.reissue && release.isReissue !== (filters.reissue === "true")) return false;
     if (filters.remaster && release.isRemaster !== (filters.remaster === "true")) return false;
     if (filters.missingCover === "true" && release.coverImageUrl) return false;
-    if (filters.missingSource === "true" && release.sources.length > 0) return false;
+    if (filters.missingSource === "true" && evidenceSources.length > 0) return false;
     if (filters.missingCatalog === "true" && release.originalCatalogNo) return false;
     if (
       filters.pendingReview === "true" &&
