@@ -1,15 +1,15 @@
-# CD-BOX 本机发布基线
+# CD-BOX 当前本机发布基线
 
-> 状态（2026-07-12）：项目的最终运行目标是 Windows 本机单用户版本。发布是指本机生产构建与完整验收，不包含 Vercel 或其他云端部署。
+> 状态（2026-07-13）：本文记录当前可构建检查点的实际部署方式和迁移期发行研究门禁，不代表冻结 PRD 已全部实现。最终产品范围、封面解耦、来源调度与时间预算以 [PRODUCT_SPEC.md](PRODUCT_SPEC.md) 为准；实际差距见 [PROGRESS.md](PROGRESS.md)。Windows 本机单用户、无 Vercel 的运行边界已经冻结。
 
-## 1. 最终架构
+## 1. 当前运行架构
 
-| 模块 | 最终方案 |
+| 模块 | 当前实现 |
 | --- | --- |
 | Web 应用 | 单个 Next.js 生产进程，只监听 `127.0.0.1:3000` |
 | 身份边界 | `LOCAL_OWNER_MODE=true`，仅允许数值回环地址请求 |
 | 数据库 | 本机 PostgreSQL 16，独立的低权限 `cd_box_app` 角色与 `cd_box` 数据库 |
-| AI | 现有 OpenAI-compatible 中转站，`gpt-5.6-terra`，Chat Completions |
+| AI | 现有 OpenAI-compatible 中转站，`gpt-5.6-terra`（GPT-5.6），Chat Completions |
 | 联网证据 | MusicBrainz 分页归并、NDL 国家书目硬核验、Discogs 辅助印证；精确 CAA/Discogs primary 用于真实封面 |
 | 备份 | 本机 `pg_dump` custom archive、SHA-256 校验与轮换保留 |
 
@@ -72,6 +72,8 @@ NEXT_TELEMETRY_DISABLED=1
 真实凭据只允许存放在 `.env.local`。禁止提交、打印、复制到日志或放在命令行参数中。图片生成关闭时不配置图片模型。
 
 ## 4. AI 与联网资料门控
+
+本节描述当前旧 `ORIGINAL_CD` 回归路径。它仍采用较严格的固定证据与封面发布门禁，仅用于迁移期运行和回归；不得据此缩小 `PRODUCT_SPEC.md` 的全部官方发行范围，也不得把缺封面永久定义为不可展示或不可导入。
 
 现有中转站已验证 Chat Completions 和 JSON 可用，Responses 正文与原生 `web_search` 不可用。因此：
 
