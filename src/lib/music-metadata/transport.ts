@@ -59,6 +59,33 @@ function safeClone<T>(value: T): T {
   return structuredClone(value);
 }
 
+function readJsonBeforeAbort(
+  response: Pick<MusicMetadataFetchResponse, "json">,
+  signal: AbortSignal,
+) {
+  const pending = response.json();
+  if (signal.aborted) {
+    return Promise.reject(new DOMException("JSON response timed out.", "AbortError"));
+  }
+  return new Promise<unknown>((resolve, reject) => {
+    const abort = () => {
+      signal.removeEventListener("abort", abort);
+      reject(new DOMException("JSON response timed out.", "AbortError"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    pending.then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  });
+}
+
 class TimedLruCache {
   private readonly values = new Map<string, CacheEntry>();
 
@@ -210,13 +237,10 @@ export class JsonTransport {
     let lastFailure: JsonTransportResult | null = null;
     for (let attempt = 0; attempt <= this.retryCount; attempt += 1) {
       try {
-        const response = await this.throttle.run(() => this.fetchOnce(url));
+        const fetched = await this.throttle.run(() => this.fetchOnce(url));
+        const response = fetched.response;
         if (response.ok) {
-          try {
-            const payload = await response.json();
-            this.cache.set(cacheKey, payload);
-            return { ok: true, value: payload };
-          } catch {
+          if (fetched.jsonError) {
             return {
               ok: false,
               status: response.status,
@@ -229,6 +253,8 @@ export class JsonTransport {
               notFound: false,
             };
           }
+          this.cache.set(cacheKey, fetched.value);
+          return { ok: true, value: fetched.value };
         }
 
         if (response.status === 404) {
@@ -283,7 +309,7 @@ export class JsonTransport {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return await this.fetchImpl(url, {
+      const response = await this.fetchImpl(url, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -292,6 +318,17 @@ export class JsonTransport {
         redirect: "follow",
         signal: controller.signal,
       });
+      if (!response.ok) return { response, value: null, jsonError: false };
+      try {
+        return {
+          response,
+          value: await readJsonBeforeAbort(response, controller.signal),
+          jsonError: false,
+        };
+      } catch (error) {
+        if (controller.signal.aborted) throw error;
+        return { response, value: null, jsonError: true };
+      }
     } finally {
       clearTimeout(timeout);
     }

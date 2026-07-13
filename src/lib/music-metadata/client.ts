@@ -588,8 +588,8 @@ export class MusicMetadataClient {
     options: ArtistReleaseBrowseOptions = {},
   ): Promise<MusicMetadataResult<MusicMetadataPage<MusicReleaseEvidence>>> {
     const normalizedArtistId = normalizeMbid(artistId);
-    const maxItems = clampInteger(options.maxItems, 500, 1, 500);
-    const maxPages = clampInteger(options.maxPages, 5, 1, 5);
+    const maxItems = clampInteger(options.maxItems, 1_000, 1, 1_000);
+    const maxPages = clampInteger(options.maxPages, 10, 1, 10);
     const items: MusicReleaseEvidence[] = [];
     const seenIds = new Set<string>();
     const warnings: MusicMetadataWarning[] = [];
@@ -661,8 +661,8 @@ export class MusicMetadataClient {
     options: ArtistReleaseBrowseOptions = {},
   ): Promise<MusicMetadataResult<MusicMetadataPage<MusicReleaseEvidence>>> {
     const normalizedArtistId = normalizeMbid(artistId);
-    const maxItems = clampInteger(options.maxItems, 500, 1, 500);
-    const maxPages = clampInteger(options.maxPages, 5, 1, 5);
+    const maxItems = clampInteger(options.maxItems, 1_000, 1, 1_000);
+    const maxPages = clampInteger(options.maxPages, 10, 1, 10);
     const items: MusicReleaseEvidence[] = [];
     const seenIds = new Set<string>();
     const warnings: MusicMetadataWarning[] = [];

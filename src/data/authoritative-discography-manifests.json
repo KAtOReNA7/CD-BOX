@@ -1,0 +1,2449 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-07-13",
+  "grain": "work",
+  "methodology": "Core-work counts and canonical manifests come from official artist, label, or record-company catalog statements. Product and edition counts are comparison evidence only. Active catalogs use dated minimums for diagnostics, but a fresh finalSnapshotKind exact snapshot closes every final-suite category until the authority snapshot is refreshed.",
+  "defaultMetrics": {
+    "minimumAnchorRecall": 1,
+    "minimumCoreRecall": 1,
+    "minimumEvidenceCoverage": 1,
+    "minimumCoverCoverage": 1,
+    "maximumDuplicateRate": 0,
+    "minimumExplainedRejectionCoverage": 1
+  },
+  "finalAcceptanceSuite": {
+    "id": "authoritative-original-cd-v1",
+    "maxAuthorityAgeDays": 31,
+    "minimumOriginalCdWorks": 50,
+    "artistSlugs": ["miho-nakayama", "seiko-matsuda", "akina-nakamori", "momoe-yamaguchi"]
+  },
+  "artists": [
+    {
+      "slug": "miho-nakayama",
+      "artist": {
+        "canonicalName": "中山美穂",
+        "aliases": ["なかやま みほ", "Miho Nakayama"],
+        "country": "JP",
+        "musicbrainzArtistId": "30d83c58-baeb-4474-b6c5-6704d00c4c20"
+      },
+      "catalogStatus": "fixed",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+        "note": "Canonical Japanese single works and original albums. Compilations, live albums, remix albums, videos, and later product editions are outside this core count."
+      },
+      "baselines": [
+        {
+          "category": "SINGLE",
+          "kind": "exact",
+          "expected": 39,
+          "asOf": "2020-12-23",
+          "scopeNote": "King Records explicitly calls these 39 released single works; the additional track 君のこと is not described as a 40th physical single.",
+          "sources": [
+            {
+              "url": "https://www.kingrecords.co.jp/cs/g/gKICS-93968/",
+              "authority": "record-label",
+              "note": "All Time Best product text: 今までにリリースしたシングル39作品."
+            },
+            {
+              "url": "https://nakayamamiho.com/discography/single",
+              "authority": "artist-official",
+              "note": "The artist's official current single discography supplies the exact titles and original release dates for the latest 20 singles."
+            },
+            {
+              "url": "https://nakayamamiho.com/discography/single/page/2",
+              "authority": "artist-official",
+              "note": "The artist's official archived single discography supplies the exact titles and original release dates for the earliest 19 singles."
+            },
+            {
+              "url": "https://soundfuji.kingrecords.co.jp/artist/341/",
+              "authority": "record-label-archive",
+              "note": "King Records' SOUND FUJI artist catalog corroborates the canonical release identities across the label catalog."
+            },
+            {
+              "url": "https://nakayamamiho.com/musics/7933",
+              "authority": "artist-official",
+              "note": "The official release page confirms 人魚姫 mermaid and its 1988-07-11 original release date; this work is absent from the SOUND FUJI artist index."
+            }
+          ],
+          "expectedWorks": [
+            { "title": "「C」", "aliases": ["C", "｢C｣", "「 C 」"], "category": "SINGLE", "originalReleaseDate": "1985-06-21" },
+            { "title": "生意気", "aliases": ["Namaiki"], "category": "SINGLE", "originalReleaseDate": "1985-09-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.kingrecords.co.jp/cs/g/gKICS-93968/"], "physicalCdReleaseDate": "2020-12-23", "physicalCdCatalogNumber": "KICS-93968～70", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "All Time Best" } },
+            { "title": "BE-BOP-HIGHSCHOOL", "aliases": ["BE-BOP HIGH SCHOOL", "Be-Bop High School"], "category": "SINGLE", "originalReleaseDate": "1985-12-18", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.kingrecords.co.jp/cs/g/gKICS-93968/"], "physicalCdReleaseDate": "2020-12-23", "physicalCdCatalogNumber": "KICS-93968～70", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "All Time Best" } },
+            { "title": "色・ホワイトブレンド", "aliases": ["Iro White Blend"], "category": "SINGLE", "originalReleaseDate": "1986-02-05" },
+            { "title": "クローズ・アップ", "aliases": ["クローズアップ", "Close Up"], "category": "SINGLE", "originalReleaseDate": "1986-05-16" },
+            { "title": "JINGI・愛してもらいます", "aliases": ["JINGI 愛してもらいます", "Jingi Aishite Moraimasu"], "category": "SINGLE", "originalReleaseDate": "1986-07-15" },
+            { "title": "ツイてるねノッてるね", "aliases": ["ツイてるね ノッてるね", "Tsuiteru ne Notteru ne"], "category": "SINGLE", "originalReleaseDate": "1986-08-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.kingrecords.co.jp/cs/g/gKICS-93968/"], "physicalCdReleaseDate": "2020-12-23", "physicalCdCatalogNumber": "KICS-93968～70", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "All Time Best" } },
+            { "title": "WAKU WAKUさせて", "aliases": ["WAKUWAKUさせて", "WAKU WAKU させて", "Waku Waku Sasete"], "category": "SINGLE", "originalReleaseDate": "1986-11-21" },
+            { "title": "「派手!!!」", "aliases": ["派手!!!", "Hade!!!"], "category": "SINGLE", "originalReleaseDate": "1987-03-18" },
+            { "title": "50/50", "aliases": ["50/50(フィフティー・フィフティー)", "Fifty-Fifty"], "category": "SINGLE", "originalReleaseDate": "1987-07-07" },
+            { "title": "CATCH ME", "aliases": ["Catch Me"], "category": "SINGLE", "originalReleaseDate": "1987-10-07" },
+            { "title": "You're My Only Shinin' Star", "aliases": ["You’re My Only Shinin’ Star"], "category": "SINGLE", "originalReleaseDate": "1988-02-17" },
+            { "title": "人魚姫 mermaid", "aliases": ["人魚姫 Mermaid", "人魚姫 (mermaid)", "Mermaid"], "category": "SINGLE", "originalReleaseDate": "1988-07-11" },
+            { "title": "Witches ウィッチズ", "aliases": ["Witches", "ウィッチズ"], "category": "SINGLE", "originalReleaseDate": "1988-11-14" },
+            { "title": "ROSÉCOLOR", "aliases": ["ROSECOLOR", "Rose Color", "Rosécolor"], "category": "SINGLE", "originalReleaseDate": "1989-02-21" },
+            { "title": "VIRGIN EYES", "aliases": ["Virgin Eyes"], "category": "SINGLE", "originalReleaseDate": "1989-07-21", "mediaScope": { "originalFormats": ["CD", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.kingrecords.co.jp/cs/g/gKICS-93968/"], "physicalCdReleaseDate": "2020-12-23", "physicalCdCatalogNumber": "KICS-93968～70", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "All Time Best" } },
+            { "title": "Midnight Taxi", "aliases": ["MIDNIGHT TAXI"], "category": "SINGLE", "originalReleaseDate": "1990-01-15" },
+            { "title": "セミスウィートの魔法", "aliases": ["セミスゥィートの魔法", "Semi-Sweet Magic"], "category": "SINGLE", "originalReleaseDate": "1990-03-21" },
+            { "title": "女神たちの冒険", "aliases": ["Megamitachi no Bōken"], "category": "SINGLE", "originalReleaseDate": "1990-07-11" },
+            { "title": "愛してるっていわない!", "aliases": ["愛してるっていわない！", "Aishiterutte Iwanai!"], "category": "SINGLE", "originalReleaseDate": "1990-10-22" },
+            { "title": "これからのI Love You", "aliases": ["これからの I LOVE YOU", "これからのI LOVE YOU", "Kore kara no I Love You"], "category": "SINGLE", "originalReleaseDate": "1991-02-12" },
+            { "title": "Rosa", "aliases": ["Rosa ローザ", "ROSA", "ローザ"], "category": "SINGLE", "originalReleaseDate": "1991-07-16" },
+            { "title": "遠い街のどこかで…", "aliases": ["遠い街のどこかで・・・", "遠い街のどこかで...", "Tōi Machi no Doko ka de..."], "category": "SINGLE", "originalReleaseDate": "1991-11-01" },
+            { "title": "Mellow", "category": "SINGLE", "originalReleaseDate": "1992-04-01" },
+            { "title": "世界中の誰よりきっと", "aliases": ["Sekaijū no Dare Yori Kitto"], "category": "SINGLE", "originalReleaseDate": "1992-10-28" },
+            { "title": "幸せになるために", "aliases": ["Shiawase ni Naru Tame ni"], "category": "SINGLE", "originalReleaseDate": "1993-04-21" },
+            { "title": "あなたになら…", "aliases": ["あなたになら・・・", "あなたになら...", "Anata ni Nara..."], "category": "SINGLE", "originalReleaseDate": "1993-07-07" },
+            { "title": "ただ泣きたくなるの", "aliases": ["Tada Nakitaku Naru no"], "category": "SINGLE", "originalReleaseDate": "1994-02-09" },
+            { "title": "Sea Paradise -OLの反乱-", "aliases": ["Sea Paradise －ＯＬの反乱－", "Sea Paradise–OLの反乱−", "Sea Paradise (OL no Hanran)"], "category": "SINGLE", "originalReleaseDate": "1994-06-08" },
+            { "title": "HERO", "aliases": ["Hero"], "category": "SINGLE", "originalReleaseDate": "1994-12-14" },
+            { "title": "CHEERS FOR YOU", "aliases": ["Cheers for You"], "category": "SINGLE", "originalReleaseDate": "1995-05-17" },
+            { "title": "Hurt to Heart ～痛みの行方～", "aliases": ["Hurt to Heart~痛みの行方~", "Hurt to Heart-痛みの行方", "Hurt to Heart (Itami no Yukue)"], "category": "SINGLE", "originalReleaseDate": "1995-07-21" },
+            { "title": "Thinking about you ～あなたの夜を包みたい～", "aliases": ["Thinking About You ～あなたの夜を包みたい～", "Thinking about you~あなたの夜を包みたい~", "Thinking About You (Anata no Yoru wo Tsutsumitai)"], "category": "SINGLE", "originalReleaseDate": "1996-02-16" },
+            { "title": "True Romance", "aliases": ["TRUE ROMANCE"], "category": "SINGLE", "originalReleaseDate": "1996-06-07" },
+            { "title": "未来へのプレゼント", "aliases": ["Mirai e no Present"], "category": "SINGLE", "originalReleaseDate": "1996-11-01" },
+            { "title": "マーチ カラー", "aliases": ["マーチカラー", "March Color"], "category": "SINGLE", "originalReleaseDate": "1997-06-04" },
+            { "title": "LOVE CLOVER", "aliases": ["Love Clover"], "category": "SINGLE", "originalReleaseDate": "1998-04-08" },
+            { "title": "A Place Under the Sun", "aliases": ["A PLACE UNDER THE SUN"], "category": "SINGLE", "originalReleaseDate": "1999-05-19" },
+            { "title": "Adore", "aliases": ["ADORE"], "category": "SINGLE", "originalReleaseDate": "1999-09-16" }
+          ]
+        },
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "exact",
+          "expected": 22,
+          "asOf": "2020-11-19",
+          "scopeNote": "Original albums only; live and remix releases are explicitly separate in the source statement.",
+          "sources": [
+            {
+              "url": "https://www.sponichi.co.jp/entertainment/news/2020/11/19/kiji/20201119s00041000026000c.html",
+              "authority": "reputable-press-label-briefing",
+              "note": "Reports 39 singles, 22 original albums, and 506 released tracks including live/remix material."
+            },
+            {
+              "url": "https://soundfuji.kingrecords.co.jp/artist/341/",
+              "authority": "record-label-archive",
+              "note": "King Records' SOUND FUJI artist catalog identifies the 21 original albums released from 1985 through 1999."
+            },
+            {
+              "url": "https://soundfuji.kingrecords.co.jp/column/5772/",
+              "authority": "record-label-archive",
+              "note": "King Records' official SOUND FUJI feature supplies original release dates and original-album classification for the first 12 albums."
+            },
+            {
+              "url": "https://nakayamamiho.com/discography/album/page/3",
+              "authority": "artist-official",
+              "note": "The artist's official archived album discography corroborates early album titles and release dates."
+            },
+            {
+              "url": "https://nakayamamiho.com/discography/page/4",
+              "authority": "artist-official",
+              "note": "The artist's official archived discography corroborates mid-period album titles and release dates."
+            },
+            {
+              "url": "https://nakayamamiho.com/discography/page/3",
+              "authority": "artist-official",
+              "note": "The artist's official archived discography corroborates later album titles and release dates."
+            },
+            {
+              "url": "https://nakayamamiho.com/discography/page/2",
+              "authority": "artist-official",
+              "note": "The artist's official archived discography corroborates the final 1990s original albums."
+            },
+            {
+              "url": "https://nakayamamiho.com/musics/8914",
+              "authority": "artist-official",
+              "note": "The official release page confirms Neuf Neuf and its 2019-12-04 original release date."
+            },
+            {
+              "url": "https://www.kingrecords.co.jp/cs/g/gKICS-3274/",
+              "authority": "record-label",
+              "note": "The live King Records product page identifies the later official Mellow CD edition released 2015-10-14 as KICS-3274."
+            }
+          ],
+          "expectedWorks": [
+            { "title": "「C」", "aliases": ["｢C｣", "「 Ｃ 」", "C"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1985-08-21" },
+            { "title": "AFTER SCHOOL", "aliases": ["After School"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1985-12-18" },
+            { "title": "SUMMER BREEZE", "aliases": ["Summer Breeze", "サマー ブリーズ"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1986-07-01" },
+            { "title": "EXOTIQUE", "aliases": ["Exotique"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1986-12-18" },
+            { "title": "ONE AND ONLY", "aliases": ["One and Only"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1987-07-15" },
+            { "title": "CATCH THE NITE", "aliases": ["Catch the Nite"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1988-02-10" },
+            { "title": "Mind Game", "aliases": ["MIND GAME"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1988-07-11" },
+            { "title": "angel hearts", "aliases": ["Angel Hearts", "angel Hearts"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1988-12-05" },
+            { "title": "Hide'n' Seek", "aliases": ["Hide’n’ Seek", "Hide’n’Seek", "Hide'n Seek"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1989-09-05" },
+            { "title": "Merry Merry", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1989-12-05" },
+            { "title": "ALL FOR YOU", "aliases": ["All For You", "All for You"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1990-03-16" },
+            { "title": "Jeweluna", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1990-07-18" },
+            { "title": "Dé eaya", "aliases": ["De’eaya", "De'eaya", "De eaya ～ディーヤ～", "Dé eaya〜デイーヤ"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1991-03-15" },
+            { "title": "Mellow", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1992-06-10", "mediaScope": { "originalFormats": ["CD"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.kingrecords.co.jp/cs/g/gKICS-3274/"], "physicalCdReleaseDate": "2015-10-14", "physicalCdCatalogNumber": "KICS-3274", "physicalCdRepresentationKind": "SAME_WORK_EDITION" } },
+            { "title": "わがままな あくとれす", "aliases": ["わがままな　あくとれす", "Wagamama na Actress"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1993-06-23" },
+            { "title": "Pure White", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1994-06-08" },
+            { "title": "Mid Blue", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1995-09-30" },
+            { "title": "Deep Lip French", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1996-06-01" },
+            { "title": "Groovin' Blue", "aliases": ["Groovin’ Blue", "Groovin’Blue", "Groovin'Blue"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1997-06-21" },
+            { "title": "OLIVE", "aliases": ["Olive"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1998-06-10" },
+            { "title": "manifesto", "aliases": ["Manifesto", "manifest"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1999-09-16" },
+            { "title": "Neuf Neuf", "aliases": ["Neuf Neuf (ヌフ ヌフ)", "ヌフ ヌフ"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2019-12-04" }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "「C」", "aliases": ["C"], "category": "SINGLE", "originalReleaseDate": "1985-06-21" },
+        { "title": "世界中の誰よりきっと", "category": "SINGLE", "originalReleaseDate": "1992-10-28" },
+        { "title": "Adore", "category": "SINGLE" },
+        { "title": "EXOTIQUE", "category": "ORIGINAL_ALBUM" },
+        { "title": "Neuf Neuf", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2019-12-04" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "All Time Best",
+          "disallowedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+          "reason": "Compilation product, not a new single work or original album."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "same-day-reissue",
+          "description": "Oricon product pages contain many older titles with the edition date 1992-07-22. Preserve originalReleaseDate separately from editionReleaseDate; do not reject the titles merely because dates repeat."
+        },
+        {
+          "kind": "collaboration-credit",
+          "description": "世界中の誰よりきっと is credited with WANDS and must not disappear when the artist credit is not a solo-only string."
+        }
+      ],
+      "comparisonSources": [
+        {
+          "url": "https://www.oricon.co.jp/prof/235308/products/single/",
+          "note": "58 single products/editions, not 58 canonical single works."
+        },
+        {
+          "url": "https://www.oricon.co.jp/prof/235308/products/album/p/4/",
+          "note": "99 album products/editions, not 99 original-album works."
+        }
+      ]
+    },
+    {
+      "slug": "seiko-matsuda",
+      "artist": {
+        "canonicalName": "松田聖子",
+        "aliases": ["Seiko Matsuda"],
+        "country": "JP",
+        "musicbrainzArtistId": "ef013257-e584-410e-88e8-05ea9ae9ea3a"
+      },
+      "catalogStatus": "active",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+        "note": "The active catalog is a current exact snapshot verified on 2026-07-13 for final acceptance, while ordinary diagnostics retain minimum semantics for future growth. The original-album canon follows the artist and labels' published numbering across Japanese, SEIKO-name, US, and Taiwan releases. Compilations, live albums, remixes, soundtracks, and separately branded jazz/cover projects outside that numbered canon are excluded."
+      },
+      "baselines": [
+        {
+          "category": "SINGLE",
+          "kind": "minimum",
+          "expected": 77,
+          "officialCatalogTotal": 77,
+          "asOf": "2016-09-21",
+          "snapshotVerifiedAt": "2026-07-13",
+          "finalSnapshotKind": "exact",
+          "latestAuthorityAnchor": {
+            "title": "薔薇のように咲いて 桜のように散って",
+            "category": "SINGLE",
+            "originalReleaseDate": "2016-09-21",
+            "sourceUrl": "https://www.seikomatsuda.co.jp/discography/single"
+          },
+          "scopeNote": "Current exact snapshot verified 2026-07-13: the artist's official 96 product rows collapse by complete title and release date to 77 unique single works through 薔薇のように咲いて 桜のように散って. Every one of the 77 works has physical-CD scope: 50 were issued on CD at the listed original date; the analogue, 12-inch, and cassette-origin works are represented by Sony's boundary-preserving complete-single CD boxes.",
+          "sources": [
+            {
+              "url": "https://www.seikomatsuda.co.jp/discography/single",
+              "authority": "artist-official",
+              "note": "The official Japanese discography lists 77 unique release-date/title works across its 1980-2016 year pages; 96 product rows collapse to 77 works."
+            },
+            {
+              "url": "https://www.sonymusic.co.jp/artist/SeikoMatsuda/discography/buy/SRCL-3661",
+              "authority": "record-label",
+              "note": "Sony's eight-CD Complete Bible states that it contains every single and C/W from the debut through 素敵にOnce Again, preserving the single-work boundary rather than merely selecting hit tracks."
+            },
+            {
+              "url": "https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828",
+              "authority": "record-label",
+              "note": "Sony's 73-disc 30th Anniversary Box explicitly completes every domestic and overseas single from 裸足の季節 through あの輝いた季節 on Blu-spec CD, including former 8 cm CD and 12-inch releases with one jacketed CD per single."
+            },
+            {
+              "url": "https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/490615",
+              "authority": "record-label",
+              "note": "Sony identifies the 25 releases from 裸足の季節 through 旅立ちはフリージア as analogue EP singles and preserves all 50 A/B sides on Blu-spec CD2."
+            }
+          ],
+          "expectedWorks": [
+            {
+              "title": "裸足の季節",
+              "category": "SINGLE",
+              "originalReleaseDate": "1980-04-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "青い珊瑚礁",
+              "category": "SINGLE",
+              "originalReleaseDate": "1980-07-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "風は秋色",
+              "category": "SINGLE",
+              "originalReleaseDate": "1980-10-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "チェリーブラッサム",
+              "category": "SINGLE",
+              "originalReleaseDate": "1981-01-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "夏の扉",
+              "category": "SINGLE",
+              "originalReleaseDate": "1981-04-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "白いパラソル",
+              "category": "SINGLE",
+              "originalReleaseDate": "1981-07-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "風立ちぬ",
+              "category": "SINGLE",
+              "originalReleaseDate": "1981-10-07",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "赤いスイートピー",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-01-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "渚のバルコニー",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-04-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "小麦色のマーメイド",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-07-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "野ばらのエチュード",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-10-21",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "秘密の花園",
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-02-03",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "天国のキッス",
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-04-27",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "ガラスの林檎 / SWEET MEMORIES",
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-08-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "瞳はダイアモンド",
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-10-28",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "Rock'n Rouge",
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-02-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "時間の国のアリス",
+              "aliases": ["時間の国のアリス / 夏服のイヴ"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-05-10",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "ピンクのモーツァルト",
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-08-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "ハートのイアリング",
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-11-01",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "天使のウィンク",
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-01-30",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "ボーイの季節",
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-05-09",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "DANCING SHOES (Club Mix)",
+              "aliases": ["DANCING SHOES 12\""],
+              "artistCredits": ["SEIKO"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-06-24",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "Strawberry Time",
+              "category": "SINGLE",
+              "originalReleaseDate": "1987-04-22",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "Pearl-White Eve",
+              "category": "SINGLE",
+              "originalReleaseDate": "1987-11-06",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "Marrakech ～マラケッシュ～",
+              "category": "SINGLE",
+              "originalReleaseDate": "1988-04-14",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "旅立ちはフリージア",
+              "category": "SINGLE",
+              "originalReleaseDate": "1988-09-07",
+              "mediaScope": {"originalFormats":["VINYL"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "Precious Heart",
+              "category": "SINGLE",
+              "originalReleaseDate": "1989-11-15",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1989-11-15","physicalCdCatalogNumber":"CSDL-3045"}
+            },
+            {
+              "title": "THE RIGHT COMBINATION",
+              "artistCredits": ["Seiko and Donnie Wahlberg", "Seiko & Donnie Wahlberg"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1990-07-15",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1990-07-15","physicalCdCatalogNumber":"CDSL-3151"}
+            },
+            {
+              "title": "Who's that boy",
+              "artistCredits": ["SEIKO"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1990-10-01",
+              "mediaScope": {"originalFormats":["CASSETTE"],"physicalCd":"LATER_OFFICIAL_EDITION","physicalCdAuthorityUrls":["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/337828"],"physicalCdReleaseDate":"2010-05-26","physicalCdCatalogNumber":"SRCL-20061 ～ SRCL-20133","physicalCdRepresentationKind":"CONTAINER_INCLUSION","physicalCdContainerTitle":"Seiko Matsuda Single Collection 30th Anniversary Box～The Voice Of a Queen～"}
+            },
+            {
+              "title": "We Are Love",
+              "category": "SINGLE",
+              "originalReleaseDate": "1990-11-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1990-11-21","physicalCdCatalogNumber":"CSDL-3194"}
+            },
+            {
+              "title": "きっと、また逢える・・・",
+              "category": "SINGLE",
+              "originalReleaseDate": "1992-02-05",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1992-02-05","physicalCdCatalogNumber":"SRDL-3433"}
+            },
+            {
+              "title": "あなたのすべてになりたい",
+              "category": "SINGLE",
+              "originalReleaseDate": "1992-08-01",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1992-08-01","physicalCdCatalogNumber":"SRDL-3514"}
+            },
+            {
+              "title": "大切なあなた",
+              "category": "SINGLE",
+              "originalReleaseDate": "1993-04-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1993-04-21","physicalCdCatalogNumber":"SRDL-3642"}
+            },
+            {
+              "title": "A Touch of Destiny",
+              "category": "SINGLE",
+              "originalReleaseDate": "1993-05-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1993-05-21","physicalCdCatalogNumber":"SRDL-3664"}
+            },
+            {
+              "title": "かこわれて、愛jing",
+              "artistCredits": ["MATSUYAKKO"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1993-11-10",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1993-11-10","physicalCdCatalogNumber":"SRDL-3767"}
+            },
+            {
+              "title": "もう一度、初めから",
+              "category": "SINGLE",
+              "originalReleaseDate": "1994-05-11",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1994-05-11","physicalCdCatalogNumber":"SRDL-3821"}
+            },
+            {
+              "title": "輝いた季節へ旅立とう",
+              "category": "SINGLE",
+              "originalReleaseDate": "1994-12-01",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1994-12-01","physicalCdCatalogNumber":"SRDL-3953"}
+            },
+            {
+              "title": "素敵にOnce Again",
+              "category": "SINGLE",
+              "originalReleaseDate": "1995-04-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1995-04-21","physicalCdCatalogNumber":"SRDL-4001"}
+            },
+            {
+              "title": "あなたに逢いたくて ～Missing You～",
+              "category": "SINGLE",
+              "originalReleaseDate": "1996-04-22",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1996-04-22","physicalCdCatalogNumber":"PHDL-1061"}
+            },
+            {
+              "title": "Let's Talk About It",
+              "artistCredits": ["Seiko"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1996-04-24",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1996-04-24","physicalCdCatalogNumber":"AMSAD-00208"}
+            },
+            {
+              "title": "I'll Be There For You",
+              "category": "SINGLE",
+              "originalReleaseDate": "1996-05-17",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1996-05-17","physicalCdCatalogNumber":"PHDL-1062"}
+            },
+            {
+              "title": "さよならの瞬間",
+              "category": "SINGLE",
+              "originalReleaseDate": "1996-11-25",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1996-11-25","physicalCdCatalogNumber":"PHDL-1076"}
+            },
+            {
+              "title": "私だけの天使 ～Angel～",
+              "category": "SINGLE",
+              "originalReleaseDate": "1997-04-23",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1997-04-23","physicalCdCatalogNumber":"PHDL-1111"}
+            },
+            {
+              "title": "Gone with the rain",
+              "category": "SINGLE",
+              "originalReleaseDate": "1997-12-03",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1997-12-03","physicalCdCatalogNumber":"PHDL-12030"}
+            },
+            {
+              "title": "恋する想い ～Fall in love～",
+              "category": "SINGLE",
+              "originalReleaseDate": "1998-06-17",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1998-06-17","physicalCdCatalogNumber":"PHDL-1151"}
+            },
+            {
+              "title": "Touch the Love",
+              "category": "SINGLE",
+              "originalReleaseDate": "1998-11-26",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1998-11-26","physicalCdCatalogNumber":"PHDL-1181"}
+            },
+            {
+              "title": "哀しみのボート",
+              "category": "SINGLE",
+              "originalReleaseDate": "1999-10-27",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"1999-10-27","physicalCdCatalogNumber":"PHDL-1202"}
+            },
+            {
+              "title": "20th Party",
+              "category": "SINGLE",
+              "originalReleaseDate": "2000-05-17",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2000-05-17","physicalCdCatalogNumber":"PHCL-20019"}
+            },
+            {
+              "title": "上海ラヴソング",
+              "category": "SINGLE",
+              "originalReleaseDate": "2000-06-07",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2000-06-07","physicalCdCatalogNumber":"PHCL-20024"}
+            },
+            {
+              "title": "Unseasonable Shore",
+              "category": "SINGLE",
+              "originalReleaseDate": "2000-06-14",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2000-06-14","physicalCdCatalogNumber":"PHCL-20025"}
+            },
+            {
+              "title": "True Love Story",
+              "aliases": ["True Love Story / さよならのKISSを忘れない"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2000-09-27",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2000-09-27","physicalCdCatalogNumber":"SRCL-4922"}
+            },
+            {
+              "title": "The Sound of Fire",
+              "category": "SINGLE",
+              "originalReleaseDate": "2000-11-29",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2000-11-29","physicalCdCatalogNumber":"UMCK-5511"}
+            },
+            {
+              "title": "あなたしか見えない",
+              "category": "SINGLE",
+              "originalReleaseDate": "2001-06-20",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2001-06-20","physicalCdCatalogNumber":"UMCK-5523"}
+            },
+            {
+              "title": "愛愛 ～100%Pure Love～",
+              "category": "SINGLE",
+              "originalReleaseDate": "2001-11-14",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2001-11-14","physicalCdCatalogNumber":"UMCK-5535"}
+            },
+            {
+              "title": "素敵な明日",
+              "category": "SINGLE",
+              "originalReleaseDate": "2002-06-05",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2002-06-05","physicalCdCatalogNumber":"SRCL-5350"}
+            },
+            {
+              "title": "Call me",
+              "category": "SINGLE",
+              "originalReleaseDate": "2003-06-04",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2003-06-04","physicalCdCatalogNumber":"SRCL-5570"}
+            },
+            {
+              "title": "逢いたい",
+              "category": "SINGLE",
+              "originalReleaseDate": "2004-05-26",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2004-05-26","physicalCdCatalogNumber":"SRCL-5738"}
+            },
+            {
+              "title": "Smile on me",
+              "artistCredits": ["SEIKO & Crazy.T"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2004-07-07",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2004-07-07","physicalCdCatalogNumber":"SRCL-5759 ～ SRCL-5760"}
+            },
+            {
+              "title": "永遠さえ感じた夜",
+              "category": "SINGLE",
+              "originalReleaseDate": "2005-02-02",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2005-02-02","physicalCdCatalogNumber":"SRCL-5867"}
+            },
+            {
+              "title": "I'll fall in love",
+              "category": "SINGLE",
+              "originalReleaseDate": "2005-08-24",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2005-08-24","physicalCdCatalogNumber":"SRCL-5960"}
+            },
+            {
+              "title": "しあわせな気持ち",
+              "category": "SINGLE",
+              "originalReleaseDate": "2005-09-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2005-09-21","physicalCdCatalogNumber":"SRCL-5968"}
+            },
+            {
+              "title": "bless you",
+              "category": "SINGLE",
+              "originalReleaseDate": "2006-04-26",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2006-04-26","physicalCdCatalogNumber":"SRCL-6272"}
+            },
+            {
+              "title": "WE ARE.",
+              "aliases": ["WE ARE. / PawPaw"],
+              "artistCredits": ["PawPaw"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2006-05-24",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2006-05-24","physicalCdCatalogNumber":"SRCL-6279"}
+            },
+            {
+              "title": "涙がただこぼれるだけ",
+              "category": "SINGLE",
+              "originalReleaseDate": "2007-05-23",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2007-05-23","physicalCdCatalogNumber":"SRCL-6566"}
+            },
+            {
+              "title": "真夏の夜の夢",
+              "category": "SINGLE",
+              "originalReleaseDate": "2007-08-01",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2007-08-01","physicalCdCatalogNumber":"SRCL-6611"}
+            },
+            {
+              "title": "クリスマスの夜",
+              "category": "SINGLE",
+              "originalReleaseDate": "2007-11-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2007-11-21","physicalCdCatalogNumber":"SRCL-6686"}
+            },
+            {
+              "title": "花びら舞う季節に",
+              "category": "SINGLE",
+              "originalReleaseDate": "2008-03-19",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2008-03-19","physicalCdCatalogNumber":"SRCL-6769"}
+            },
+            {
+              "title": "Love is all",
+              "category": "SINGLE",
+              "originalReleaseDate": "2008-06-25",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2008-06-25","physicalCdCatalogNumber":"SRCL-6820"}
+            },
+            {
+              "title": "あの輝いた季節",
+              "category": "SINGLE",
+              "originalReleaseDate": "2008-10-22",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2008-10-22","physicalCdCatalogNumber":"SRCL-6904"}
+            },
+            {
+              "title": "いくつの夜明けを数えたら",
+              "category": "SINGLE",
+              "originalReleaseDate": "2010-05-05",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2010-05-05","physicalCdCatalogNumber":"UMCK-5270"}
+            },
+            {
+              "title": "特別な恋人/声だけ聞かせて",
+              "category": "SINGLE",
+              "originalReleaseDate": "2011-11-23",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2011-11-23","physicalCdCatalogNumber":"UMCK-5355"}
+            },
+            {
+              "title": "涙のしずく",
+              "category": "SINGLE",
+              "originalReleaseDate": "2012-05-02",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2012-05-02","physicalCdCatalogNumber":"UMCK-5378"}
+            },
+            {
+              "title": "LuLu!!",
+              "category": "SINGLE",
+              "originalReleaseDate": "2013-05-22",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2013-05-22","physicalCdCatalogNumber":"UMCK-5428"}
+            },
+            {
+              "title": "夢がさめて",
+              "category": "SINGLE",
+              "originalReleaseDate": "2013-10-30",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2013-10-30","physicalCdCatalogNumber":"UMCK-5451"}
+            },
+            {
+              "title": "I Love You !! 〜あなたの微笑みに〜",
+              "category": "SINGLE",
+              "originalReleaseDate": "2014-05-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2014-05-21","physicalCdCatalogNumber":"UMCK-5470"}
+            },
+            {
+              "title": "永遠のもっと果てまで/惑星になりたい",
+              "category": "SINGLE",
+              "originalReleaseDate": "2015-10-28",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2015-10-28","physicalCdCatalogNumber":"UPCH-80414"}
+            },
+            {
+              "title": "薔薇のように咲いて 桜のように散って",
+              "category": "SINGLE",
+              "originalReleaseDate": "2016-09-21",
+              "mediaScope": {"originalFormats":["CD"],"physicalCd":"ORIGINAL_RELEASE","physicalCdAuthorityUrls":[],"physicalCdReleaseDate":"2016-09-21","physicalCdCatalogNumber":"UPCH-80445"}
+            }
+          ]
+        },
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "minimum",
+          "expected": 54,
+          "asOf": "2021-10-20",
+          "snapshotVerifiedAt": "2026-07-13",
+          "finalSnapshotKind": "exact",
+          "latestAuthorityAnchor": {
+            "title": "SEIKO MATSUDA 2021",
+            "category": "ORIGINAL_ALBUM",
+            "originalReleaseDate": "2021-10-20",
+            "sourceUrl": "https://www.universal-music.co.jp/matsuda-seiko/products/upch-20591/"
+          },
+          "scopeNote": "Current exact snapshot verified 2026-07-13: the artist/label-numbered original-album canon contains 54 works through SEIKO MATSUDA 2021. Sony and Universal's current catalogs show no later numbered original album; 2025 best, live, and video products remain outside this category. Future original albums require a refreshed snapshot before final acceptance.",
+          "sources": [
+            {
+              "url": "https://www.universal-music.co.jp/matsuda-seiko/discography/",
+              "authority": "record-label-current-catalog",
+              "note": "Universal's current catalog was checked on 2026-07-13 and contains no later numbered original album after SEIKO MATSUDA 2021."
+            },
+            {
+              "url": "https://www.sonymusic.co.jp/Music/Info/seiko/sp/contents1/",
+              "authority": "record-label",
+              "note": "Sony explicitly enumerates 32 original albums and their dates through My pure melody, including Eternal, Sweet Memories '93, and Eternal II in that label-defined canon."
+            },
+            {
+              "url": "https://www.seikomatsuda.co.jp/discography/album",
+              "authority": "artist-official",
+              "note": "The artist's official year-by-year album discography supplies canonical Japanese titles, release dates, and edition consolidation evidence; its broad album section is classified against the labels' numbered original-album statements."
+            },
+            {
+              "url": "https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/521849",
+              "authority": "record-label",
+              "note": "Sony documents the Taiwan-only Mandarin album I'll fall in love 愛的禮物 and its 2005-08-26 physical release."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/matsuda-seiko/news/2016-05-04/",
+              "authority": "record-label",
+              "note": "Universal calls Shining Star her 50th original album."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/matsuda-seiko/news/2017-04-20/",
+              "authority": "record-label",
+              "note": "Universal identifies Daisy as the original new album immediately following Shining Star."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/matsuda-seiko/news/2018-10-05/",
+              "authority": "record-label",
+              "note": "Universal explicitly calls Merry-go-round the 52nd original album."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/matsuda-seiko/products/upch-20591/",
+              "authority": "record-label",
+              "note": "Universal documents SEIKO MATSUDA 2021's 2021-10-20 CD release and identifies SEIKO MATSUDA 2020 as an original anniversary album, completing the post-52 sequence."
+            }
+          ],
+          "expectedWorks": [
+            {
+              "title": "SQUALL",
+              "aliases": ["Squall"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1980-08-01",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-02-15", "physicalCdCatalogNumber": "MHCL-20146" }
+            },
+            {
+              "title": "North Wind",
+              "aliases": ["NORTH WIND"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1980-12-01",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-02-15", "physicalCdCatalogNumber": "MHCL-20147" }
+            },
+            {
+              "title": "SILHOUETTE ～シルエット～",
+              "aliases": ["SILHOUETTE", "Silhouette", "Shilhouette ～シルエット～"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1981-05-21",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-02-15", "physicalCdCatalogNumber": "MHCL-20148" }
+            },
+            {
+              "title": "風立ちぬ",
+              "aliases": ["Kaze Tachinu"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1981-10-21",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-02-15", "physicalCdCatalogNumber": "MHCL-20149" }
+            },
+            {
+              "title": "Pineapple",
+              "aliases": ["PINEAPPLE", "Pinapple"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1982-05-21",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-02-15", "physicalCdCatalogNumber": "MHCL-20150" }
+            },
+            {
+              "title": "Candy",
+              "aliases": ["CANDY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1982-11-10",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-03-14", "physicalCdCatalogNumber": "MHCL-20153" }
+            },
+            {
+              "title": "ユートピア",
+              "aliases": ["Utopia"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1983-06-01",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-03-14", "physicalCdCatalogNumber": "MHCL-20154" }
+            },
+            {
+              "title": "Canary",
+              "aliases": ["CANARY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1983-12-10",
+              "mediaScope": { "originalFormats": ["VINYL", "CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/392564"], "physicalCdReleaseDate": "2012-03-14", "physicalCdCatalogNumber": "MHCL-20155" }
+            },
+            {
+              "title": "Tinker Bell",
+              "aliases": ["TINKER BELL"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1984-06-10",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1984-06-10", "physicalCdCatalogNumber": "38DH-100" }
+            },
+            {
+              "title": "Windy Shadow",
+              "aliases": ["WINDY SHADOW"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1984-12-08",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1984-12-08", "physicalCdCatalogNumber": "32DH-170" }
+            },
+            {
+              "title": "The 9th Wave",
+              "aliases": ["THE 9TH WAVE"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1985-06-05",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1985-06-05", "physicalCdCatalogNumber": "32DH-238" }
+            },
+            {
+              "title": "SOUND OF MY HEART",
+              "aliases": ["Sound of My Heart"],
+              "artistCredits": ["SEIKO"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1985-08-15",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1985-08-15", "physicalCdCatalogNumber": "32DH-266" }
+            },
+            {
+              "title": "SUPREME",
+              "aliases": ["Supreme"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1986-06-01",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1986-06-01", "physicalCdCatalogNumber": "32DH-440" }
+            },
+            {
+              "title": "Strawberry Time",
+              "aliases": ["STRAWBERRY TIME"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1987-05-16",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1987-05-16", "physicalCdCatalogNumber": "32DH-656" }
+            },
+            {
+              "title": "Citron",
+              "aliases": ["CITRON", "Citton"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1988-05-11",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1988-05-11", "physicalCdCatalogNumber": "32DH-5040" }
+            },
+            {
+              "title": "Precious Moment",
+              "aliases": ["PRECIOUS MOMENT", "Precious Momet"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1989-12-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1989-12-06", "physicalCdCatalogNumber": "CSCL-1039" }
+            },
+            {
+              "title": "Seiko",
+              "aliases": ["SEIKO"],
+              "artistCredits": ["SEIKO"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1990-06-07",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1990-06-07", "physicalCdCatalogNumber": "CSCL-1090" }
+            },
+            {
+              "title": "We Are Love",
+              "aliases": ["WE ARE LOVE"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1990-12-10",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1990-12-10", "physicalCdCatalogNumber": "CSCL-1569" }
+            },
+            {
+              "title": "Eternal",
+              "aliases": ["ETERNAL"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1991-05-02",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1991-05-02", "physicalCdCatalogNumber": "SRCL-1918" }
+            },
+            {
+              "title": "1992 Nouvelle Vague",
+              "aliases": ["1992 NOUVELLE VAGUE", "1992 ヌーベルヴァーグ", "1992 NouvelleVague"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1992-03-25",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1992-03-25", "physicalCdCatalogNumber": "SRCL-2364" }
+            },
+            {
+              "title": "Sweet Memories '93",
+              "aliases": ["SWEET MEMORIES '93", "Sweet Memories’93", "Sweet Memories 93"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1992-12-02",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1992-12-02", "physicalCdCatalogNumber": "SRCL-2546" }
+            },
+            {
+              "title": "Diamond Expression",
+              "aliases": ["DIAMOND EXPRESSION"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1993-05-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1993-05-21", "physicalCdCatalogNumber": "SRCL-2616" }
+            },
+            {
+              "title": "A Time for Love",
+              "aliases": ["A TIME FOR LOVE"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1993-11-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1993-11-21", "physicalCdCatalogNumber": "SRCL-2803" }
+            },
+            {
+              "title": "Glorious Revolution",
+              "aliases": ["GLORIOUS REVOLUTION"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1994-06-12",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1994-06-12", "physicalCdCatalogNumber": "SRCL-2915" }
+            },
+            {
+              "title": "It's Style '95",
+              "aliases": ["IT'S STYLE '95", "It’s Style ’95", "It's Style 95"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1995-05-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1995-05-21", "physicalCdCatalogNumber": "SRCL-3230" }
+            },
+            {
+              "title": "Vanity Fair",
+              "aliases": ["VANITY FAIR"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1996-05-27",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1996-05-27", "physicalCdCatalogNumber": "PHCL-5028" }
+            },
+            {
+              "title": "WAS IT THE FUTURE",
+              "aliases": ["Was It the Future", "Was It The Future"],
+              "artistCredits": ["SEIKO"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1996-06-10",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1996-06-10", "physicalCdCatalogNumber": "PHCL-1007" }
+            },
+            {
+              "title": "My Story",
+              "aliases": ["MY STORY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1997-05-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1997-05-21", "physicalCdCatalogNumber": "PHCL-5070" }
+            },
+            {
+              "title": "Sweetest Time",
+              "aliases": ["SWEETEST TIME"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1997-12-03",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1997-12-03", "physicalCdCatalogNumber": "PHCL-12" }
+            },
+            {
+              "title": "Forever",
+              "aliases": ["FOREVER"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1998-05-08",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1998-05-08", "physicalCdCatalogNumber": "PHCL-5101" }
+            },
+            {
+              "title": "永遠の少女",
+              "aliases": ["Eien no Shoujo", "Eien no Shojo"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1999-12-15",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "1999-12-15", "physicalCdCatalogNumber": "PHCL-5130" }
+            },
+            {
+              "title": "20th Party",
+              "aliases": ["20TH PARTY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2000-06-28",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2000-06-28", "physicalCdCatalogNumber": "PHCL-5151" }
+            },
+            {
+              "title": "SEIKO LOVE & EMOTION VOL.1",
+              "aliases": ["LOVE & EMOTION VOL.1", "SEIKO LOVE AND EMOTION VOL. 1", "Love & Emotion Vol. 1"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2001-06-20",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2001-06-20", "physicalCdCatalogNumber": "UMCK-4029" }
+            },
+            {
+              "title": "SEIKO LOVE & EMOTION VOL.2",
+              "aliases": ["LOVE & EMOTION VOL.2", "SEIKO LOVE AND EMOTION VOL. 2", "Love & Emotion Vol. 2"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2001-11-28",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2001-11-28", "physicalCdCatalogNumber": "UMCK-4040" }
+            },
+            {
+              "title": "area62",
+              "aliases": ["AREA62", "Area 62", "area 62"],
+              "artistCredits": ["SEIKO"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2002-06-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2002-06-21", "physicalCdCatalogNumber": "VIVI-19623" }
+            },
+            {
+              "title": "Sunshine",
+              "aliases": ["SUNSHINE"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2004-06-09",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2004-06-09", "physicalCdCatalogNumber": "SRCL-5758" }
+            },
+            {
+              "title": "fairy",
+              "aliases": ["Fairy", "FAIRY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2005-04-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2005-04-06", "physicalCdCatalogNumber": "SRCL-5894" }
+            },
+            {
+              "title": "I'll fall in love 愛的禮物",
+              "aliases": ["I’ll fall in love愛的禮物", "I'll Fall in Love 愛的禮物", "愛的禮物"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2005-08-26",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/SeikoMatsuda/info/521849"], "physicalCdReleaseDate": "2005-08-26", "physicalCdCatalogNumber": "SMD8859", "physicalCdCountry": "TW" }
+            },
+            {
+              "title": "Under the beautiful stars",
+              "aliases": ["UNDER THE BEAUTIFUL STARS"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2005-12-07",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2005-12-07", "physicalCdCatalogNumber": "SRCL-6115" }
+            },
+            {
+              "title": "bless you",
+              "aliases": ["Bless You", "BLESS YOU"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2006-05-31",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2006-05-31", "physicalCdCatalogNumber": "SRCL-6286" }
+            },
+            {
+              "title": "Eternal II",
+              "aliases": ["ETERNAL II", "Eternal 2"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2006-12-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2006-12-06", "physicalCdCatalogNumber": "SRCL-6455" }
+            },
+            {
+              "title": "Baby's breath",
+              "aliases": ["Baby’s breath", "BABY'S BREATH"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2007-06-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2007-06-06", "physicalCdCatalogNumber": "SRCL-6567" }
+            },
+            {
+              "title": "My pure melody",
+              "aliases": ["MY PURE MELODY", "My Pure Melody"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2008-05-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2008-05-21", "physicalCdCatalogNumber": "SRCL-6808" }
+            },
+            {
+              "title": "My Prelude",
+              "aliases": ["MY PRELUDE"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2010-05-26",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2010-05-26", "physicalCdCatalogNumber": "UMCK-1355" }
+            },
+            {
+              "title": "Cherish",
+              "aliases": ["CHERISH"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2011-06-01",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2011-06-01", "physicalCdCatalogNumber": "UMCK-1395" }
+            },
+            {
+              "title": "Very Very",
+              "aliases": ["VERY VERY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2012-06-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2012-06-06", "physicalCdCatalogNumber": "UMCK-1420" }
+            },
+            {
+              "title": "A Girl in the Wonder Land",
+              "aliases": ["A GIRL IN THE WONDER LAND", "A Girl in the Wonderland"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2013-06-05",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2013-06-05", "physicalCdCatalogNumber": "UMCK-1447" }
+            },
+            {
+              "title": "Dream & Fantasy",
+              "aliases": ["DREAM & FANTASY", "Dream and Fantasy"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2014-06-04",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2014-06-04", "physicalCdCatalogNumber": "UMCK-1482" }
+            },
+            {
+              "title": "Bibbidi-Bobbidi-Boo",
+              "aliases": ["BIBBIDI-BOBBIDI-BOO", "Bibbidi Bobbidi Boo"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2015-06-10",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2015-06-10", "physicalCdCatalogNumber": "UMCK-1510" }
+            },
+            {
+              "title": "Shining Star",
+              "aliases": ["SHINING STAR"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2016-06-08",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2016-06-08", "physicalCdCatalogNumber": "UPCH-20419" }
+            },
+            {
+              "title": "Daisy",
+              "aliases": ["DAISY"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2017-06-07",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2017-06-07", "physicalCdCatalogNumber": "UPCH-20453" }
+            },
+            {
+              "title": "Merry-go-round",
+              "aliases": ["MERRY-GO-ROUND", "Merry Go Round"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2018-06-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2018-06-06", "physicalCdCatalogNumber": "UPCH-20488" }
+            },
+            {
+              "title": "SEIKO MATSUDA 2020",
+              "aliases": ["Seiko Matsuda 2020"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2020-09-30",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2020-09-30", "physicalCdCatalogNumber": "UPCH-20551" }
+            },
+            {
+              "title": "SEIKO MATSUDA 2021",
+              "aliases": ["Seiko Matsuda 2021", "続・40周年記念アルバム SEIKO MATSUDA 2021"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2021-10-20",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": "2021-10-20", "physicalCdCatalogNumber": "UPCH-20591" }
+            }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "裸足の季節", "category": "SINGLE", "originalReleaseDate": "1980-04-01" },
+        { "title": "赤いスイートピー", "category": "SINGLE" },
+        { "title": "あの輝いた季節", "category": "SINGLE" },
+        { "title": "SQUALL", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1980-08-01" },
+        { "title": "Citron", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1988-05-11" },
+        { "title": "Shining Star", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2016-06-08" },
+        { "title": "SEIKO MATSUDA 2021", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2021-10-20" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "SEIKO STORY ～80's HITS COLLECTION～",
+          "aliases": ["SEIKO STORY 80's HITS COLLECTION"],
+          "disallowedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+          "reason": "Hit compilation, not an original album."
+        },
+        {
+          "title": "SEIKO JAZZ",
+          "disallowedCategories": ["ORIGINAL_ALBUM"],
+          "reason": "Separately branded jazz standards project outside the label-numbered original pop-album canon."
+        },
+        {
+          "title": "Guardian Angel",
+          "disallowedCategories": ["ORIGINAL_ALBUM"],
+          "reason": "English-language ballad cover collection outside the published numbered original-album canon."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "historical-minimum",
+          "description": "The official counts are dated lower bounds. Newer legitimate works must not fail an exact-count assertion."
+        },
+        {
+          "kind": "label-numbered-canon",
+          "description": "Do not infer original-album membership from track composition alone. Sony explicitly includes Eternal, Sweet Memories '93, and Eternal II in its 32-title original-album catalog, while SEIKO JAZZ and Guardian Angel remain outside the numbered canon; Universal likewise classifies the mixed new-song/self-cover SEIKO MATSUDA 2020 as an original anniversary album."
+        },
+        {
+          "kind": "multi-territory-catalog",
+          "description": "The numbered canon includes SEIKO-name international albums and the Taiwan-only physical album I'll fall in love 愛的禮物; absence from the Japanese year-index page is not negative proof."
+        }
+      ]
+    },
+    {
+      "slug": "akina-nakamori",
+      "artist": {
+        "canonicalName": "中森明菜",
+        "aliases": ["Akina Nakamori"],
+        "country": "JP",
+        "musicbrainzArtistId": "9f18e7f6-08e8-4b85-a5d9-070a60ee522a"
+      },
+      "catalogStatus": "active",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+        "note": "Current Japanese official numbered-single catalog with a separately audited ORIGINAL_CD carrier scope, plus the 25 original studio albums released through 2017. Cross-label compilations, covers, live albums, mini-albums, and reissues are outside the original-album count; a compilation track appearance alone is not a CD edition of a canonical single work."
+      },
+      "baselines": [
+        {
+          "category": "SINGLE",
+          "kind": "minimum",
+          "expected": 54,
+          "officialCatalogTotal": 55,
+          "asOf": "2026-07-01",
+          "snapshotVerifiedAt": "2026-07-13",
+          "finalSnapshotKind": "exact",
+          "latestAuthorityAnchor": {
+            "title": "ごめんと、すきと、",
+            "category": "SINGLE",
+            "originalReleaseDate": "2026-07-01",
+            "sourceUrl": "https://wmg.jp/akina/discography/33083/"
+          },
+          "scopeNote": "The artist's current official profile defines numbered works No.1-No.54 and Warner identifies ごめんと、すきと、 as No.55. ORIGINAL_CD scope contains 54 works: Crazy Love is the sole DIGITAL_ONLY exclusion, and its later appearance as a track on a compilation CD does not constitute a CD edition of the canonical single work. Warner's official Singles Box preserves complete single A/B programs: DISC7 jointly covers the distinct No.7 and No.11 北ウイング programs (a shared carrier must not merge their workIds), while DISC18 is a dedicated replica of the cassette-origin ノンフィクション エクスタシー. It's brand new day debuted by digital distribution on 2001-05-31 and received the exact NNCC-10001 CD on 2001-07-10. The artist profile currently renders historical dates one calendar day before the Japanese label street dates, so its ordinals and titles are combined here with label and bibliographic release dates. Future releases increase the official total.",
+          "sources": [
+            {
+              "url": "https://akinanakamoriofficial.com/news/5_rz9bj72j5/",
+              "authority": "artist-official-current-announcement",
+              "note": "The current official announcement identifies the 2026 physical release ごめんと、すきと、 in the artist's numbered single sequence."
+            },
+            {
+              "url": "https://akinanakamoriofficial.com/profile/",
+              "authority": "artist-official",
+              "note": "The current official artist profile supplies the ordered No.1-No.54 single canon; label and bibliographic records supply the Japanese street dates because the profile presently renders them one day early."
+            },
+            {
+              "url": "https://wmg.jp/akina/discography/33083/",
+              "authority": "record-label",
+              "note": "Warner's product page identifies ごめんと、すきと、 as the 55th single and documents its 2026-07-01 CD release and WPCL-13771 catalog number."
+            },
+            {
+              "url": "https://wmg.jp/akina/discography/11915/",
+              "authority": "record-label",
+              "note": "Warner's 28-CD Singles Box preserves complete single programs, including the shared No.7/No.11 DISC7 program and the dedicated ノンフィクション エクスタシー DISC18."
+            },
+            {
+              "url": "https://wmg.jp/akina/discography/23976/",
+              "authority": "record-label",
+              "note": "Warner's complete analog collection documents the original 1982-1991 carrier mix and identifies the three late catalog works originally issued as CD singles."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/nakamori-akina/products/upch-1990/",
+              "authority": "record-label",
+              "note": "Universal explicitly calls Crazy Love a digital single. Its inclusion on this later best-of CD is track evidence only, not a physical edition of the single work."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/nakamori-akina/discography/cat/single/",
+              "authority": "record-label",
+              "note": "Universal's official single catalog supplies CD MAXI formats, dates, and catalog numbers for its surviving product pages."
+            },
+            {
+              "url": "https://www.oricon.co.jp/prof/235370/products/single/",
+              "authority": "industry-chart",
+              "note": "Oricon's product catalog supplies exact physical-CD product records for legacy label pages no longer retained by Universal."
+            },
+            {
+              "url": "https://musicbrainz.org/release/71873e32-972d-4359-8071-745061c39119",
+              "authority": "structured-discography",
+              "note": "The exact NNCC-10001 release record documents the later 2001-07-10 CD edition of the digital-first It's brand new day single."
+            }
+          ],
+          "expectedWorks": [
+            {
+              "title": "スローモーション",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-05-01",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "少女A",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-07-28",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "セカンド・ラブ",
+              "category": "SINGLE",
+              "originalReleaseDate": "1982-11-10",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "1/2の神話",
+              "aliases": ["½の神話"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-02-23",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "トワイライト -夕暮れ便り-",
+              "aliases": ["トワイライト-夕暮れ便り-", "トワイライト"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-06-01",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "禁区",
+              "category": "SINGLE",
+              "originalReleaseDate": "1983-09-07",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "北ウイング",
+              "aliases": ["北ウィング", "Kita Wing"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-01-01",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "サザン・ウインド",
+              "aliases": ["サザン・ウィンド", "Southern Wind"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-04-11",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "十戒（1984）",
+              "aliases": ["十戒(1984)", "十戒 1984"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-07-25",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "飾りじゃないのよ涙は",
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-11-14",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "北ウイング／リ・フ・レ・イ・ン",
+              "aliases": ["北ウイング / リ・フ・レ・イ・ン", "北ウイング リ・フ・レ・イ・ン"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1984-12-15",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "ミ・アモーレ",
+              "aliases": ["ミ・アモーレ[Meu amor e...]", "ミ・アモーレ[Meu amor é…]", "Meu amor e", "Mi Amore"],
+              "artistCredits": ["Akina"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-03-08",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "赤い鳥逃げた",
+              "aliases": ["Akaitori Nigeta"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-05-01",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "SAND BEIGE -砂漠へ-",
+              "aliases": ["SAND BEIGE～砂漠へ～", "SAND BEIGE 砂漠へ"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-06-19",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "SOLITUDE",
+              "category": "SINGLE",
+              "originalReleaseDate": "1985-10-09",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "DESIRE -情熱-",
+              "aliases": ["DESIRE-情熱-", "DESIRE 情熱", "Desire"],
+              "artistCredits": ["明菜", "Akina"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1986-02-03",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "ジプシー・クイーン",
+              "category": "SINGLE",
+              "originalReleaseDate": "1986-05-26",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "Fin",
+              "category": "SINGLE",
+              "originalReleaseDate": "1986-09-25",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "ノンフィクション エクスタシー",
+              "aliases": ["ノンフィクション・エクスタシー"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1986-11-10",
+              "mediaScope": { "originalFormats": ["CASSETTE"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "TANGO NOIR",
+              "aliases": ["TANGO NOIR（タンゴ ノアール）", "タンゴ ノアール"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1987-02-04",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "BLONDE",
+              "category": "SINGLE",
+              "originalReleaseDate": "1987-06-03",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "難破船",
+              "category": "SINGLE",
+              "originalReleaseDate": "1987-09-30",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11915/"], "physicalCdReleaseDate": "2014-06-18", "physicalCdCatalogNumber": "WPCL-11871/98", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "Singles Box 1982-1991" }
+            },
+            {
+              "title": "AL-MAUJ（アルマージ）",
+              "aliases": ["AL-MAUJ", "アルマージ", "آلموج"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1988-01-27",
+              "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008924419"], "physicalCdReleaseDate": "1988-02-25", "physicalCdCatalogNumber": "10SL-100" }
+            },
+            {
+              "title": "TATTOO",
+              "category": "SINGLE",
+              "originalReleaseDate": "1988-05-18",
+              "mediaScope": { "originalFormats": ["VINYL", "CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008924418"], "physicalCdReleaseDate": "1988-05-18", "physicalCdCatalogNumber": "10SL-13" }
+            },
+            {
+              "title": "I MISSED \"THE SHOCK\"",
+              "aliases": ["I MISSED “THE SHOCK”", "I MISSED THE SHOCK"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1988-11-01",
+              "mediaScope": { "originalFormats": ["VINYL", "CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008924420"], "physicalCdReleaseDate": "1988-11-01", "physicalCdCatalogNumber": "10L3-4030" }
+            },
+            {
+              "title": "LIAR",
+              "category": "SINGLE",
+              "originalReleaseDate": "1989-04-25",
+              "mediaScope": { "originalFormats": ["VINYL", "CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://musicbrainz.org/release/f431289c-d0a5-4907-8704-34781bf26a59"], "physicalCdReleaseDate": "1989-04-25", "physicalCdCatalogNumber": "09L3-4070" }
+            },
+            {
+              "title": "Dear Friend",
+              "category": "SINGLE",
+              "originalReleaseDate": "1990-07-17",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/23976/", "https://musicbrainz.org/release/2f1b9983-a65e-4bd8-9338-7ec0702d3960"], "physicalCdReleaseDate": "1990-07-17", "physicalCdCatalogNumber": "WPDL-4173" }
+            },
+            {
+              "title": "水に挿した花",
+              "category": "SINGLE",
+              "originalReleaseDate": "1990-11-06",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/23976/", "https://musicbrainz.org/release/dad98d8e-56fa-471d-b457-583c5eaccf1b"], "physicalCdReleaseDate": "1990-11-06", "physicalCdCatalogNumber": "WPDL-4190" }
+            },
+            {
+              "title": "二人静 -「天河伝説殺人事件」より",
+              "aliases": ["二人静", "二人静 -天河伝説殺人事件より-"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1991-03-25",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/23976/", "https://musicbrainz.org/release/56af7027-1efd-45fc-a41f-b062e103740b"], "physicalCdReleaseDate": "1991-03-25", "physicalCdCatalogNumber": "WPDL-4229" }
+            },
+            {
+              "title": "Everlasting Love／NOT CRAZY TO ME",
+              "aliases": ["Everlasting Love / NOT CRAZY TO ME", "Everlasting Love", "NOT CRAZY TO ME"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1993-05-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008992464"], "physicalCdReleaseDate": "1993-05-21", "physicalCdCatalogNumber": "MVDD-10001" }
+            },
+            {
+              "title": "片想い／愛撫",
+              "aliases": ["片想い / 愛撫", "片想い", "愛撫"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1994-03-24",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://musicbrainz.org/release/a7d708fc-735e-4f71-b6fd-a9310037b3d0"], "physicalCdReleaseDate": "1994-03-24", "physicalCdCatalogNumber": "MVDD-10004" }
+            },
+            {
+              "title": "夜のどこかで 〜night shift〜",
+              "aliases": ["夜のどこかで ～night shift～", "夜のどこかで~night shift~", "夜のどこかで"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1994-09-02",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009059584"], "physicalCdReleaseDate": "1994-09-02", "physicalCdCatalogNumber": "MVDD-10007" }
+            },
+            {
+              "title": "月華",
+              "artistCredits": ["Nakamori Akina"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1994-10-05",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009059652"], "physicalCdReleaseDate": "1994-10-05", "physicalCdCatalogNumber": "MVDD-10009" }
+            },
+            {
+              "title": "原始、女は太陽だった",
+              "category": "SINGLE",
+              "originalReleaseDate": "1995-06-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008999951"], "physicalCdReleaseDate": "1995-06-21", "physicalCdCatalogNumber": "MVDD-10014" }
+            },
+            {
+              "title": "Tokyo Rose",
+              "aliases": ["TOKYO ROSE"],
+              "artistCredits": ["Akina"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1995-11-01",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009001360"], "physicalCdReleaseDate": "1995-11-01", "physicalCdCatalogNumber": "MVDD-10017" }
+            },
+            {
+              "title": "MOONLIGHT SHADOW 〜月に吠えろ〜",
+              "aliases": ["MOONLIGHT SHADOW～月に吠えろ～", "MOONLIGHT SHADOW -月に吠えろ-", "MOONLIGHT SHADOW"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1996-08-07",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008959368"], "physicalCdReleaseDate": "1996-08-07", "physicalCdCatalogNumber": "MVDD-10024" }
+            },
+            {
+              "title": "APPETITE",
+              "artistCredits": ["Nakamori Akina"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1997-02-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000008965781"], "physicalCdReleaseDate": "1997-02-21", "physicalCdCatalogNumber": "MVDD-10027" }
+            },
+            {
+              "title": "帰省 〜Never Forget〜",
+              "aliases": ["帰省 ～Never Forget～", "帰省~Never Forget~", "帰省"],
+              "category": "SINGLE",
+              "originalReleaseDate": "1998-02-11",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009061321"], "physicalCdReleaseDate": "1998-02-11", "physicalCdCatalogNumber": "GRDO-10" }
+            },
+            {
+              "title": "今夜、流れ星",
+              "category": "SINGLE",
+              "originalReleaseDate": "1998-05-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009010405"], "physicalCdReleaseDate": "1998-05-21", "physicalCdCatalogNumber": "GRDO-11" }
+            },
+            {
+              "title": "とまどい",
+              "category": "SINGLE",
+              "originalReleaseDate": "1998-09-23",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009061700"], "physicalCdReleaseDate": "1998-09-23", "physicalCdCatalogNumber": "GRDO-14" }
+            },
+            {
+              "title": "オフェリア",
+              "category": "SINGLE",
+              "originalReleaseDate": "1999-01-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009062039"], "physicalCdReleaseDate": "1999-01-21", "physicalCdCatalogNumber": "GRDO-21" }
+            },
+            {
+              "title": "Trust Me",
+              "category": "SINGLE",
+              "originalReleaseDate": "1999-12-01",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://ndlsearch.ndl.go.jp/books/R100000002-I000009027632"], "physicalCdReleaseDate": "1999-12-01", "physicalCdCatalogNumber": "GRDO-24" }
+            },
+            {
+              "title": "It's brand new day",
+              "aliases": ["It’s brand new day"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2001-05-31",
+              "mediaScope": { "originalFormats": ["DIGITAL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://musicbrainz.org/release/71873e32-972d-4359-8071-745061c39119"], "physicalCdReleaseDate": "2001-07-10", "physicalCdCatalogNumber": "NNCC-10001" }
+            },
+            {
+              "title": "The Heat 〜musica fiesta〜",
+              "aliases": ["The Heat~musica fiesta~", "The Heat -musica fiesta-"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2002-05-02",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-5060/"], "physicalCdReleaseDate": "2002-05-02", "physicalCdCatalogNumber": "UMCK-5060" }
+            },
+            {
+              "title": "Days",
+              "category": "SINGLE",
+              "originalReleaseDate": "2003-04-30",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-5094/"], "physicalCdReleaseDate": "2003-04-30", "physicalCdCatalogNumber": "UMCK-5094" }
+            },
+            {
+              "title": "赤い花",
+              "category": "SINGLE",
+              "originalReleaseDate": "2004-05-12",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.oricon.co.jp/prof/235370/products/543255/1/"], "physicalCdReleaseDate": "2004-05-12", "physicalCdCatalogNumber": "POCE-3600" }
+            },
+            {
+              "title": "初めて出逢った日のように",
+              "category": "SINGLE",
+              "originalReleaseDate": "2004-07-07",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.oricon.co.jp/prof/235370/products/557022/1/"], "physicalCdReleaseDate": "2004-07-07", "physicalCdCatalogNumber": "POCE-3601" }
+            },
+            {
+              "title": "落花流水",
+              "category": "SINGLE",
+              "originalReleaseDate": "2005-12-07",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-5136/"], "physicalCdReleaseDate": "2005-12-07", "physicalCdCatalogNumber": "UMCK-5136" }
+            },
+            {
+              "title": "花よ踊れ",
+              "category": "SINGLE",
+              "originalReleaseDate": "2006-05-17",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-5143/"], "physicalCdReleaseDate": "2006-05-17", "physicalCdCatalogNumber": "UMCK-5143" }
+            },
+            {
+              "title": "DIVA",
+              "aliases": ["DIVA Single Version"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2009-09-23",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-5257/"], "physicalCdReleaseDate": "2009-09-23", "physicalCdCatalogNumber": "UMCK-5257" }
+            },
+            {
+              "title": "Crazy Love",
+              "category": "SINGLE",
+              "originalReleaseDate": "2010-07-13",
+              "mediaScope": { "originalFormats": ["DIGITAL"], "physicalCd": "NONE", "physicalCdAuthorityUrls": [], "physicalCdReleaseDate": null, "physicalCdCatalogNumber": null, "exclusionReason": "DIGITAL_ONLY" }
+            },
+            {
+              "title": "Rojo -Tierra-",
+              "aliases": ["Rojo Tierra"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2015-01-21",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/upch-5833/"], "physicalCdReleaseDate": "2015-01-21", "physicalCdCatalogNumber": "UPCH-5833" }
+            },
+            {
+              "title": "unfixable",
+              "aliases": ["アンフィクサブル"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2015-09-30",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/upch-5853/"], "physicalCdReleaseDate": "2015-09-30", "physicalCdCatalogNumber": "UPCH-5853" }
+            },
+            {
+              "title": "ひらり -SAKURA-／FIXER -WHILE THE WOMEN ARE SLEEPING-",
+              "aliases": ["ひらり-SAKURA- / FIXER -WHILE THE WOMEN ARE SLEEPING-", "ひらり -SAKURA-", "FIXER -WHILE THE WOMEN ARE SLEEPING-"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2016-02-24",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/upch-5870/"], "physicalCdReleaseDate": "2016-02-24", "physicalCdCatalogNumber": "UPCH-5870" }
+            },
+            {
+              "title": "ごめんと、すきと、",
+              "aliases": ["ごめんと、すきと"],
+              "category": "SINGLE",
+              "originalReleaseDate": "2026-07-01",
+              "mediaScope": { "originalFormats": ["CD"], "physicalCd": "ORIGINAL_RELEASE", "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/33083/"], "physicalCdReleaseDate": "2026-07-01", "physicalCdCatalogNumber": "WPCL-13771" }
+            }
+          ]
+        },
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "minimum",
+          "expected": 25,
+          "asOf": "2017-11-08",
+          "snapshotVerifiedAt": "2026-07-13",
+          "finalSnapshotKind": "exact",
+          "latestAuthorityAnchor": {
+            "title": "明菜",
+            "category": "ORIGINAL_ALBUM",
+            "originalReleaseDate": "2017-11-08",
+            "sourceUrl": "https://www.universal-music.co.jp/nakamori-akina/news/2017-08-30-1/"
+          },
+          "scopeNote": "Cross-label original studio albums only: Warner explicitly identifies the first-through-CRUISE studio-album canon as 14 works; Universal's original-album campaign identifies nine later works; Tokuma's official catalog preserves SPOON and will. The 2017 original album 明菜 brings the dated lower bound to 25.",
+          "sources": [
+            {
+              "url": "https://wmg.jp/akina/news/",
+              "authority": "record-label-current-catalog",
+              "note": "Warner's current news/catalog was checked on 2026-07-13; AKINA NOTE is presented as a selection project, not a 26th original album."
+            },
+            {
+              "url": "https://wmg.jp/akina/discography/11264/",
+              "authority": "record-label",
+              "note": "Warner states that the catalog from the first album through CRUISE comprises 14 studio albums and supplies CRUISE's original date."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/nakamori-akina/products/upjy-9337/",
+              "authority": "record-label",
+              "note": "Universal's official original-album vinyl campaign enumerates its nine canonical original albums: UNBALANCE+BALANCE, la alteracion, SHAKER, Resonancia, I hope so, DESTINATION, DIVA, FIXER, and 明菜."
+            },
+            {
+              "url": "https://www.tkma.co.jp/release_detail/id=5426",
+              "authority": "record-label",
+              "note": "Tokuma's official catalog preserves the SPOON album identity and CD track program."
+            },
+            {
+              "url": "https://www.tkma.co.jp/release_detail/id=5427",
+              "authority": "record-label",
+              "note": "Tokuma's official catalog preserves the will album identity and CD track program."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/nakamori-akina/news/2017-08-30-1/",
+              "authority": "record-label",
+              "note": "Universal identifies 明菜 as an original album released on 2017-11-08, distinct from the same-day cover album Cage."
+            }
+          ],
+          "expectedWorks": [
+            {
+              "title": "プロローグ〈序幕〉",
+              "aliases": ["プロローグ <序幕>", "プロローグ 序幕", "プロローグ〈序幕〉 AKINA NAKAMORI FIRST", "Prologue"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1982-07-01",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11251/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11722"
+              }
+            },
+            {
+              "title": "バリエーション〈変奏曲〉",
+              "aliases": ["バリエーション <変奏曲>", "バリエーション 変奏曲", "バリエーション〈変奏曲〉 AKINA NAKAMORI SECOND", "Variation"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1982-10-27",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11252/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11723"
+              }
+            },
+            {
+              "title": "ファンタジー〈幻想曲〉",
+              "aliases": ["ファンタジー <幻想曲>", "ファンタジー 幻想曲", "ファンタジー〈幻想曲〉 AKINA NAKAMORI THIRD", "Fantasy"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1983-03-23",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11253/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11724"
+              }
+            },
+            {
+              "title": "NEW AKINA エトランゼ",
+              "aliases": ["NEW AKINA エトランゼ AKINA NAKAMORI 4TH ALBUM", "NEW AKINA ETRANGER", "New Akina Etranger"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1983-08-10",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11254/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11725"
+              }
+            },
+            {
+              "title": "ANNIVERSARY",
+              "aliases": ["ANNIVERSARY FROM NEW YORK AND NASSAU", "ANNIVERSARY FROM NEW YORK AND NASSAU AKINA NAKAMORI 6TH ALBUM"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1984-05-01",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11255/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11726"
+              }
+            },
+            {
+              "title": "POSSIBILITY",
+              "aliases": ["POSSIBILITY AKINA NAKAMORI 7TH ALBUM"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1984-10-10",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11256/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11727"
+              }
+            },
+            {
+              "title": "BITTER AND SWEET",
+              "aliases": ["BITTER & SWEET", "Bitter and Sweet", "BITTER AND SWEET AKINA NAKAMORI 8TH ALBUM"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1985-04-03",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11257/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11728"
+              }
+            },
+            {
+              "title": "D404ME",
+              "aliases": ["D404 ME"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1985-08-10",
+              "mediaScope": {
+                "originalFormats": ["VINYL", "CASSETTE"],
+                "physicalCd": "LATER_OFFICIAL_EDITION",
+                "physicalCdAuthorityUrls": ["https://wmg.jp/akina/discography/11258/"],
+                "physicalCdReleaseDate": "2014-01-29",
+                "physicalCdCatalogNumber": "WPCL-11729"
+              }
+            },
+            {
+              "title": "不思議",
+              "aliases": ["Fushigi"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1986-08-11",
+              "mediaScope": {
+                "originalFormats": ["CD", "VINYL", "CASSETTE"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1986-08-11",
+                "physicalCdCatalogNumber": "32XL-155"
+              }
+            },
+            {
+              "title": "CRIMSON",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1986-12-24",
+              "mediaScope": {
+                "originalFormats": ["CD", "VINYL", "CASSETTE"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1986-12-24",
+                "physicalCdCatalogNumber": "32XL-190"
+              }
+            },
+            {
+              "title": "Cross My Palm",
+              "aliases": ["CROSS MY PALM"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1987-08-25",
+              "mediaScope": {
+                "originalFormats": ["CD", "VINYL", "CASSETTE"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1987-08-25",
+                "physicalCdCatalogNumber": "32XL-192"
+              }
+            },
+            {
+              "title": "Stock",
+              "aliases": ["STOCK"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1988-03-03",
+              "mediaScope": {
+                "originalFormats": ["CD", "VINYL", "CASSETTE"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1988-03-03",
+                "physicalCdCatalogNumber": "32XL-193"
+              }
+            },
+            {
+              "title": "Femme Fatale",
+              "aliases": ["FEMME FATALE"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1988-08-03",
+              "mediaScope": {
+                "originalFormats": ["CD", "VINYL", "CASSETTE"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1988-08-03",
+                "physicalCdCatalogNumber": "32XL-195"
+              }
+            },
+            {
+              "title": "CRUISE",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1989-07-25",
+              "mediaScope": {
+                "originalFormats": ["CD", "VINYL", "CASSETTE"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1989-07-25",
+                "physicalCdCatalogNumber": "29L2-80"
+              }
+            },
+            {
+              "title": "UNBALANCE+BALANCE",
+              "aliases": ["UNBALANCE + BALANCE", "アンバランス+バランス"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1993-09-22",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1993-09-22",
+                "physicalCdCatalogNumber": "MVCD-9"
+              }
+            },
+            {
+              "title": "la alteración",
+              "aliases": ["la alteracion", "アルテラシオン"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1995-07-21",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1995-07-21",
+                "physicalCdCatalogNumber": "MVCD-25"
+              }
+            },
+            {
+              "title": "SHAKER",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1997-03-21",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1997-03-21",
+                "physicalCdCatalogNumber": "MVCD-38"
+              }
+            },
+            {
+              "title": "SPOON",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1998-06-17",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1998-06-17",
+                "physicalCdCatalogNumber": "GRCO-3001"
+              }
+            },
+            {
+              "title": "will",
+              "aliases": ["Will"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "1999-12-01",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "1999-12-01",
+                "physicalCdCatalogNumber": "GRCO-3003"
+              }
+            },
+            {
+              "title": "Resonancia",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2002-05-22",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "2002-05-22",
+                "physicalCdCatalogNumber": "UMCK-1111"
+              }
+            },
+            {
+              "title": "I hope so",
+              "aliases": ["I Hope So", "I hope so ～バラード・アルバム～", "I hope so -バラード・アルバム-"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2003-05-14",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-1162/"],
+                "physicalCdReleaseDate": "2003-05-14",
+                "physicalCdCatalogNumber": "UMCK-1162"
+              }
+            },
+            {
+              "title": "DESTINATION",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2006-06-21",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-1209/"],
+                "physicalCdReleaseDate": "2006-06-21",
+                "physicalCdCatalogNumber": "UMCK-1209"
+              }
+            },
+            {
+              "title": "DIVA",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2009-08-26",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/umck-1331/"],
+                "physicalCdReleaseDate": "2009-08-26",
+                "physicalCdCatalogNumber": "UMCK-1331"
+              }
+            },
+            {
+              "title": "FIXER",
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2015-12-30",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": ["https://www.universal-music.co.jp/nakamori-akina/products/upch-2068/"],
+                "physicalCdReleaseDate": "2015-12-30",
+                "physicalCdCatalogNumber": "UPCH-2068"
+              }
+            },
+            {
+              "title": "明菜",
+              "aliases": ["Akina"],
+              "category": "ORIGINAL_ALBUM",
+              "originalReleaseDate": "2017-11-08",
+              "mediaScope": {
+                "originalFormats": ["CD"],
+                "physicalCd": "ORIGINAL_RELEASE",
+                "physicalCdAuthorityUrls": [],
+                "physicalCdReleaseDate": "2017-11-08",
+                "physicalCdCatalogNumber": "UPCH-2140"
+              }
+            }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "スローモーション", "category": "SINGLE", "originalReleaseDate": "1982-05-01" },
+        { "title": "DESIRE -情熱-", "aliases": ["DESIRE 情熱"], "category": "SINGLE" },
+        { "title": "unfixable", "category": "SINGLE" },
+        { "title": "ごめんと、すきと、", "aliases": ["ごめんと、すきと"], "category": "SINGLE", "originalReleaseDate": "2026-07-01" },
+        { "title": "プロローグ〈序幕〉", "aliases": ["プロローグ 序幕"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1982-07-01" },
+        { "title": "Resonancia", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2002-05-22" },
+        { "title": "明菜", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2017-11-08" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "BEST FINGER 25th anniversary selection",
+          "disallowedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+          "reason": "Compilation album, not a single work."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "multi-edition-current-release",
+          "description": "The deluxe and regular CDs for ごめんと、すきと、 are two editions of one 55th single work."
+        },
+        {
+          "kind": "cross-label-catalog",
+          "description": "Do not use one label's current product page as a completeness veto for releases owned by other labels."
+        }
+      ]
+    },
+    {
+      "slug": "kyoko-koizumi",
+      "artist": {
+        "canonicalName": "小泉今日子",
+        "aliases": ["Kyoko Koizumi", "KYON2", "Kyon Kyon"],
+        "country": "JP",
+        "musicbrainzArtistId": "52af6a73-d1f9-4b74-923d-4a790938f4c3"
+      },
+      "catalogStatus": "active",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["SINGLE"],
+        "note": "Japanese CD/physical single works through the official 1982-2017 complete set. Digital-only later releases are outside ORIGINAL_CD scope."
+      },
+      "baselines": [
+        {
+          "category": "SINGLE",
+          "kind": "minimum",
+          "expected": 50,
+          "asOf": "2017-05-17",
+          "scopeNote": "Victor's complete 50-single set through 2017. The 2026 digital-only single バディ is intentionally excluded from ORIGINAL_CD.",
+          "sources": [
+            {
+              "url": "https://www.jvcmusic.co.jp/-/News/A000330/85.html",
+              "authority": "record-label",
+              "note": "Victor describes the 1982-2017 complete single best as all 50 singles."
+            }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "私の16才", "category": "SINGLE", "originalReleaseDate": "1982-03-21" },
+        { "title": "なんてったってアイドル", "category": "SINGLE", "originalReleaseDate": "1985-11-21" },
+        { "title": "100%", "category": "SINGLE" },
+        { "title": "T字路", "category": "SINGLE" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "コイズミクロニクル～コンプリートシングルベスト1982-2017～",
+          "aliases": ["コイズミクロニクル"],
+          "disallowedCategories": ["SINGLE"],
+          "reason": "Compilation box containing singles, not a new single work."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "collaboration-credit",
+          "description": "T字路 and 潮騒のメモリー use collaboration/character credits. Credit differences require classification, not automatic rejection."
+        },
+        {
+          "kind": "digital-out-of-scope",
+          "description": "The 2026 single バディ is a valid digital release, but it must remain OUT_OF_SCOPE for ORIGINAL_CD rather than being disguised as a CD."
+        }
+      ]
+    },
+    {
+      "slug": "momoe-yamaguchi",
+      "artist": {
+        "canonicalName": "山口百恵",
+        "aliases": ["Momoe Yamaguchi"],
+        "country": "JP",
+        "musicbrainzArtistId": "85c1ff8e-b819-416d-9b73-5be468f7211a"
+      },
+      "catalogStatus": "fixed",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+        "note": "Canonical single works and the 22 original albums; soundtrack, live, project, compilation, and reissue products are outside the core count."
+      },
+      "baselines": [
+        {
+          "category": "SINGLE",
+          "kind": "exact",
+          "expected": 32,
+          "asOf": "2015-02-11",
+          "scopeNote": "Sony explicitly identifies and lists the A/B-side program for all 32 singles, plus one separate promotional single.",
+          "sources": [
+            {
+              "url": "https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295",
+              "authority": "record-label",
+              "note": "Official release text: 全シングル32枚とプロモーション用シングル; the ordered 65-title program is published on the same page."
+            }
+          ],
+          "expectedWorks": [
+            { "title": "としごろ", "aliases": ["としごろ -人にめざめる14才-", "人にめざめる14才 としごろ"], "category": "SINGLE", "originalReleaseDate": "1973-05-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "青い果実", "category": "SINGLE", "originalReleaseDate": "1973-09-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "禁じられた遊び", "category": "SINGLE", "originalReleaseDate": "1973-11-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "春風のいたずら", "category": "SINGLE", "originalReleaseDate": "1974-03-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "ひと夏の経験", "category": "SINGLE", "originalReleaseDate": "1974-06-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "ちっぽけな感傷", "category": "SINGLE", "originalReleaseDate": "1974-09-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "冬の色", "category": "SINGLE", "originalReleaseDate": "1974-12-10", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "湖の決心", "category": "SINGLE", "originalReleaseDate": "1975-03-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "夏ひらく青春", "category": "SINGLE", "originalReleaseDate": "1975-06-10", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "ささやかな欲望", "category": "SINGLE", "originalReleaseDate": "1975-09-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "白い約束", "category": "SINGLE", "originalReleaseDate": "1975-12-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "愛に走って", "category": "SINGLE", "originalReleaseDate": "1976-03-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "横須賀ストーリー", "category": "SINGLE", "originalReleaseDate": "1976-06-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "パールカラーにゆれて", "category": "SINGLE", "originalReleaseDate": "1976-09-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "赤い衝撃", "category": "SINGLE", "originalReleaseDate": "1976-11-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "初恋草紙", "category": "SINGLE", "originalReleaseDate": "1977-01-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "夢先案内人", "category": "SINGLE", "originalReleaseDate": "1977-04-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "イミテイション・ゴールド", "category": "SINGLE", "originalReleaseDate": "1977-07-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "秋桜", "category": "SINGLE", "originalReleaseDate": "1977-10-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "赤い絆 (レッド・センセーション)", "aliases": ["赤い絆", "赤い絆 レッド・センセーション"], "category": "SINGLE", "originalReleaseDate": "1977-12-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "乙女座 宮", "category": "SINGLE", "originalReleaseDate": "1978-02-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "プレイバック part 2", "aliases": ["プレイバックPart2", "プレイバック Part 2"], "category": "SINGLE", "originalReleaseDate": "1978-05-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "絶体絶命", "category": "SINGLE", "originalReleaseDate": "1978-08-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "いい日 旅立ち", "aliases": ["いい日旅立ち"], "category": "SINGLE", "originalReleaseDate": "1978-11-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "美・サイレント", "category": "SINGLE", "originalReleaseDate": "1979-03-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "愛の嵐", "category": "SINGLE", "originalReleaseDate": "1979-06-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "しなやかに歌って－80年代に向って－", "aliases": ["しなやかに歌って", "しなやかに歌って 80年代に向って"], "category": "SINGLE", "originalReleaseDate": "1979-09-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "愛染橋", "category": "SINGLE", "originalReleaseDate": "1979-12-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "謝肉祭", "category": "SINGLE", "originalReleaseDate": "1980-03-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "ロックンロール・ウィドウ", "category": "SINGLE", "originalReleaseDate": "1980-05-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "さよならの向う側", "category": "SINGLE", "originalReleaseDate": "1980-08-21", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } },
+            { "title": "一恵", "category": "SINGLE", "originalReleaseDate": "1980-11-19", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-30295"], "physicalCdReleaseDate": "2015-02-11", "physicalCdCatalogNumber": "MHCL-30295～30298", "physicalCdRepresentationKind": "CONTAINER_INCLUSION", "physicalCdContainerTitle": "ゴールデン☆アイドル 山口百恵" } }
+          ]
+        },
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "exact",
+          "expected": 22,
+          "asOf": "2013-05-22",
+          "scopeNote": "Sony explicitly says the selection covers every one of the 22 original albums.",
+          "sources": [
+            {
+              "url": "https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/buy/MHCL-2270",
+              "authority": "record-label",
+              "note": "全22枚のオリジナル・アルバムからもれなく選曲."
+            }
+          ],
+          "expectedWorks": [
+            { "title": "としごろ", "aliases": ["としごろ 山口百恵ファースト・アルバム", "山口百恵ファースト・アルバム／としごろ"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1973-08-21" },
+            { "title": "青い果実／禁じられた遊び", "aliases": ["青い果実・禁じられた遊び 百恵セカンドアルバム"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1973-12-21" },
+            { "title": "15歳のテーマ 百恵の季節", "aliases": ["百恵の季節 15歳のテーマ"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1974-04-21" },
+            { "title": "15歳のテーマ ひと夏の経験", "aliases": ["ひと夏の経験 15歳のテーマ"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1974-08-01" },
+            { "title": "15才", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1974-12-10" },
+            { "title": "16才のテーマ", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1975-05-01" },
+            { "title": "ささやかな欲望", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1975-12-05" },
+            { "title": "17才のテーマ", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1976-04-21" },
+            { "title": "横須賀ストーリー", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1976-08-01" },
+            { "title": "パールカラーにゆれて", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1976-12-05" },
+            { "title": "百恵白書", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1977-05-21" },
+            { "title": "GOLDEN FLIGHT", "aliases": ["ゴールデン・フライト"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1977-08-21" },
+            { "title": "花ざかり", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1977-12-05" },
+            { "title": "COSMOS（宇宙）", "aliases": ["Cosmos(宇宙)", "COSMOS 宇宙"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1978-05-01", "mediaScope": { "originalFormats": ["VINYL"], "physicalCd": "LATER_OFFICIAL_EDITION", "physicalCdAuthorityUrls": ["https://www.sonymusic.co.jp/artist/MomoeYamaguchi/discography/SRCL-2622"], "physicalCdReleaseDate": "1993-06-21", "physicalCdCatalogNumber": "SRCL-2622" } },
+            { "title": "ドラマチック", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1978-09-01" },
+            { "title": "曼珠沙華", "aliases": ["曼珠沙華 二十才の記念碑", "二十才の記念碑 曼珠沙華"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1978-12-21" },
+            { "title": "A Face in a Vision", "aliases": ["ア・フェイス・イン・ア・ビジョン"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1979-04-01" },
+            { "title": "L.A. Blue", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1979-07-21" },
+            { "title": "春告鳥", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1980-02-01" },
+            { "title": "メビウス・ゲーム", "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1980-05-21" },
+            { "title": "不死鳥伝説", "aliases": ["不死鳥 フェニックス 伝説"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1980-08-21" },
+            { "title": "This is my trial", "aliases": ["This is my trial 私の試練", "This is my trial -私の試練-"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "1980-10-21" }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "としごろ", "aliases": ["人にめざめる１４才 としごろ"], "category": "SINGLE", "originalReleaseDate": "1973-05-21" },
+        { "title": "さよならの向う側", "category": "SINGLE" },
+        { "title": "としごろ", "aliases": ["山口百恵ファースト・アルバム／としごろ"], "category": "ORIGINAL_ALBUM" },
+        { "title": "This is my trial", "aliases": ["This is my trial 私の試練"], "category": "ORIGINAL_ALBUM" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "MOMOE PREMIUM",
+          "disallowedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+          "reason": "24-disc reissue box packaging 22 original works plus supplements, not a 23rd/24th original album."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "disc-count-not-work-count",
+          "description": "MOMOE PREMIUM has 24 discs but represents 22 original albums plus supplemental material. Never infer work count from disc count."
+        }
+      ]
+    },
+    {
+      "slug": "yumi-matsutoya",
+      "artist": {
+        "canonicalName": "松任谷由実",
+        "aliases": ["Yumi Matsutoya", "荒井由実", "Yumi Arai", "Yumi AraI"],
+        "country": "JP",
+        "musicbrainzArtistId": "0d27f48b-c8d7-464b-85e5-5a2b823436c9"
+      },
+      "catalogStatus": "active",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["ORIGINAL_ALBUM"],
+        "note": "Original albums across 荒井由実, 松任谷由実, and the styled Yumi AraI credit."
+      },
+      "baselines": [
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "minimum",
+          "expected": 40,
+          "asOf": "2025-11-18",
+          "scopeNote": "Universal identifies Wormhole / Yumi AraI as her 40th original album. Future original albums increase the total.",
+          "sources": [
+            {
+              "url": "https://www.universal-music.co.jp/matsutoya-yumi/news/2025-10-01/",
+              "authority": "record-label",
+              "note": "Official 40th Original Album announcement."
+            },
+            {
+              "url": "https://www.universal-music.co.jp/matsutoya-yumi/products/upch-20710/",
+              "authority": "record-label",
+              "note": "Official product date and one of several editions of the same work."
+            }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "ひこうき雲", "category": "ORIGINAL_ALBUM" },
+        { "title": "MISSLIM", "category": "ORIGINAL_ALBUM" },
+        { "title": "水の中のASIAへ", "aliases": ["水の中のAsiaへ"], "category": "ORIGINAL_ALBUM" },
+        { "title": "DAWN PURPLE", "category": "ORIGINAL_ALBUM" },
+        { "title": "Road Show", "category": "ORIGINAL_ALBUM" },
+        { "title": "宇宙図書館", "category": "ORIGINAL_ALBUM" },
+        { "title": "Wormhole / Yumi AraI", "aliases": ["Wormhole Yumi AraI", "Wormhole"], "category": "ORIGINAL_ALBUM", "originalReleaseDate": "2025-11-18" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "ユーミン万歳！",
+          "disallowedCategories": ["ORIGINAL_ALBUM"],
+          "reason": "50th-anniversary best album, not an original album."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "artist-alias",
+          "description": "荒井由実 and 松任谷由実 belong to one artist-level benchmark; do not split the early four albums into a different person."
+        },
+        {
+          "kind": "multi-format-edition",
+          "description": "Wormhole has regular, limited, and all-media products but is one original-album work."
+        }
+      ]
+    },
+    {
+      "slug": "teresa-teng",
+      "artist": {
+        "canonicalName": "テレサ・テン",
+        "aliases": ["Teresa Teng", "鄧麗君", "邓丽君", "鄧麗筠"],
+        "country": "TW",
+        "musicbrainzArtistId": "5c5cb762-d95e-47af-a7bf-35171eeab8e6"
+      },
+      "catalogStatus": "fixed",
+      "scope": {
+        "territory": "JP",
+        "includedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+        "note": "Universal Japan's complete Japanese single set and its 28-title original-album paper-sleeve series. Chinese-language aliases and titles must remain searchable."
+      },
+      "baselines": [
+        {
+          "category": "SINGLE",
+          "kind": "exact",
+          "expected": 30,
+          "asOf": "2017-01-25",
+          "scopeNote": "All Japanese-market singles in a 30-disc complete single box.",
+          "sources": [
+            {
+              "url": "https://www.universal-music.co.jp/teresa-teng/products/upcy-9551/",
+              "authority": "record-label",
+              "note": "Universal says 日本での全シングル盤 and lists 30 discs."
+            }
+          ]
+        },
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "exact",
+          "expected": 28,
+          "asOf": "2016-07-06",
+          "scopeNote": "Universal Japan's complete 28-title original-album paper-sleeve campaign; it includes Japanese and Chinese-language works in that official series.",
+          "sources": [
+            {
+              "url": "https://www.universal-music.co.jp/teresa-teng/products/d2ct-1067/",
+              "authority": "record-label",
+              "note": "Official campaign text: オリジナル・アルバム全28タイトル."
+            }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "今夜かしら明日かしら", "category": "SINGLE" },
+        { "title": "時の流れに身をまかせ", "category": "SINGLE" },
+        { "title": "涙の条件", "category": "SINGLE" },
+        { "title": "空港", "category": "ORIGINAL_ALBUM" },
+        { "title": "淡淡幽情", "category": "ORIGINAL_ALBUM" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "テレサ・テン シングル・コレクション",
+          "disallowedCategories": ["SINGLE", "ORIGINAL_ALBUM"],
+          "reason": "Box product containing 30 single works, not an additional work."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "multilingual-title",
+          "description": "Japanese, traditional Chinese, simplified Chinese, and romanized names must resolve to the same artist without dropping valid language-specific releases."
+        },
+        {
+          "kind": "versioned-song-title",
+          "description": "A Japanese and Mandarin recording can share a composition while remaining distinct release evidence; title translation alone is not sufficient for merging."
+        }
+      ]
+    },
+    {
+      "slug": "the-beatles",
+      "artist": {
+        "canonicalName": "The Beatles",
+        "aliases": ["Beatles", "ビートルズ", "ザ・ビートルズ"],
+        "country": "GB",
+        "musicbrainzArtistId": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d"
+      },
+      "catalogStatus": "fixed",
+      "scope": {
+        "territory": "GB",
+        "includedCategories": ["ORIGINAL_ALBUM"],
+        "note": "The official 13-album UK studio canon. US album configurations are territory-specific editions/works and must not overwrite this UK baseline."
+      },
+      "baselines": [
+        {
+          "category": "ORIGINAL_ALBUM",
+          "kind": "exact",
+          "expected": 13,
+          "asOf": "2015-12-24",
+          "scopeNote": "Official Beatles site explicitly identifies 13 U.K. studio albums.",
+          "sources": [
+            {
+              "url": "https://www.thebeatles.com/beatles-anthology-streaming-now",
+              "authority": "official-artist",
+              "note": "Official statement: The Beatles' 13 U.K. studio albums."
+            }
+          ]
+        }
+      ],
+      "requiredAnchors": [
+        { "title": "Please Please Me", "category": "ORIGINAL_ALBUM" },
+        { "title": "With the Beatles", "category": "ORIGINAL_ALBUM" },
+        { "title": "A Hard Day's Night", "category": "ORIGINAL_ALBUM" },
+        { "title": "Beatles for Sale", "category": "ORIGINAL_ALBUM" },
+        { "title": "Help!", "category": "ORIGINAL_ALBUM" },
+        { "title": "Rubber Soul", "category": "ORIGINAL_ALBUM" },
+        { "title": "Revolver", "category": "ORIGINAL_ALBUM" },
+        { "title": "Sgt. Pepper's Lonely Hearts Club Band", "aliases": ["Sgt Peppers Lonely Hearts Club Band"], "category": "ORIGINAL_ALBUM" },
+        { "title": "Magical Mystery Tour", "category": "ORIGINAL_ALBUM" },
+        { "title": "The Beatles", "aliases": ["The White Album", "White Album"], "category": "ORIGINAL_ALBUM" },
+        { "title": "Yellow Submarine", "category": "ORIGINAL_ALBUM" },
+        { "title": "Abbey Road", "category": "ORIGINAL_ALBUM" },
+        { "title": "Let It Be", "category": "ORIGINAL_ALBUM" }
+      ],
+      "negativeAnchors": [
+        {
+          "title": "The Beatles 1962-1966",
+          "aliases": ["1962-1966", "Red Album"],
+          "disallowedCategories": ["ORIGINAL_ALBUM"],
+          "reason": "Compilation, not one of the 13 UK studio albums."
+        }
+      ],
+      "editionTraps": [
+        {
+          "kind": "regional-discography",
+          "description": "The official US 13-CD set has different track lists, mixes, titles, and art. Preserve territory; do not silently merge US titles into or use them to inflate the UK 13."
+        }
+      ],
+      "comparisonSources": [
+        {
+          "url": "https://usastore.thebeatles.com/products/the-beatles-the-u-s-albums-cd-box-set",
+          "note": "Official explanation of distinct US configurations and the 13-CD US product set."
+        }
+      ]
+    }
+  ]
+}

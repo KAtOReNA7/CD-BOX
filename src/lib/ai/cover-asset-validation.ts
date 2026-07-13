@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { createHash } from "node:crypto";
 
 const DEFAULT_TIMEOUT_MS = 4_000;
 const DEFAULT_RETRY_COUNT = 2;
@@ -51,6 +52,8 @@ export type CoverAssetValidationResult = {
   imageFormat: CoverAssetImageFormat | null;
   width: number | null;
   height: number | null;
+  /** Present for a successfully downloaded image; used by acceptance duplicate detection. */
+  contentSha256?: string | null;
 };
 
 export type CoverAssetFetch = (
@@ -67,6 +70,12 @@ export type CoverAssetValidationOptions = {
   /** @deprecated Use maxBytes. Kept for compatibility with older callers. */
   probeBytes?: number;
   maxRedirects?: number;
+  /**
+   * Allows a fully decoded image to proceed when an exact, separately audited
+   * provider asset declares the wrong image MIME type. Callers must still
+   * compare the detected format, dimensions, and SHA-256 before accepting it.
+   */
+  allowImageTypeMismatch?: boolean;
   sleep?: (milliseconds: number) => Promise<void>;
 };
 
@@ -99,6 +108,12 @@ export function isAllowedCoverAssetHost(hostname: string) {
     host.endsWith(".archive.org") ||
     host === "i.discogs.com" ||
     host === "img.discogs.com" ||
+    host === "soundfuji.kingrecords.co.jp" ||
+    host === "www.110107.com" ||
+    host === "www.sonymusic.co.jp" ||
+    host === "www.seikomatsuda.co.jp" ||
+    host === "content-jp.umgi.net" ||
+    host === "wmg.jp" ||
     host === "mzstatic.com" ||
     host.endsWith(".mzstatic.com")
   );
@@ -116,17 +131,29 @@ export function isAllowedCoverAssetUrl(value: string | URL) {
   );
 }
 
-export type VerifiedCoverProvider = "cover-art-archive" | "discogs";
+export type VerifiedCoverProvider =
+  | "cover-art-archive"
+  | "discogs"
+  | "apple-music"
+  | "official-label";
 
 export function isAllowedVerifiedCoverAssetHost(
   hostname: string,
   provider: VerifiedCoverProvider,
 ) {
   const host = hostname.trim().toLowerCase().replace(/\.$/, "");
-  return provider === "cover-art-archive"
-    ? host === "coverartarchive.org" || host.endsWith(".coverartarchive.org") ||
-      host === "archive.org" || host.endsWith(".archive.org")
-    : host === "i.discogs.com" || host === "img.discogs.com";
+  if (provider === "cover-art-archive") {
+    return host === "coverartarchive.org" || host.endsWith(".coverartarchive.org") ||
+      host === "archive.org" || host.endsWith(".archive.org");
+  }
+  if (provider === "discogs") return host === "i.discogs.com" || host === "img.discogs.com";
+  if (provider === "apple-music") return host === "mzstatic.com" || host.endsWith(".mzstatic.com");
+  return host === "soundfuji.kingrecords.co.jp" ||
+    host === "www.110107.com" ||
+    host === "www.sonymusic.co.jp" ||
+    host === "www.seikomatsuda.co.jp" ||
+    host === "content-jp.umgi.net" ||
+    host === "wmg.jp";
 }
 
 export function isAllowedVerifiedCoverAssetUrl(
@@ -135,7 +162,33 @@ export function isAllowedVerifiedCoverAssetUrl(
 ) {
   const url = parseUrl(value);
   if (!url || !isAllowedCoverAssetUrl(url)) return false;
-  return isAllowedVerifiedCoverAssetHost(url.hostname, provider);
+  if (!isAllowedVerifiedCoverAssetHost(url.hostname, provider)) return false;
+  if (provider !== "official-label") return true;
+  if (url.hostname === "soundfuji.kingrecords.co.jp") {
+    return /^\/shared\/img\/(?:[A-Za-z0-9._~-]+\/)*[A-Za-z0-9._~-]+\.(?:avif|gif|jpe?g|png|webp)$/i
+      .test(url.pathname);
+  }
+  if (url.hostname === "www.110107.com") {
+    return /^\/files\/6\/OTONANO\/originalpage\/golden_idol\/img\/momoe\/[A-Za-z0-9._~-]+\.(?:jpe?g|png|webp)$/i
+      .test(url.pathname);
+  }
+  if (url.hostname === "www.seikomatsuda.co.jp") {
+    return url.pathname ===
+        "/discography/images/upload/seiko%20matsuda2020_tsujyo.jpg" ||
+      /^\/discography\/images\/upload\/[A-Za-z0-9._~-]+\.(?:gif|jpe?g|png|webp)$/i
+        .test(url.pathname);
+  }
+  if (url.hostname === "content-jp.umgi.net") {
+    return /^\/products\/(?:um|up)\/(?:umck-5257|upch-5870|upch-7267)_[A-Za-z0-9]+_extralarge\.jpe?g$/i
+      .test(url.pathname) && (!url.search || /^\?\d{8,20}$/u.test(url.search));
+  }
+  if (url.hostname === "wmg.jp") {
+    return url.pathname === "/packages/33269/images/tujyoban_jacket.jpg" &&
+      !url.search && !url.hash;
+  }
+  return url.hostname === "www.sonymusic.co.jp" &&
+    /^\/adm_image\/common\/artist_image\/(?:\d+\/)+jacket_image\/\d+(?:__\d+_\d+_\d+)?\.(?:jpe?g|png|webp)$/i
+      .test(url.pathname);
 }
 
 export function isAllowedVerifiedCoverSourceUrl(
@@ -144,9 +197,35 @@ export function isAllowedVerifiedCoverSourceUrl(
 ) {
   const url = parseUrl(value);
   if (!url || url.protocol !== "https:" || url.username || url.password || url.port) return false;
-  return provider === "cover-art-archive"
-    ? url.hostname === "coverartarchive.org" && /^\/release\/[0-9a-f-]+$/i.test(url.pathname)
-    : url.hostname === "www.discogs.com" && /^\/release\/\d+$/i.test(url.pathname);
+  if (provider === "cover-art-archive") {
+    return url.hostname === "coverartarchive.org" &&
+      /^\/(?:release|release-group)\/[0-9a-f-]+$/i.test(url.pathname);
+  }
+  if (provider === "discogs") {
+    return url.hostname === "www.discogs.com" && /^\/release\/\d+$/i.test(url.pathname);
+  }
+  if (provider === "apple-music") {
+    return (url.hostname === "music.apple.com" || url.hostname === "itunes.apple.com") &&
+      /^\/[a-z]{2}(?:\/[a-z]{2})?\/(?:album|music)\//i.test(url.pathname);
+  }
+  if (url.hostname === "soundfuji.kingrecords.co.jp") {
+    return /^\/release\/\d+\/$/i.test(url.pathname);
+  }
+  if (url.hostname === "www.110107.com") {
+    return /^\/s\/oto\/page\/golden_momoe\/?$/i.test(url.pathname);
+  }
+  if (url.hostname === "www.seikomatsuda.co.jp") {
+    return /^\/discography\/detail\/\d+\/?$/i.test(url.pathname);
+  }
+  if (url.hostname === "www.universal-music.co.jp") {
+    return /^\/nakamori-akina\/products\/(?:umck-5257|upch-5870|upch-7267)\/$/i
+      .test(url.pathname) && !url.search && !url.hash;
+  }
+  if (url.hostname === "wmg.jp") {
+    return url.pathname === "/akina/discography/33083/" && !url.search && !url.hash;
+  }
+  return url.hostname === "www.sonymusic.co.jp" &&
+    /^\/artist\/MomoeYamaguchi\/discography\/buy\/MHCL-\d+\/?$/i.test(url.pathname);
 }
 
 function result(
@@ -168,6 +247,7 @@ function result(
     imageFormat: null,
     width: null,
     height: null,
+    contentSha256: null,
     ...overrides,
   };
 }
@@ -178,7 +258,10 @@ function normalizeContentType(value: string | null) {
 }
 
 function isRetryableStatus(status: number) {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
+  // Exact cover CDNs (notably Internet Archive's CAA backing store) can issue
+  // temporary 403 responses while throttling. Treat access denial as an
+  // unavailable source, never as proof that the audited image is invalid.
+  return status === 403 || status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
 function cancelBody(response: Response) {
@@ -499,7 +582,7 @@ async function validateOnce(
   startUrl: URL,
   options: Required<Pick<
     CoverAssetValidationOptions,
-    "fetchImpl" | "timeoutMs" | "maxBytes" | "maxRedirects"
+    "fetchImpl" | "timeoutMs" | "maxBytes" | "maxRedirects" | "allowImageTypeMismatch"
   >>,
 ): Promise<AttemptResult> {
   const sourceHost = startUrl.hostname.toLowerCase();
@@ -642,7 +725,7 @@ async function validateOnce(
         width,
         height,
       };
-      if (!contentTypeMatches(format, contentType)) {
+      if (!contentTypeMatches(format, contentType) && !options.allowImageTypeMismatch) {
         return result(sourceHost, finalHost, "image-type-mismatch", {
           redirects,
           status: response.status,
@@ -688,6 +771,7 @@ async function validateOnce(
         status: response.status,
         contentType,
         bytesRead,
+        contentSha256: createHash("sha256").update(bytes).digest("hex"),
         ...imageDetails,
       });
     }
@@ -744,6 +828,7 @@ export async function validateCoverAsset(
       timeoutMs,
       maxBytes,
       maxRedirects,
+      allowImageTypeMismatch: options.allowImageTypeMismatch === true,
     });
     if (lastResult.ok || !lastResult.retryable || attempt === retryCount) {
       return { ...lastResult, attempts: attempt + 1 };

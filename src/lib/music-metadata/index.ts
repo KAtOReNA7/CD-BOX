@@ -4,6 +4,7 @@ export {
   musicMetadataClient,
 } from "@/lib/music-metadata/client";
 export {
+  classifyMusicBrainzReleaseScope,
   isWhitelistedMusicMetadataSourceUrl,
   researchArtistReleaseEvidence,
   resolveMusicMetadataCountryCode,
@@ -23,11 +24,13 @@ export type {
 export type {
   ArtistAliasEvidence,
   ArtistReleaseEvidenceBundle,
+  ArtistReleaseEditionEvidence,
   ArtistReleaseEvidenceItem,
   ArtistReleaseEvidenceResearchInput,
   ArtistReleaseEvidenceWarning,
   ArtistReleaseEvidenceWarningCode,
   ArtistReleaseResearchTarget,
+  ArtistReleaseWorkEvidence,
   CoverArtEvidence,
   MusicArtistEvidence,
   MusicMetadataPage,
@@ -37,6 +40,8 @@ export type {
   MusicMetadataWarning,
   MusicMetadataWarningCode,
   MusicReleaseEvidence,
+  MusicReleaseScopeAssessment,
+  MusicReleaseScopeVerdict,
   ReleaseLabelEvidence,
   ReleaseEvidenceItemWarning,
 } from "@/lib/music-metadata/types";

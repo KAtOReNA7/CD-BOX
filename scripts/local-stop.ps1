@@ -12,7 +12,6 @@ $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction 
 
 if ($listeners.Count -eq 0) {
   Write-Host "CD-BOX is not listening on local port $Port."
-  exit 0
 }
 
 foreach ($processId in $listeners) {
@@ -40,4 +39,29 @@ foreach ($processId in $listeners) {
       Wait-Process -Id $processId -Timeout 10 -ErrorAction SilentlyContinue
     }
   }
+}
+
+$workerPidPath = Join-Path $projectRoot (Join-Path "var" (Join-Path "run" "cover-retry-worker.pid"))
+if (Test-Path -LiteralPath $workerPidPath -PathType Leaf) {
+  $workerPidText = (Get-Content -LiteralPath $workerPidPath -ErrorAction Stop | Select-Object -First 1).Trim()
+  $workerPid = 0
+  if (-not [int]::TryParse($workerPidText, [ref]$workerPid) -or $workerPid -le 0) {
+    throw "The cover retry worker PID file is invalid. It was not used."
+  }
+  $workerProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $workerPid"
+  if ($null -ne $workerProcess) {
+    $workerCommandLine = [string]$workerProcess.CommandLine
+    $isProjectWorker = $workerProcess.Name -ieq "node.exe" -and
+      $workerCommandLine.IndexOf($projectRoot, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+      $workerCommandLine -match "run-cover-retry-worker\.ts"
+    if (-not $isProjectWorker) {
+      throw "The cover retry PID belongs to a different process. It was not stopped."
+    }
+    Write-Host "Stopping CD-BOX cover retry worker $workerPid"
+    Stop-Process -Id $workerPid
+    Wait-Process -Id $workerPid -Timeout 10 -ErrorAction SilentlyContinue
+  }
+  # local-start also removes this file in its finally block. Treat the
+  # expected shutdown race as an idempotent cleanup, not a failed stop.
+  Remove-Item -LiteralPath $workerPidPath -Force -ErrorAction SilentlyContinue
 }

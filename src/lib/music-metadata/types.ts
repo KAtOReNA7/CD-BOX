@@ -153,6 +153,31 @@ export type ArtistReleaseEvidenceItem = {
   warnings: ReleaseEvidenceItemWarning[];
 };
 
+/**
+ * Scope classification is deliberately separate from factual verification.
+ * Missing MusicBrainz fields are UNKNOWN and must remain available to later
+ * sources; only an explicit conflict with the user's requested scope may be
+ * OUT_OF_SCOPE.
+ */
+export type MusicReleaseScopeVerdict = "PASS" | "UNKNOWN" | "OUT_OF_SCOPE";
+
+export type MusicReleaseScopeAssessment = {
+  verdict: MusicReleaseScopeVerdict;
+  reasonCodes: string[];
+};
+
+export type ArtistReleaseEditionEvidence = {
+  workId: string;
+  evidence: MusicReleaseEvidence;
+  scope: MusicReleaseScopeAssessment;
+};
+
+export type ArtistReleaseWorkEvidence = {
+  workId: string;
+  releaseGroup: MusicReleaseEvidence | null;
+  editions: ArtistReleaseEditionEvidence[];
+};
+
 export type ArtistReleaseEvidenceBundle = {
   query: {
     artistName: string;
@@ -161,6 +186,12 @@ export type ArtistReleaseEvidenceBundle = {
   };
   artist: MusicArtistEvidence | null;
   releases: ArtistReleaseEvidenceItem[];
+  /** Every detailed edition fetched from MusicBrainz, including unknown and
+   * explicitly out-of-scope rows. `releases` remains the legacy canonical view
+   * until all callers have migrated to the work/edition model. */
+  discoveredEditions?: ArtistReleaseEditionEvidence[];
+  /** Work-level grouping that never discards editions. */
+  works?: ArtistReleaseWorkEvidence[];
   sourceWhitelist: string[];
   warnings: ArtistReleaseEvidenceWarning[];
   stats: {

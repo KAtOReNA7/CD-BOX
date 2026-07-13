@@ -164,6 +164,28 @@ test("marks a safely capped pagination result as partial", async () => {
   assert.ok(result.warnings.some((item) => item.code === "partial-results"));
 });
 
+test("searches all Japanese physical carriers without treating files as physical", async () => {
+  const urls: URL[] = [];
+  const fetchImpl: DiscogsFetch = async (input) => {
+    const url = new URL(input);
+    urls.push(url);
+    return response(200, searchPage(1, 1, 2, [
+      searchRelease(10, { format: ["Vinyl", "7\"", "Single"] }),
+      searchRelease(11, { format: ["File", "FLAC", "Single"] }),
+    ]));
+  };
+
+  const result = await client(fetchImpl).searchJapanPhysicalReleases("Momoe Yamaguchi", {
+    perPage: 2,
+  });
+
+  assert.equal(urls.length, 1);
+  assert.equal(urls[0]?.searchParams.has("format"), false);
+  assert.deepEqual(result.value.items.map((item) => item.releaseId), [10]);
+  assert.equal(result.value.partial, false);
+  assert.equal(result.warnings.length, 0);
+});
+
 test("parses release details as corroborating evidence with exact identifiers and cover", async () => {
   const result = await client(async () => response(200, detail(8822822), {
     "x-discogs-ratelimit": "25",
@@ -184,6 +206,62 @@ test("parses release details as corroborating evidence with exact identifiers an
   assert.equal(result.value?.primaryImageUrl, "https://i.discogs.com/example-primary.jpeg");
   assert.equal(result.value?.sourceUrl, "https://www.discogs.com/release/8822822");
   assert.deepEqual(result.rateLimit, { limit: 25, used: 8, remaining: 17 });
+});
+
+test("keeps root-thumb-proven display artwork separate while preferring an explicit primary", async () => {
+  const displayUrl = "https://i.discogs.com/example-display.jpeg";
+  const displayThumbnailUrl = "https://i.discogs.com/example-display-150.jpeg";
+  const primaryUrl = "https://i.discogs.com/example-explicit-primary.jpeg";
+  const result = await client(async () => response(200, detail(8822823, {
+    thumb: displayThumbnailUrl,
+    images: [
+      {
+        type: "secondary",
+        uri: displayUrl,
+        uri150: displayThumbnailUrl,
+        width: 600,
+        height: 600,
+      },
+      {
+        type: "primary",
+        uri: primaryUrl,
+        uri150: "https://i.discogs.com/example-explicit-primary-150.jpeg",
+        width: 600,
+        height: 600,
+      },
+    ],
+  }))).getRelease(8822823);
+
+  assert.equal(result.value?.primaryImageUrl, primaryUrl);
+  assert.equal(result.value?.displayImageUrl, displayUrl);
+  assert.equal(result.value?.images[0]?.type, "secondary");
+});
+
+test("does not expose a first Discogs image without exact root thumb proof", async () => {
+  const withoutRootThumb = await client(async () => response(200, detail(8822824, {
+    images: [{
+      type: "secondary",
+      uri: "https://i.discogs.com/unproven-display.jpeg",
+      uri150: "https://i.discogs.com/unproven-display-150.jpeg",
+      width: 600,
+      height: 600,
+    }],
+  }))).getRelease(8822824);
+  const mismatchedRootThumb = await client(async () => response(200, detail(8822825, {
+    thumb: "https://i.discogs.com/different-image-150.jpeg",
+    images: [{
+      type: "secondary",
+      uri: "https://i.discogs.com/unproven-display.jpeg",
+      uri150: "https://i.discogs.com/unproven-display-150.jpeg",
+      width: 600,
+      height: 600,
+    }],
+  }))).getRelease(8822825);
+
+  assert.equal(withoutRootThumb.value?.primaryImageUrl, null);
+  assert.equal(withoutRootThumb.value?.displayImageUrl, null);
+  assert.equal(withoutRootThumb.value?.images[0]?.type, "secondary");
+  assert.equal(mismatchedRootThumb.value?.displayImageUrl, null);
 });
 
 test("exports the exact official attribution notices", () => {

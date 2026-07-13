@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   DEFAULT_MUSIC_METADATA_USER_AGENT,
   MusicMetadataClient,
+  classifyMusicBrainzReleaseScope,
   isWhitelistedMusicMetadataSourceUrl,
   researchArtistReleaseEvidence,
   resolveMusicMetadataCountryCode,
@@ -10,6 +11,61 @@ import {
   type MusicMetadataFetch,
   type MusicReleaseEvidence,
 } from "@/lib/music-metadata";
+
+function scopeEvidence(overrides: Partial<MusicReleaseEvidence> = {}): MusicReleaseEvidence {
+  return {
+    entityType: "release",
+    sourceId: RELEASE_ID,
+    releaseGroupId: RELEASE_GROUP_ID,
+    title: "Scope fixture",
+    artistCredit: "Fixture Artist",
+    artistNames: ["Fixture Artist"],
+    artistAliases: [],
+    date: "1986-01-01",
+    type: "Album",
+    secondaryTypes: [],
+    country: "JP",
+    label: "Fixture",
+    catalogNumber: "ABC-1",
+    format: "CD",
+    labels: [{ name: "Fixture", catalogNumber: "ABC-1" }],
+    formats: ["CD"],
+    barcode: null,
+    status: "Official",
+    sourceUrl: `https://musicbrainz.org/release/${RELEASE_ID}`,
+    coverUrl: null,
+    coverSourceUrl: null,
+    sources: [],
+    ...overrides,
+  };
+}
+
+test("classifies missing MusicBrainz scope fields as unknown and only explicit conflicts out of scope", () => {
+  const settings = {
+    target: "ORIGINAL_CD" as const,
+    includeCollaborations: true,
+    includeLiveRemixBest: true,
+  };
+  assert.deepEqual(classifyMusicBrainzReleaseScope(scopeEvidence(), settings, "JP"), {
+    verdict: "PASS",
+    reasonCodes: ["MB_SCOPE_MATCH"],
+  });
+  assert.deepEqual(
+    classifyMusicBrainzReleaseScope(
+      scopeEvidence({ status: null, country: null, format: null, formats: [] }),
+      settings,
+      "JP",
+    ),
+    {
+      verdict: "UNKNOWN",
+      reasonCodes: ["MB_STATUS_UNKNOWN", "MB_COUNTRY_UNKNOWN", "MB_FORMAT_UNKNOWN"],
+    },
+  );
+  assert.equal(
+    classifyMusicBrainzReleaseScope(scopeEvidence({ country: "US" }), settings, "JP").verdict,
+    "OUT_OF_SCOPE",
+  );
+});
 
 const ARTIST_ID = "a1234567-89ab-4cde-8f01-23456789abcd";
 const RELEASE_GROUP_ID = "b1234567-89ab-4cde-8f01-23456789abcd";
@@ -348,6 +404,8 @@ test("maps release groups into a uniform evidence shape without inventing editio
   assert.equal(result.warnings.length, 0);
   const evidence = result.value.items[0];
   assert.equal(evidence.entityType, "release-group");
+  assert.equal(evidence.releaseGroupId, RELEASE_GROUP_ID);
+  assert.notEqual(evidence.releaseGroupId, null);
   assert.equal(evidence.title, "C");
   assert.equal(evidence.artistCredit, "中山美穂 & WANDS");
   assert.deepEqual(evidence.artistNames, ["中山美穂", "WANDS"]);
@@ -564,6 +622,24 @@ test("degrades to empty evidence with a warning when a public source stays unava
   assert.equal(artists.warnings[0]?.retryable, true);
 });
 
+test("keeps the request deadline active while reading a JSON response body", {
+  timeout: 1_000,
+}, async () => {
+  const client = testClient(async () => ({
+    ok: true,
+    status: 200,
+    json: () => new Promise(() => undefined),
+  }), {
+    timeoutMs: 5,
+    retryCount: 0,
+  });
+
+  const artists = await client.searchArtists("Miho Nakayama");
+  assert.deepEqual(artists.value.items, []);
+  assert.equal(artists.warnings[0]?.code, "unavailable");
+  assert.equal(artists.warnings[0]?.retryable, true);
+});
+
 test("treats a missing Cover Art Archive entry as no cover rather than a fatal error", async () => {
   const cover = await testClient(async () => response(404, {})).getCoverArt("release-group", RELEASE_GROUP_ID);
   assert.equal(cover.value, null);
@@ -613,7 +689,7 @@ test("maps supported country aliases without silently treating unknown regions a
   );
 });
 
-test("browses every available artist release within the five-page / 500-row safety bound", async () => {
+test("browses every available artist release within the ten-page / 1000-row safety bound", async () => {
   const requestedUrls: URL[] = [];
   const client = testClient(async (input) => {
     const url = new URL(input);
@@ -639,10 +715,10 @@ test("browses every available artist release within the five-page / 500-row safe
   ));
   assert.equal(result.value.count, 250);
   assert.equal(result.value.items.length, 250);
-  assert.equal(result.value.limit, 500);
+  assert.equal(result.value.limit, 1_000);
 });
 
-test("browses every available artist release group within the five-page / 500-row safety bound", async () => {
+test("browses every available artist release group within the ten-page / 1000-row safety bound", async () => {
   const requestedUrls: URL[] = [];
   const client = testClient(async (input) => {
     const url = new URL(input);
@@ -666,7 +742,7 @@ test("browses every available artist release group within the five-page / 500-ro
   assert.ok(requestedUrls.every((url) => url.searchParams.get("inc") === "artist-credits"));
   assert.equal(result.value.count, 205);
   assert.equal(result.value.items.length, 205);
-  assert.equal(result.value.limit, 500);
+  assert.equal(result.value.limit, 1_000);
 });
 
 test("research consolidates each release group to its earliest identified edition without collapsing same-day titles", async () => {
@@ -1058,6 +1134,46 @@ test("research aggregation keeps Chinese artist and release evidence in the CN c
   assert.equal(bundle.artist?.sourceId, chineseArtistId);
   assert.deepEqual(bundle.releases.map((item) => item.evidence.title), ["中国大陆版"]);
   assert.equal(bundle.warnings.find((item) => item.code === "outside-country-filtered")?.count, 1);
+});
+
+test("release territory does not reject an exact artist whose nationality differs", async () => {
+  const teresaArtistId = "5c5cb762-d95e-47af-a7bf-35171eeab8e6";
+  const releases = [musicBrainzRelease(23, {
+    title: "空港",
+    country: "JP",
+    "artist-credit": [{ name: "テレサ・テン", artist: { name: "テレサ・テン" } }],
+  })];
+  const client = testClient(async (input) => {
+    const url = new URL(input);
+    if (url.pathname === "/ws/2/artist/") {
+      return response(200, {
+        count: 1,
+        offset: 0,
+        artists: [{
+          id: teresaArtistId,
+          name: "鄧麗君",
+          country: "TW",
+          score: 100,
+          aliases: [{ name: "テレサ・テン", locale: "ja", primary: true }],
+        }],
+      });
+    }
+    return response(200, { count: releases.length, offset: 0, releases });
+  });
+
+  const bundle = await researchArtistReleaseEvidence({
+    artistName: "テレサ・テン",
+    country: "Japan",
+    target: "ALL_CD",
+    excludeReissues: false,
+    includeCollaborations: true,
+    includeLiveRemixBest: true,
+  }, { client });
+
+  assert.equal(bundle.artist?.sourceId, teresaArtistId);
+  assert.equal(bundle.query.targetCountry, "JP");
+  assert.deepEqual(bundle.releases.map((item) => item.evidence.title), ["空港"]);
+  assert.ok(bundle.warnings.some((item) => item.code === "artist-country-mismatch"));
 });
 
 test("research aggregation relies on embedded cover flags without a default CAA request storm", async () => {

@@ -3,6 +3,8 @@ import fs from "node:fs";
 
 const importService = fs.readFileSync("src/lib/import/import-service.ts", "utf8");
 const researchService = fs.readFileSync("src/lib/ai/release-research.ts", "utf8");
+const scheduledCoverRetry = fs.readFileSync("src/lib/ai/scheduled-cover-retry.ts", "utf8");
+const rematerializer = fs.readFileSync("scripts/rematerialize-discography-tasks.ts", "utf8");
 const releaseRoute = fs.readFileSync("src/app/api/releases/[id]/route.ts", "utf8");
 const releaseService = fs.readFileSync("src/lib/releases/release-service.ts", "utf8");
 const artistService = fs.readFileSync("src/lib/services/artists.ts", "utf8");
@@ -32,6 +34,17 @@ assert.match(candidateTransaction, /await tx\.userReleaseStatus\.upsert/);
 assert.match(candidateTransaction, /await tx\.releaseSource\.createMany/);
 assert.match(candidateTransaction, /await tx\.aiSearchTask\.updateMany/);
 assert.match(candidateTransaction, /artistId: null/);
+assert.match(candidateTransaction, /acquireResearchLedgerTaskLock\(tx, taskId\)/);
+assert.ok(
+  candidateTransaction.indexOf("acquireResearchLedgerTaskLock") <
+    candidateTransaction.indexOf("const lockedTask"),
+  "import must acquire the task ledger lock before re-reading its task snapshot",
+);
+assert.ok(
+  candidateTransaction.indexOf("const lockedTask") <
+    candidateTransaction.indexOf("resolveArtist"),
+  "import must validate the locked task snapshot before creating or resolving an artist",
+);
 assert.match(candidateTransaction, /pg_advisory_xact_lock\(hashtextextended/);
 assert.match(candidateTransaction, /artist-identities:/);
 assert.ok(
@@ -46,6 +59,62 @@ assert.doesNotMatch(candidateTransaction, /update: \{\s*priority: 2,\s*notes: nu
 assert.match(researchService, /所选艺人与该核验任务的艺人身份不一致/);
 assert.match(researchService, /\[artist\.name, artist\.sortName\]\.some/);
 assert.match(researchService, /localizedArtistNameUpdate/);
+
+const coverClaim = scheduledCoverRetry.slice(
+  scheduledCoverRetry.indexOf("async function claimDueCandidates"),
+  scheduledCoverRetry.indexOf("async function retryTaskCovers"),
+);
+assert.match(coverClaim, /prisma\.\$transaction\(async \(transaction\) =>/);
+assert.match(coverClaim, /acquireResearchLedgerTaskLock\(transaction, taskId\)/);
+assert.ok(
+  coverClaim.indexOf("acquireResearchLedgerTaskLock") <
+    coverClaim.indexOf("transaction.aiSearchTask.findUnique"),
+  "cover claim must lock before re-reading the task and candidate rows",
+);
+assert.ok(
+  coverClaim.indexOf("transaction.aiSearchTask.findUnique") <
+    coverClaim.indexOf("transaction.researchCandidate.updateMany"),
+  "cover claim must select from the locked fresh task state before claiming rows",
+);
+assert.match(coverClaim, /isLockedCoverRetryCandidateDue\(candidate, now\)/);
+const coverRetry = scheduledCoverRetry.slice(
+  scheduledCoverRetry.indexOf("async function retryTaskCovers"),
+  scheduledCoverRetry.indexOf("export async function retryScheduledCovers"),
+);
+assert.match(coverRetry, /const task = claim\.task/);
+const coverCompletionTransaction = coverRetry.slice(
+  coverRetry.indexOf("await prisma.$transaction(async (transaction) =>"),
+  coverRetry.indexOf("}, { maxWait: 10_000, timeout: 120_000 })"),
+);
+assert.match(
+  coverCompletionTransaction,
+  /acquireResearchLedgerTaskLock\(transaction, task\.id\)/,
+);
+assert.ok(
+  coverCompletionTransaction.indexOf("acquireResearchLedgerTaskLock") <
+    coverCompletionTransaction.indexOf("transaction.researchCandidate.count"),
+  "completion must lock before checking whether the old worker still owns every claim",
+);
+assert.ok(
+  coverCompletionTransaction.indexOf("transaction.researchCandidate.count") <
+    coverCompletionTransaction.indexOf("persistResearchLedgerInTransaction"),
+  "a lease re-claimed by a newer worker must be detected before any old result is persisted",
+);
+assert.match(coverCompletionTransaction, /coverLastErrorCode: claim\.claimToken/);
+
+const rematerializationTransaction = rematerializer.slice(
+  rematerializer.indexOf("const event = await database.$transaction"),
+  rematerializer.indexOf("events.push(event)"),
+);
+assert.match(
+  rematerializationTransaction,
+  /acquireResearchLedgerTaskLock\(transaction, taskId\)/,
+);
+assert.ok(
+  rematerializationTransaction.indexOf("acquireResearchLedgerTaskLock") <
+    rematerializationTransaction.indexOf("transaction.aiSearchTask.findUnique"),
+  "offline rematerialization must lock before re-reading and validating the task",
+);
 
 const updateRelease = releaseService.slice(
   releaseService.indexOf("export async function updateRelease"),

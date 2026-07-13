@@ -12,7 +12,7 @@ import {
   requireRuntimeAiProviderConfig,
 } from "@/lib/ai/provider-capabilities";
 
-const textModel = process.env.OPENAI_TEXT_MODEL ?? "openai/gpt-5.6-sol";
+const textModel = process.env.OPENAI_TEXT_MODEL ?? "gpt-5.6-terra";
 const imageModel = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
 
 export const aiConfig = {

@@ -218,3 +218,51 @@ export function matchNdlCandidateForAiAudit(
     },
   };
 }
+
+/**
+ * Comprehensive verification keeps a unique catalog-bound record even when
+ * its title cannot be compared deterministically. Catalog number, artist and
+ * date still have to agree; the supplied title pair is then explicitly marked
+ * for the evidence-only AI audit instead of being silently discarded.
+ */
+export function matchNdlCandidateForComprehensiveAudit(
+  candidate: NdlCandidate,
+  result: NdlSearchResponse,
+): NdlMatchDecision {
+  if (invalidCandidate(candidate)) return { evidence: null, reason: "invalid-candidate" };
+  if (!result.complete) return { evidence: null, reason: "incomplete-results" };
+  const catalogKey = normalizedNdlCatalogKey(candidate.catalogNumber)!;
+  const catalogMatches = result.records.filter((record) => record.catalogNumbers.some(
+    (catalogNumber) => normalizedNdlCatalogKey(catalogNumber) === catalogKey,
+  ));
+  if (catalogMatches.length === 0) return { evidence: null, reason: "catalog-not-found" };
+  if (catalogMatches.length !== 1) return { evidence: null, reason: "ambiguous-catalog" };
+  const record = catalogMatches[0]!;
+  if (!artistAppears(record, candidate)) return { evidence: null, reason: "artist-mismatch" };
+  if (!record.issued || !record.issuedPrecision) return { evidence: null, reason: "date-missing" };
+  const date = commonDatePrecision(candidate.date, record);
+  if (!date.ok || !date.precision) return { evidence: null, reason: "date-conflict" };
+  const observedCatalogNumber = record.catalogNumbers.find(
+    (catalogNumber) => normalizedNdlCatalogKey(catalogNumber) === catalogKey,
+  )!;
+  const controlledTitleMatch = titleMatches(candidate, record);
+  return {
+    reason: null,
+    evidence: {
+      sourceType: NDL_EVIDENCE_ROLE,
+      provider: "ndl-search",
+      recordId: record.recordId,
+      sourceUrl: record.sourceUrl,
+      observedTitle: record.title,
+      authoritativeTitle: authoritativeRecordTitle(record, candidate),
+      observedCatalogNumber,
+      observedIssued: record.issued,
+      observedIssuedPrecision: record.issuedPrecision,
+      publishers: [...record.publishers],
+      matchedFields: controlledTitleMatch
+        ? ["artist", "catalogNumber", "title", "date"]
+        : ["artist", "catalogNumber", "date"],
+      titleComparison: controlledTitleMatch ? "controlled-equivalent" : "requires-ai",
+    },
+  };
+}

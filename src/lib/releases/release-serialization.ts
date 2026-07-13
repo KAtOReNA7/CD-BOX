@@ -5,12 +5,35 @@ import {
   type ReleaseListItem,
 } from "@/lib/releases/release-types";
 
-type ReleaseVerificationFields = Pick<
+type ReleaseSerializationFields = Pick<
   Release,
-  "verificationStatus" | "verificationEvidence" | "verifiedAt"
+  | "id"
+  | "artistId"
+  | "category"
+  | "title"
+  | "originalReleaseDate"
+  | "format"
+  | "originalCatalogNo"
+  | "label"
+  | "originalPrice"
+  | "editionType"
+  | "isReissue"
+  | "isRemaster"
+  | "isExcludedByDefault"
+  | "confidence"
+  | "warnings"
+  | "notes"
+  | "coverImageUrl"
+  | "importBatchId"
+  | "createdAt"
+  | "updatedAt"
 >;
 
-export type SerializableRelease = Omit<Release, keyof ReleaseVerificationFields> &
+type ReleaseVerificationFields = Pick<Release, "verificationStatus" | "verificationEvidence" | "verifiedAt">;
+
+/** Keep list serialization compatible while persistence gains work/edition and
+ * cover-retry fields that the list response does not expose yet. */
+export type SerializableRelease = ReleaseSerializationFields &
   Partial<ReleaseVerificationFields> & {
   sources: ReleaseSource[];
   userStatus?: UserReleaseStatus[];

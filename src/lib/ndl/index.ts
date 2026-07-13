@@ -13,6 +13,7 @@ export {
   canonicalNdlCatalogNumber,
   matchNdlCandidate,
   matchNdlCandidateForAiAudit,
+  matchNdlCandidateForComprehensiveAudit,
   normalizedNdlCatalogKey,
 } from "@/lib/ndl/matching";
 export {
@@ -20,6 +21,15 @@ export {
   parseNdlIssuedDate,
   parseNdlOpenSearchXml,
 } from "@/lib/ndl/parser";
+export {
+  extractNdlSingleManifestTitles,
+  fetchNdlSingleManifests,
+} from "@/lib/ndl/single-manifest";
+export type {
+  NdlSingleManifestEvidence,
+  NdlSingleManifestOptions,
+  NdlSingleManifestResult,
+} from "@/lib/ndl/single-manifest";
 export type {
   NdlCandidate,
   NdlClientOptions,

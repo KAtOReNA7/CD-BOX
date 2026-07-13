@@ -158,7 +158,7 @@ function artistAliases(
 }
 
 function candidateYear(candidate: ReleaseResearchCandidate) {
-  return yearOf(candidate.originalReleaseDate) ?? yearOf(candidate.releaseDate);
+  return yearOf(candidate.releaseDate);
 }
 
 function earliestCandidateIds(
@@ -181,7 +181,7 @@ function earliestCandidateIds(
     }
     const dated = values.map((candidate) => ({
       candidate,
-      date: candidate.originalReleaseDate ?? candidate.releaseDate,
+      date: candidate.releaseDate,
     }));
     if (dated.some((item) => !item.date || item.date.length !== 10)) continue;
     const earliest = dated.map((item) => item.date as string).sort()[0]!;
@@ -211,7 +211,7 @@ function toNdlCandidate(
   artistName: string,
   artistNameAliases: readonly string[],
 ): NdlCandidate | null {
-  const date = candidate.originalReleaseDate ?? candidate.releaseDate;
+  const date = candidate.releaseDate;
   if (!candidate.catalogNumber || !date) return null;
   return {
     artist: artistName,
@@ -308,7 +308,7 @@ function compareDiscogsDetail(
   includeCollaborations: boolean,
   requireResolvedDay = true,
 ) {
-  const candidateDate = candidate.originalReleaseDate ?? candidate.releaseDate;
+  const candidateDate = candidate.releaseDate;
   const expectedYear = candidateYear(candidate);
   const expectedCatalog = normalizedCatalog(candidate.catalogNumber);
   const expectedBarcode = normalizedBarcode(candidate.barcode);
@@ -570,7 +570,7 @@ async function attachValidatedCover(
 
   const verifiedCandidate: ReleaseResearchCandidate = {
     ...candidate,
-    originalReleaseDate: comparison.resolvedDate,
+    releaseDate: comparison.resolvedDate,
     editionType: input.excludeReissues
       ? "Earliest verified Japanese CD edition"
       : candidate.editionType,
@@ -775,7 +775,7 @@ export async function verifyDiscographyResult(
     : [];
   const latestAuthoritativeDate = result.releases
     .filter((candidate) => authoritative.has(candidate.id))
-    .map((candidate) => candidate.originalReleaseDate ?? candidate.releaseDate)
+    .map((candidate) => candidate.releaseDate)
     .filter((date): date is string => Boolean(date))
     .sort()
     .at(-1) ?? null;
@@ -798,7 +798,7 @@ export async function verifyDiscographyResult(
   for (let index = 0; index < result.releases.length; index += 1) {
     const candidate = result.releases[index];
     const nationalBibliography = authoritative.get(candidate.id);
-    const candidateDate = candidate.originalReleaseDate ?? candidate.releaseDate;
+    const candidateDate = candidate.releaseDate;
     const checked = nationalBibliography
       ? await findDiscogsCorroboration(candidate, nationalBibliography, rows, aliases, input, {
           discogs: cachedDiscogs,
@@ -854,7 +854,7 @@ export async function verifyDiscographyResult(
     const candidate = item.evidence.candidate;
     return [
       normalizedText(candidate.title),
-      candidate.originalReleaseDate ?? candidate.releaseDate,
+      candidate.releaseDate,
       normalizedCatalog(candidate.catalogNumber),
     ].join("|");
   };
@@ -875,7 +875,7 @@ export async function verifyDiscographyResult(
   await onProgress?.({
     processed: totalWork,
     total: totalWork,
-    stage: "正在由 GPT-5.6 终审国家书目与两套交叉证据",
+    stage: "正在由配置的 GPT 模型终审国家书目与两套交叉证据",
   });
   const decisions = await auditEvidence(
     uniqueEvidence.map((item) => item.evidence),

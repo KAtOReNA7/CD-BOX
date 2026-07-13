@@ -26,6 +26,9 @@
 
 # local runtime data and database backups
 /var/
+*.dump
+*.dump.sha256
+*.log
 
 # misc
 .DS_Store

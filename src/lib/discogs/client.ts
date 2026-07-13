@@ -3,7 +3,11 @@ import {
   DISCOGS_API_ORIGIN,
   discogsReleaseApiUrl,
 } from "@/lib/discogs/constants";
-import { parseJapanCdSearchPayload, parseReleasePayload } from "@/lib/discogs/parsers";
+import {
+  parseJapanCdSearchPayload,
+  parseJapanPhysicalSearchPayload,
+  parseReleasePayload,
+} from "@/lib/discogs/parsers";
 import {
   DISCOGS_EVIDENCE_ROLE,
   type DiscogsClientOptions,
@@ -11,6 +15,8 @@ import {
   type DiscogsFetchResponse,
   type DiscogsJapanCdSearchOptions,
   type DiscogsJapanCdSearchResult,
+  type DiscogsJapanPhysicalSearchOptions,
+  type DiscogsJapanPhysicalSearchResult,
   type DiscogsRateLimit,
   type DiscogsReleaseEvidence,
   type DiscogsResult,
@@ -366,6 +372,110 @@ export class DiscogsClient {
     if (partial) warnings.push(warning(
       "partial-results",
       "Discogs has more matching releases than were safely retrieved; never treat this set as complete.",
+      true,
+    ));
+
+    return {
+      value: {
+        evidenceRole: DISCOGS_EVIDENCE_ROLE,
+        artistQuery,
+        items: [...items.values()],
+        sourceTotal,
+        pagesFetched,
+        partial,
+      },
+      warnings: uniqueWarnings(warnings),
+      rateLimit,
+    };
+  }
+
+  /**
+   * Searches every Japanese physical carrier for an artist. Callers may use
+   * these rows to corroborate a canonical work or obtain its original artwork,
+   * but must keep carrier scope separate: a vinyl row is never a CD-scope pass.
+   */
+  async searchJapanPhysicalReleases(
+    artist: string,
+    options: DiscogsJapanPhysicalSearchOptions = {},
+  ): Promise<DiscogsResult<DiscogsJapanPhysicalSearchResult>> {
+    const artistQuery = artist.normalize("NFKC").trim();
+    if (!artistQuery || artistQuery.length > 300) {
+      throw new TypeError("Discogs artist query must contain between 1 and 300 characters.");
+    }
+
+    const perPage = clampInteger(options.perPage, DEFAULT_PER_PAGE, 1, 100);
+    const maxPages = clampInteger(options.maxPages, DEFAULT_MAX_PAGES, 1, 10);
+    const maxItems = clampInteger(options.maxItems, DEFAULT_MAX_ITEMS, 1, 1_000);
+    const items = new Map<number, DiscogsJapanPhysicalSearchResult["items"][number]>();
+    const warnings: DiscogsWarning[] = [];
+    let pagesFetched = 0;
+    let sourceTotal = 0;
+    let advertisedPages = 1;
+    let rateLimit: DiscogsRateLimit | null = null;
+    let stoppedByFailure = false;
+
+    for (let page = 1; page <= advertisedPages && page <= maxPages && items.size < maxItems; page += 1) {
+      const url = new URL("/database/search", DISCOGS_API_ORIGIN);
+      url.searchParams.set("artist", artistQuery);
+      url.searchParams.set("type", "release");
+      url.searchParams.set("country", "Japan");
+      url.searchParams.set("sort", "title");
+      url.searchParams.set("sort_order", "asc");
+      url.searchParams.set("per_page", String(perPage));
+      url.searchParams.set("page", String(page));
+
+      const response = await this.transport.getJson(url);
+      rateLimit = latestRateLimit(rateLimit, response.rateLimit);
+      if (!response.ok) {
+        warnings.push(response.warning);
+        stoppedByFailure = true;
+        break;
+      }
+
+      const parsed = parseJapanPhysicalSearchPayload(response.value, page, perPage);
+      if (!parsed.value) {
+        warnings.push(warning(
+          "invalid-response",
+          "Discogs returned an invalid physical-release search page; that page was not used.",
+          false,
+        ));
+        stoppedByFailure = true;
+        break;
+      }
+      pagesFetched += 1;
+      if (parsed.invalid) warnings.push(warning(
+        "invalid-response",
+        "Discogs returned one or more invalid physical-release rows; those values were not trusted.",
+        false,
+      ));
+
+      if (page === 1) {
+        sourceTotal = parsed.value.page.total;
+        advertisedPages = parsed.value.page.pages;
+      } else if (
+        parsed.value.page.total !== sourceTotal ||
+        parsed.value.page.pages !== advertisedPages
+      ) {
+        warnings.push(warning(
+          "partial-results",
+          "Discogs pagination changed during the physical-release search; results may be incomplete.",
+          true,
+        ));
+      }
+
+      for (const item of parsed.value.items) {
+        if (items.size >= maxItems) break;
+        items.set(item.releaseId, item);
+      }
+    }
+
+    // `sourceTotal` includes deliberately ignored digital-file rows because
+    // Discogs has no single "all physical" query flag. Completeness therefore
+    // depends on visiting every advertised page, not on retained row count.
+    const partial = stoppedByFailure || advertisedPages > pagesFetched;
+    if (partial) warnings.push(warning(
+      "partial-results",
+      "Discogs has more matching physical releases than were safely retrieved; never treat this set as complete.",
       true,
     ));
 

@@ -217,6 +217,7 @@ function releaseDetail(overrides: Partial<DiscogsReleaseEvidence> = {}): Discogs
       height: 600,
     }],
     primaryImageUrl: defaultDiscogsImage,
+    displayImageUrl: defaultDiscogsImage,
     apiUrl: "https://api.discogs.com/releases/101",
     sourceUrl: "https://www.discogs.com/release/101",
     ...overrides,
@@ -383,6 +384,29 @@ test("returns a strongly matched release only after its Discogs cover validates"
     rejectedWithoutCover: 0,
     rejectedCoverUnavailable: 0,
   });
+});
+
+test("keeps the canonical work date separate from a later verified CD edition", async () => {
+  const fake = fakeDiscogs({
+    rows: [searchRow()],
+    details: new Map([[101, releaseDetail()]]),
+  });
+  const verified = await verifyDiscographyResult(
+    request,
+    researchResult([candidate({ originalReleaseDate: "1980-07-01" })]),
+    evidenceBundle(1),
+    undefined,
+    {
+      discogs: fake.client,
+      ndl: fakeNdl(),
+      validateCover: async () => coverResult(true),
+      auditEvidence: acceptAll(),
+    },
+  );
+
+  assert.equal(verified.releases.length, 1);
+  assert.equal(verified.releases[0]?.originalReleaseDate, "1980-07-01");
+  assert.equal(verified.releases[0]?.releaseDate, "1988-02-10");
 });
 
 test("uses the national bibliography title as the final display title", async () => {

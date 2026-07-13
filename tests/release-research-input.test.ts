@@ -3,6 +3,14 @@ import {
   parseReleaseResearchImportInput,
   parseReleaseResearchRequest,
 } from "@/lib/ai/release-research-input";
+import { DEFAULT_RELEASE_RESEARCH_SCOPE } from "@/lib/ai/release-research-types";
+
+assert.deepEqual(DEFAULT_RELEASE_RESEARCH_SCOPE, {
+  target: "ORIGINAL_CD",
+  excludeReissues: true,
+  includeCollaborations: true,
+  includeLiveRemixBest: false,
+});
 
 const request = parseReleaseResearchRequest({
   artistName: "  Miho Nakayama  ",

@@ -21,14 +21,22 @@ const sourceSchema = z.object({
 
 const verificationSchema = z.object({
   status: z.literal("VERIFIED"),
-  method: z.literal("musicbrainz-ndl-discogs-ai"),
+  method: z.enum(["musicbrainz-ndl-discogs-ai", "multi-source-v2"]),
+  policyVersion: z.literal("multi-source-v2").optional(),
   aiDecision: z.literal("ACCEPT"),
   aiReason: z.string().min(1).max(1_000),
   checkedAt: z.string().datetime(),
   matchedFields: z.array(z.string().min(1).max(100)).min(1).max(20),
   sourceUrls: z.array(httpUrlSchema).min(2).max(20),
-  coverProvider: z.enum(["cover-art-archive", "discogs"]),
+  authoritySourceUrls: z.array(httpUrlSchema).optional(),
+  corroboratingSourceUrls: z.array(httpUrlSchema).optional(),
+  workId: z.string().min(1).max(200).optional(),
+  editionId: z.string().min(1).max(200).optional(),
+  coverProvider: z.enum(["cover-art-archive", "discogs", "apple-music", "official-label"]),
   coverCheckedAt: z.string().datetime(),
+  coverContentSha256: z.string().regex(/^[a-f0-9]{64}$/iu).optional(),
+  coverMatchLevel: z.enum(["EDITION", "WORK"]).optional(),
+  sourceReleaseDate: z.string().nullable().optional(),
 });
 
 const verificationSummarySchema = z.object({
@@ -42,6 +50,14 @@ const verificationSummarySchema = z.object({
   rejectedByAi: z.number().int().nonnegative(),
   rejectedWithoutCover: z.number().int().nonnegative(),
   rejectedCoverUnavailable: z.number().int().nonnegative(),
+  discoveredEditions: z.number().int().nonnegative().optional(),
+  evidenceReady: z.number().int().nonnegative().optional(),
+  verified: z.number().int().nonnegative().optional(),
+  pendingEvidence: z.number().int().nonnegative().optional(),
+  pendingCover: z.number().int().nonnegative().optional(),
+  rejected: z.number().int().nonnegative().optional(),
+  outOfScope: z.number().int().nonnegative().optional(),
+  verifiedWorks: z.number().int().nonnegative().optional(),
 });
 
 const releaseSchema = z.object({

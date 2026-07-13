@@ -4,9 +4,12 @@ import type {
   ArtistReleaseEvidenceItem,
   ArtistReleaseEvidenceResearchInput,
   ArtistReleaseEvidenceWarning,
+  ArtistReleaseEditionEvidence,
+  ArtistReleaseWorkEvidence,
   MusicArtistEvidence,
   MusicMetadataWarning,
   MusicReleaseEvidence,
+  MusicReleaseScopeAssessment,
   ReleaseEvidenceItemWarning,
 } from "@/lib/music-metadata/types";
 
@@ -159,10 +162,7 @@ function selectArtist(
 
   tier.sort((left, right) => right.score - left.score || left.artist.sourceId.localeCompare(right.artist.sourceId));
   if (tier.length === 1) {
-    const artist = tier[0].artist;
-    return artist.country && artist.country !== targetCountry
-      ? { artist: null, reason: "country-mismatch" as const }
-      : { artist, reason: null };
+    return { artist: tier[0].artist, reason: null };
   }
 
   const first = tier[0];
@@ -250,6 +250,38 @@ function isExcludedReleaseType(release: MusicReleaseEvidence) {
 function isCollaboration(release: MusicReleaseEvidence) {
   const credits = new Set(release.artistNames.map(normalizeName).filter(Boolean));
   return credits.size > 1;
+}
+
+export function classifyMusicBrainzReleaseScope(
+  release: MusicReleaseEvidence,
+  input: Pick<
+    ArtistReleaseEvidenceResearchInput,
+    "target" | "includeCollaborations" | "includeLiveRemixBest"
+  >,
+  targetCountry: string,
+): MusicReleaseScopeAssessment {
+  const outOfScope: string[] = [];
+  const unknown: string[] = [];
+
+  if (!release.status) unknown.push("MB_STATUS_UNKNOWN");
+  else if (release.status.toLowerCase() !== "official") outOfScope.push("MB_STATUS_NOT_OFFICIAL");
+
+  if (!release.country) unknown.push("MB_COUNTRY_UNKNOWN");
+  else if (release.country !== targetCountry) outOfScope.push("MB_COUNTRY_OUTSIDE_TARGET");
+
+  if (release.formats.length === 0) unknown.push("MB_FORMAT_UNKNOWN");
+  else if (isOutsideTargetFormat(release, input.target)) outOfScope.push("MB_FORMAT_OUTSIDE_TARGET");
+
+  if (!input.includeCollaborations && isCollaboration(release)) {
+    outOfScope.push("COLLABORATION_DISABLED");
+  }
+  if (!input.includeLiveRemixBest && isExcludedReleaseType(release)) {
+    outOfScope.push("RELEASE_TYPE_DISABLED");
+  }
+
+  if (outOfScope.length > 0) return { verdict: "OUT_OF_SCOPE", reasonCodes: outOfScope };
+  if (unknown.length > 0) return { verdict: "UNKNOWN", reasonCodes: unknown };
+  return { verdict: "PASS", reasonCodes: ["MB_SCOPE_MATCH"] };
 }
 
 function releaseSort(left: MusicReleaseEvidence, right: MusicReleaseEvidence) {
@@ -425,15 +457,10 @@ export async function researchArtistReleaseEvidence(
           code: "artist-ambiguous",
           message: "More than one exact MusicBrainz artist match remains; no release evidence was fetched.",
         }
-      : selection.reason === "country-mismatch"
-        ? {
-            code: "artist-country-mismatch",
-            message: `The exact artist match conflicts with target country ${validated.targetCountry}; no release evidence was fetched.`,
-          }
-        : {
+      : {
             code: "artist-not-found",
             message: "MusicBrainz returned no exact artist-name or exact-alias match.",
-          });
+        });
     return {
       query: {
         artistName: validated.artistName,
@@ -442,6 +469,8 @@ export async function researchArtistReleaseEvidence(
       },
       artist: null,
       releases: [],
+      discoveredEditions: [],
+      works: [],
       sourceWhitelist: [],
       warnings,
       stats: {
@@ -466,12 +495,17 @@ export async function researchArtistReleaseEvidence(
       code: "artist-country-unverified",
       message: `The selected MusicBrainz artist has no country value; releases are still restricted to ${validated.targetCountry}.`,
     });
+  } else if (artist.country !== validated.targetCountry) {
+    addWarning(warnings, {
+      code: "artist-country-mismatch",
+      message: `The artist country is ${artist.country}; this is retained because the name/alias match is exact, while release editions remain restricted to ${validated.targetCountry}.`,
+    });
   }
 
   await options.onProgress?.({ phase: "release-groups", processed: 0, total: 1 });
   const releaseGroupResult = await client.listArtistReleaseGroups(artist.sourceId, {
-    maxItems: 500,
-    maxPages: 5,
+    maxItems: 1_000,
+    maxPages: 10,
   });
   releaseGroupResult.warnings.forEach((item) => addWarning(warnings, sourceWarning(item)));
   await options.onProgress?.({ phase: "release-groups", processed: 1, total: 1 });
@@ -481,7 +515,7 @@ export async function researchArtistReleaseEvidence(
   ) {
     addWarning(warnings, {
       code: "source-partial",
-      message: "MusicBrainz has more release groups than the five-page safety limit; release-group evidence is partial.",
+      message: "MusicBrainz has more release groups than the ten-page safety limit; release-group evidence is partial.",
       count: releaseGroupResult.value.count - releaseGroupResult.value.items.length,
       source: "musicbrainz",
     });
@@ -489,8 +523,8 @@ export async function researchArtistReleaseEvidence(
 
   await options.onProgress?.({ phase: "releases", processed: 0, total: 1 });
   const releaseResult = await client.listArtistReleases(artist.sourceId, {
-    maxItems: 500,
-    maxPages: 5,
+    maxItems: 1_000,
+    maxPages: 10,
   });
   releaseResult.warnings.forEach((item) => addWarning(warnings, sourceWarning(item)));
   await options.onProgress?.({ phase: "releases", processed: 1, total: 1 });
@@ -500,7 +534,7 @@ export async function researchArtistReleaseEvidence(
   ) {
     addWarning(warnings, {
       code: "source-partial",
-      message: "MusicBrainz has more releases than the five-page safety limit; detailed release evidence is partial.",
+      message: "MusicBrainz has more releases than the ten-page safety limit; detailed release evidence is partial.",
       count: releaseResult.value.count - releaseResult.value.items.length,
       source: "musicbrainz",
     });
@@ -515,6 +549,43 @@ export async function researchArtistReleaseEvidence(
   const releaseGroupsById = new Map(
     uniqueReleaseGroups.map((releaseGroup) => [releaseGroup.sourceId, releaseGroup]),
   );
+  const discoveredEditions: ArtistReleaseEditionEvidence[] = uniqueReleases.map((release) => {
+    const workId = release.releaseGroupId ?? `release:${release.sourceId}`;
+    return {
+      workId,
+      evidence: mergeReleaseGroupEvidence(
+        release,
+        release.releaseGroupId ? releaseGroupsById.get(release.releaseGroupId) : undefined,
+      ),
+      scope: classifyMusicBrainzReleaseScope(release, input, validated.targetCountry),
+    };
+  });
+  const workMap = new Map<string, ArtistReleaseWorkEvidence>();
+  for (const edition of discoveredEditions) {
+    const releaseGroup = edition.evidence.releaseGroupId
+      ? releaseGroupsById.get(edition.evidence.releaseGroupId) ?? null
+      : null;
+    const work = workMap.get(edition.workId) ?? {
+      workId: edition.workId,
+      releaseGroup,
+      editions: [],
+    };
+    work.editions.push(edition);
+    workMap.set(edition.workId, work);
+  }
+  const works = [...workMap.values()]
+    .map((work) => ({
+      ...work,
+      editions: [...work.editions].sort((left, right) =>
+        releaseSort(left.evidence, right.evidence)),
+    }))
+    .sort((left, right) => {
+      const leftEvidence = left.releaseGroup ?? left.editions[0]?.evidence;
+      const rightEvidence = right.releaseGroup ?? right.editions[0]?.evidence;
+      if (!leftEvidence) return rightEvidence ? 1 : 0;
+      if (!rightEvidence) return -1;
+      return releaseSort(leftEvidence, rightEvidence);
+    });
   const filteredCounts = {
     nonOfficial: 0,
     nonJapan: 0,
@@ -677,6 +748,8 @@ export async function researchArtistReleaseEvidence(
     },
     artist,
     releases,
+    discoveredEditions,
+    works,
     sourceWhitelist: sourceWhitelist(artist, releases),
     warnings,
     stats: {

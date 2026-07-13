@@ -21,6 +21,8 @@ function toTaskView(task: AiSearchTask): AiSearchTaskView {
     errorMessage: task.errorMessage,
     rawResult: task.rawResult,
     parsedResult: task.parsedResult as ReleaseResearchResult | null,
+    trustedFinalCandidateIds: [],
+    stageSummaries: [],
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   };

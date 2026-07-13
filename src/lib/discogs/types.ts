@@ -121,6 +121,13 @@ export type DiscogsReleaseEvidence = {
   tracks: DiscogsTrackEvidence[];
   images: DiscogsImageEvidence[];
   primaryImageUrl: string | null;
+  /**
+   * The full-size image represented by Discogs' release-level `thumb`.
+   * This is kept separate from `primaryImageUrl`: it may still be a
+   * `secondary` image and callers must apply their own identity gate before
+   * treating it as artwork.
+   */
+  displayImageUrl: string | null;
   apiUrl: string;
   sourceUrl: string;
 };
@@ -152,3 +159,11 @@ export type DiscogsJapanCdSearchOptions = {
   maxPages?: number;
   maxItems?: number;
 };
+
+/**
+ * The all-physical search is used only for work identity and artwork fallback.
+ * It never proves that a vinyl or cassette edition itself satisfies a CD
+ * collection request.
+ */
+export type DiscogsJapanPhysicalSearchOptions = DiscogsJapanCdSearchOptions;
+export type DiscogsJapanPhysicalSearchResult = DiscogsJapanCdSearchResult;

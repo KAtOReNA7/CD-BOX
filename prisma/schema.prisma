@@ -57,6 +57,53 @@ enum ReleaseVerificationStatus {
   REJECTED
 }
 
+enum DatePrecision {
+  YEAR
+  MONTH
+  DAY
+}
+
+enum ReleaseWorkStatus {
+  DISCOVERED
+  CORROBORATED
+  VERIFIED
+  CONFLICTED
+  REJECTED
+}
+
+enum ResearchEntityKind {
+  WORK
+  EDITION
+}
+
+enum ResearchDisposition {
+  DISCOVERED
+  ACTIVE
+  DEFERRED
+  ACCEPTED
+  REJECTED
+  MERGED
+}
+
+enum ResearchDecisionOutcome {
+  PASS
+  DEFER
+  REJECT
+  MERGE
+  RETRY
+  ERROR
+}
+
+enum CoverStatus {
+  MISSING
+  QUEUED
+  CHECKING
+  RETRY_WAIT
+  VALID
+  INVALID
+  EXHAUSTED
+}
+
 enum UiAssetKind {
   EMPTY_STATE
   DECORATION
@@ -124,6 +171,7 @@ model Artist {
   country       String?
   description   String?            @db.Text
   follows       UserArtistFollow[]
+  releaseWorks  ReleaseWork[]
   releases      Release[]
   importBatches ImportBatch[]
   aiSearchTasks AiSearchTask[]
@@ -148,38 +196,98 @@ model UserArtistFollow {
 }
 
 model Release {
-  id                   String                    @id @default(cuid())
-  artistId             String
-  category             ReleaseCategory
-  title                String
-  originalReleaseDate  DateTime?
-  format               ReleaseFormat             @default(CD)
-  originalCatalogNo    String?
-  label                String?
-  originalPrice        String?
-  editionType          String?
-  isReissue            Boolean                   @default(false)
-  isRemaster           Boolean                   @default(false)
-  isExcludedByDefault  Boolean                   @default(false)
-  confidence           String?
-  warnings             Json?
-  notes                String?                   @db.Text
-  coverImageUrl        String?                   @db.Text
-  verificationStatus   ReleaseVerificationStatus @default(UNVERIFIED)
-  verificationEvidence Json?
-  verifiedAt           DateTime?
-  sources              ReleaseSource[]
-  userStatus           UserReleaseStatus[]
-  artist               Artist                    @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  importBatchId        String?
-  importBatch          ImportBatch?              @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+  id                    String                    @id @default(cuid())
+  artistId              String
+  workId                String?
+  category              ReleaseCategory
+  title                 String
+  originalReleaseDate   DateTime?
+  editionReleaseDate    DateTime?
+  editionDatePrecision  DatePrecision?
+  format                ReleaseFormat             @default(CD)
+  originalCatalogNo     String?
+  musicBrainzReleaseId  String?                   @unique
+  discogsReleaseId      Int?                      @unique
+  barcode               String?
+  label                 String?
+  originalPrice         String?
+  editionType           String?
+  isReissue             Boolean                   @default(false)
+  isRemaster            Boolean                   @default(false)
+  isExcludedByDefault   Boolean                   @default(false)
+  confidence            String?
+  warnings              Json?
+  notes                 String?                   @db.Text
+  coverImageUrl         String?                   @db.Text
+  coverImageSourceUrl   String?                   @db.Text
+  coverStatus           CoverStatus               @default(MISSING)
+  coverProvider         String?
+  coverCheckedAt        DateTime?
+  coverAttemptCount     Int                       @default(0)
+  coverNextRetryAt      DateTime?
+  coverLastErrorCode    String?
+  coverLastErrorMessage String?                   @db.Text
+  verificationStatus    ReleaseVerificationStatus @default(UNVERIFIED)
+  verificationEvidence  Json?
+  verifiedAt            DateTime?
+  sources               ReleaseSource[]
+  researchCandidates    ResearchCandidate[]
+  userStatus            UserReleaseStatus[]
+  artist                Artist                    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  work                  ReleaseWork?              @relation(fields: [workId], references: [id], onDelete: SetNull)
+  importBatchId         String?
+  importBatch           ImportBatch?              @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
 
   @@index([artistId, category])
   @@index([artistId, verificationStatus])
+  @@index([artistId, originalCatalogNo])
+  @@index([workId, editionReleaseDate])
+  @@index([coverStatus, coverNextRetryAt])
   @@index([importBatchId])
   @@index([title])
+}
+
+model ReleaseWork {
+  id                        String              @id @default(cuid())
+  artistId                  String
+  title                     String
+  titleOriginal             String?
+  artistCredit              String?
+  category                  ReleaseCategory
+  originalReleaseDate       DateTime?
+  originalDatePrecision     DatePrecision?
+  musicBrainzReleaseGroupId String?             @unique
+  verificationStatus        ReleaseWorkStatus   @default(DISCOVERED)
+  verificationEvidence      Json?
+  verifiedAt                DateTime?
+  artist                    Artist              @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  editions                  Release[]
+  sources                   ReleaseWorkSource[]
+  researchCandidates        ResearchCandidate[]
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  @@index([artistId, category, originalReleaseDate])
+  @@index([artistId, verificationStatus])
+}
+
+model ReleaseWorkSource {
+  id         String      @id @default(cuid())
+  workId     String
+  provider   String
+  role       String
+  externalId String?
+  url        String      @db.Text
+  label      String?
+  observed   Json?
+  work       ReleaseWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([workId, role])
+  @@index([provider, externalId])
 }
 
 model ReleaseSource {
@@ -235,22 +343,123 @@ model ImportBatch {
 }
 
 model AiSearchTask {
-  id           String             @id @default(cuid())
-  userId       String
-  artistId     String?
-  query        String             @db.Text
-  model        String
-  status       AiSearchTaskStatus @default(QUEUED)
-  rawResult    Json?
-  parsedResult Json?
-  errorMessage String?            @db.Text
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  artist       Artist?            @relation(fields: [artistId], references: [id], onDelete: SetNull)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id                  String                 @id @default(cuid())
+  userId              String
+  artistId            String?
+  query               String                 @db.Text
+  request             Json?
+  model               String
+  pipelineVersion     String                 @default("legacy")
+  resultSchemaVersion Int                    @default(1)
+  status              AiSearchTaskStatus     @default(QUEUED)
+  progress            Int                    @default(0)
+  stage               String?
+  rawResult           Json?
+  parsedResult        Json?
+  errorMessage        String?                @db.Text
+  startedAt           DateTime?
+  completedAt         DateTime?
+  importedAt          DateTime?
+  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist              Artist?                @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  candidates          ResearchCandidate[]
+  stageSummaries      ResearchStageSummary[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@index([userId])
   @@index([artistId])
+}
+
+model ResearchCandidate {
+  id                    String              @id @default(cuid())
+  taskId                String
+  candidateKey          String
+  entityKind            ResearchEntityKind
+  parentCandidateId     String?
+  workId                String?
+  releaseId             String?
+  sourceProvider        String?
+  sourceRecordId        String?
+  title                 String
+  category              ReleaseCategory?
+  artistCredit          String?
+  releaseDate           DateTime?
+  datePrecision         DatePrecision?
+  catalogNumber         String?
+  barcode               String?
+  payload               Json?
+  disposition           ResearchDisposition @default(DISCOVERED)
+  lastStage             String?
+  finalReasonCode       String?
+  retryable             Boolean             @default(false)
+  coverImageUrl         String?             @db.Text
+  coverImageSourceUrl   String?             @db.Text
+  coverStatus           CoverStatus         @default(MISSING)
+  coverProvider         String?
+  coverCheckedAt        DateTime?
+  coverAttemptCount     Int                 @default(0)
+  coverNextRetryAt      DateTime?
+  coverLastErrorCode    String?
+  coverLastErrorMessage String?             @db.Text
+  task                  AiSearchTask        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  parentCandidate       ResearchCandidate?  @relation("ResearchCandidateHierarchy", fields: [parentCandidateId], references: [id], onDelete: SetNull)
+  childCandidates       ResearchCandidate[] @relation("ResearchCandidateHierarchy")
+  work                  ReleaseWork?        @relation(fields: [workId], references: [id], onDelete: SetNull)
+  release               Release?            @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  decisions             ResearchDecision[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@unique([taskId, candidateKey])
+  @@index([taskId, disposition, lastStage])
+  @@index([parentCandidateId])
+  @@index([workId])
+  @@index([releaseId])
+  @@index([coverStatus, coverNextRetryAt])
+}
+
+model ResearchDecision {
+  id             String                  @id @default(cuid())
+  candidateId    String
+  sequence       Int
+  attempt        Int                     @default(1)
+  stage          String
+  outcome        ResearchDecisionOutcome
+  reasonCode     String
+  reasonText     String?                 @db.Text
+  retryable      Boolean                 @default(false)
+  sourceProvider String?
+  evidence       Json?
+  candidate      ResearchCandidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                @default(now())
+
+  @@unique([candidateId, sequence])
+  @@index([candidateId, stage])
+  @@index([stage, outcome, reasonCode])
+}
+
+model ResearchStageSummary {
+  id              String       @id @default(cuid())
+  taskId          String
+  stage           String
+  sequence        Int
+  inputCount      Int          @default(0)
+  passedCount     Int          @default(0)
+  deferredCount   Int          @default(0)
+  rejectedCount   Int          @default(0)
+  mergedCount     Int          @default(0)
+  retryCount      Int          @default(0)
+  reasonCounts    Json?
+  detailsComplete Boolean      @default(true)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  task            AiSearchTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([taskId, stage])
+  @@unique([taskId, sequence])
 }
 
 model UiAsset {

@@ -110,7 +110,30 @@ function optionalImageUrl(value: unknown) {
     : { value: null, invalid: true };
 }
 
-function parseSearchRelease(value: unknown): Parsed<DiscogsSearchReleaseEvidence> {
+function isPhysicalSearchFormat(formats: readonly string[]) {
+  const physicalFormats = new Set([
+    "8-TRACK CARTRIDGE",
+    "BLU-RAY",
+    "CASSETTE",
+    "CD",
+    "DAT",
+    "DVD",
+    "FLEXI-DISC",
+    "LASERDISC",
+    "MINIDISC",
+    "REEL-TO-REEL",
+    "SACD",
+    "SHELLAC",
+    "VHS",
+    "VINYL",
+  ]);
+  return formats.some((format) => physicalFormats.has(format.toUpperCase()));
+}
+
+function parseSearchRelease(
+  value: unknown,
+  formatScope: "CD" | "ALL_PHYSICAL",
+): Parsed<DiscogsSearchReleaseEvidence> {
   const row = record(value);
   if (!row) return { value: null, invalid: true };
 
@@ -118,15 +141,23 @@ function parseSearchRelease(value: unknown): Parsed<DiscogsSearchReleaseEvidence
   const title = text(row.title, 1_000);
   const formats = stringArray(row.format, 50, 200);
   const labels = stringArray(row.label, 100, 500);
+  if (!formats || !labels) return { value: null, invalid: true };
   if (
     !releaseId ||
     row.type !== "release" ||
     !title ||
     row.country !== "Japan" ||
-    !formats?.some((format) => format.toUpperCase() === "CD") ||
-    !labels ||
     !exactReleaseApiUrl(row.resource_url, releaseId)
   ) return { value: null, invalid: true };
+  if (formatScope === "CD" && !formats.some((format) => format.toUpperCase() === "CD")) {
+    return { value: null, invalid: true };
+  }
+  // The all-carrier endpoint also returns valid digital-file rows because the
+  // API has no "physical only" switch. They are expected omissions, not
+  // malformed evidence.
+  if (formatScope === "ALL_PHYSICAL" && !isPhysicalSearchFormat(formats)) {
+    return { value: null, invalid: false };
+  }
 
   const parsedYear = year(row.year);
   const yearWasInvalid = row.year !== null && row.year !== undefined && row.year !== "" &&
@@ -163,10 +194,11 @@ function parseSearchRelease(value: unknown): Parsed<DiscogsSearchReleaseEvidence
   };
 }
 
-export function parseJapanCdSearchPayload(
+function parseJapanReleaseSearchPayload(
   payload: unknown,
   requestedPage: number,
   requestedPerPage: number,
+  formatScope: "CD" | "ALL_PHYSICAL",
 ): Parsed<{ page: DiscogsJapanCdSearchPage; items: DiscogsSearchReleaseEvidence[] }> {
   const root = record(payload);
   const pagination = record(root?.pagination);
@@ -191,7 +223,7 @@ export function parseJapanCdSearchPayload(
   const items: DiscogsSearchReleaseEvidence[] = [];
   let invalid = false;
   for (const candidate of root.results) {
-    const parsed = parseSearchRelease(candidate);
+    const parsed = parseSearchRelease(candidate, formatScope);
     invalid ||= parsed.invalid;
     if (parsed.value) items.push(parsed.value);
   }
@@ -202,6 +234,27 @@ export function parseJapanCdSearchPayload(
     },
     invalid,
   };
+}
+
+export function parseJapanCdSearchPayload(
+  payload: unknown,
+  requestedPage: number,
+  requestedPerPage: number,
+) {
+  return parseJapanReleaseSearchPayload(payload, requestedPage, requestedPerPage, "CD");
+}
+
+export function parseJapanPhysicalSearchPayload(
+  payload: unknown,
+  requestedPage: number,
+  requestedPerPage: number,
+) {
+  return parseJapanReleaseSearchPayload(
+    payload,
+    requestedPage,
+    requestedPerPage,
+    "ALL_PHYSICAL",
+  );
 }
 
 function parseArtists(value: unknown) {
@@ -303,12 +356,19 @@ function parseTracks(value: unknown) {
   return { items, invalid };
 }
 
-function parseImages(value: unknown) {
-  if (value === undefined) return { items: [], invalid: false };
-  if (!Array.isArray(value) || value.length > 100) return { items: [], invalid: true };
+function parseImages(value: unknown): {
+  items: DiscogsImageEvidence[];
+  firstItem: DiscogsImageEvidence | null;
+  invalid: boolean;
+} {
+  if (value === undefined) return { items: [], firstItem: null, invalid: false };
+  if (!Array.isArray(value) || value.length > 100) {
+    return { items: [], firstItem: null, invalid: true };
+  }
   const items: DiscogsImageEvidence[] = [];
+  let firstItem: DiscogsImageEvidence | null = null;
   let invalid = false;
-  for (const entry of value) {
+  for (const [index, entry] of value.entries()) {
     const row = record(entry);
     const type = row?.type === "primary" || row?.type === "secondary" ? row.type : null;
     const image = optionalImageUrl(row?.uri);
@@ -325,9 +385,34 @@ function parseImages(value: unknown) {
       (row.width !== undefined && width === null) ||
       (row.height !== undefined && height === null)
     ) invalid = true;
-    items.push({ type, url: image.value, thumbnailUrl: thumbnail.value, width, height });
+    const item: DiscogsImageEvidence = {
+      type,
+      url: image.value,
+      thumbnailUrl: thumbnail.value,
+      width,
+      height,
+    };
+    items.push(item);
+    // `firstItem` deliberately refers only to the literal API images[0]. If
+    // the first row is malformed, a later valid scan must not inherit the
+    // release-level display-thumbnail proof.
+    if (index === 0) firstItem = item;
   }
-  return { items, invalid };
+  return { items, firstItem, invalid };
+}
+
+function displayImageFromRootThumbnail(
+  rootThumbnailUrl: string | null,
+  firstImage: DiscogsImageEvidence | null,
+) {
+  if (!rootThumbnailUrl || !firstImage) return null;
+  // Discogs' release-level `thumb` represents the default image shown for the
+  // release. Preserve its full-size counterpart only when the API itself
+  // proves that it points to the literal first image. This does not change the
+  // first image's primary/secondary classification.
+  return rootThumbnailUrl === firstImage.thumbnailUrl || rootThumbnailUrl === firstImage.url
+    ? firstImage.url
+    : null;
 }
 
 function releaseDate(value: unknown) {
@@ -352,18 +437,23 @@ export function parseReleasePayload(payload: unknown, expectedReleaseId: number)
   const identifiers = parseIdentifiers(root.identifiers);
   const tracks = parseTracks(root.tracklist);
   const images = parseImages(root.images);
+  const rootThumbnail = optionalImageUrl(root.thumb);
   const parsedYear = year(root.year);
   const released = releaseDate(root.released);
   const masterId = root.master_id === 0 || root.master_id === null || root.master_id === undefined
     ? null
     : positiveIntegerText(root.master_id);
   const primaryImage = images.items.find((image) => image.type === "primary");
+  const displayImageUrl = displayImageFromRootThumbnail(
+    rootThumbnail.value,
+    images.firstItem,
+  );
   const barcodes = [...new Set(identifiers.items
     .filter((identifier) => identifier.type.toLowerCase() === "barcode")
     .map((identifier) => identifier.value))];
 
   const invalid = artists.invalid || labels.invalid || formats.invalid || identifiers.invalid ||
-    tracks.invalid || images.invalid ||
+    tracks.invalid || images.invalid || rootThumbnail.invalid ||
     (root.year !== null && root.year !== undefined && root.year !== 0 && parsedYear === null) ||
     (root.released !== null && root.released !== undefined && root.released !== "" && released === null) ||
     (root.master_id !== null && root.master_id !== undefined && root.master_id !== 0 && masterId === null);
@@ -388,6 +478,7 @@ export function parseReleasePayload(payload: unknown, expectedReleaseId: number)
       tracks: tracks.items,
       images: images.items,
       primaryImageUrl: primaryImage?.url ?? null,
+      displayImageUrl,
       apiUrl: discogsReleaseApiUrl(releaseId),
       sourceUrl: discogsReleaseSourceUrl(releaseId),
     },

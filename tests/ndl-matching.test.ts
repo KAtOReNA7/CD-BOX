@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   matchNdlCandidate,
   matchNdlCandidateForAiAudit,
+  matchNdlCandidateForComprehensiveAudit,
   parseNdlIssuedDate,
   type NdlCandidate,
   type NdlRecord,
@@ -120,6 +121,31 @@ test("binds a different-script title to one exact catalog record only for the AI
       result([record]),
     ).reason,
     "title-mismatch",
+  );
+});
+
+test("comprehensive audit defers any catalog-bound title mismatch to AI without weakening hard identifiers", () => {
+  const titleMismatch = matchNdlCandidateForComprehensiveAudit(
+    { ...candidate, title: "別のアルバム", titleAliases: [] },
+    result([record]),
+  );
+  assert.equal(titleMismatch.reason, null);
+  assert.equal(titleMismatch.evidence?.titleComparison, "requires-ai");
+  assert.deepEqual(titleMismatch.evidence?.matchedFields, ["artist", "catalogNumber", "date"]);
+
+  assert.equal(
+    matchNdlCandidateForComprehensiveAudit(
+      { ...candidate, artist: "松田聖子", title: "別のアルバム", titleAliases: [] },
+      result([record]),
+    ).reason,
+    "artist-mismatch",
+  );
+  assert.equal(
+    matchNdlCandidateForComprehensiveAudit(
+      { ...candidate, date: "1987-08-05", title: "別のアルバム", titleAliases: [] },
+      result([record]),
+    ).reason,
+    "date-conflict",
   );
 });
 

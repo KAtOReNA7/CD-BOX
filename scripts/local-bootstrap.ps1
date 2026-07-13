@@ -5,10 +5,7 @@ param(
   [int]$PostgresPort = 55432,
 
   [ValidatePattern("^[A-Za-z0-9._-]+$")]
-  [string]$PostgresServiceName = "postgresql-x64-16",
-
-  [switch]$ReplaceExistingEnvFile,
-  [switch]$SkipApplicationSetup
+  [string]$PostgresServiceName = "postgresql-x64-16"
 )
 
 . (Join-Path $PSScriptRoot "local-common.ps1")
@@ -291,34 +288,21 @@ function Commit-EnvironmentFile {
     [string]$TemporaryPath,
 
     [Parameter(Mandatory = $true)]
-    [string]$DestinationPath,
-
-    [switch]$ReplaceExisting
+    [string]$DestinationPath
   )
 
   if (Test-Path -LiteralPath $DestinationPath -PathType Leaf) {
-    if (-not $ReplaceExisting) {
-      throw "The ignored .env.local file already exists. It was not read or changed."
-    }
+    throw "The ignored .env.local file already exists. It was not read or changed."
+  }
 
-    $replacementBackup = "$DestinationPath.bootstrap-replaced-$([Guid]::NewGuid().ToString('N')).bak"
-    try {
-      [System.IO.File]::Replace($TemporaryPath, $DestinationPath, $replacementBackup, $true)
-    }
-    finally {
-      Remove-Item -LiteralPath $replacementBackup -Force -ErrorAction SilentlyContinue
-    }
-  }
-  else {
-    [System.IO.File]::Move($TemporaryPath, $DestinationPath)
-  }
+  [System.IO.File]::Move($TemporaryPath, $DestinationPath)
 }
 
 Assert-Administrator
 
 $projectRoot = Get-LocalProjectRoot
 $environmentPath = Join-Path $projectRoot ".env.local"
-if ((Test-Path -LiteralPath $environmentPath -PathType Leaf) -and -not $ReplaceExistingEnvFile) {
+if (Test-Path -LiteralPath $environmentPath -PathType Leaf) {
   throw "The ignored .env.local file already exists. Bootstrap stopped without reading or changing it."
 }
 
@@ -761,8 +745,7 @@ if ($null -ne $operationError -or -not $databaseReady) {
   throw "The dedicated CD-BOX database was not created."
 }
 
-Commit-EnvironmentFile -TemporaryPath $temporaryEnvironmentPath -DestinationPath $environmentPath `
-  -ReplaceExisting:$ReplaceExistingEnvFile
+Commit-EnvironmentFile -TemporaryPath $temporaryEnvironmentPath -DestinationPath $environmentPath
 Set-SecretFileAcl -Path $environmentPath
 
 $env:DATABASE_URL = $databaseUrl
@@ -787,9 +770,7 @@ $env:AI_WEB_SEARCH_SUPPORTED = "false"
 Remove-Item Env:OPENAI_IMAGE_MODEL -ErrorAction SilentlyContinue
 $env:NEXT_TELEMETRY_DISABLED = "1"
 
-if (-not $SkipApplicationSetup) {
-  & (Join-Path $PSScriptRoot "local-setup.ps1")
-}
+& (Join-Path $PSScriptRoot "local-setup.ps1")
 
 Write-Host "CD-BOX local bootstrap completed. Secrets were written only to the ignored .env.local file."
 Write-Host "Start the application with 'npm run local:start' and open http://127.0.0.1:3000."

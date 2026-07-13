@@ -221,6 +221,56 @@ function Set-LocalRuntimeEnvironment {
   $env:NEXT_TELEMETRY_DISABLED = "1"
 }
 
+function Set-LocalNodeProxyEnvironment {
+  # Node's built-in environment proxy supports HTTP_PROXY, HTTPS_PROXY, and
+  # NO_PROXY. Map an ALL_PROXY-only desktop setup into the variables Node
+  # actually reads, without overriding either protocol-specific value.
+  if (-not [string]::IsNullOrWhiteSpace($env:ALL_PROXY)) {
+    if ([string]::IsNullOrWhiteSpace($env:HTTP_PROXY)) {
+      $env:HTTP_PROXY = $env:ALL_PROXY
+    }
+    if ([string]::IsNullOrWhiteSpace($env:HTTPS_PROXY)) {
+      $env:HTTPS_PROXY = $env:ALL_PROXY
+    }
+  }
+
+  # Local owner mode and a supported local OpenAI-compatible relay both use
+  # loopback HTTP. Never send those requests (or their bearer credentials)
+  # through an inherited desktop/corporate proxy. Preserve every existing
+  # NO_PROXY entry and append only missing loopback identities.
+  $existingNoProxy = if ([string]::IsNullOrWhiteSpace($env:NO_PROXY)) {
+    ""
+  }
+  else {
+    $env:NO_PROXY.Trim()
+  }
+  $seen = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+  )
+  foreach ($entry in ($existingNoProxy -split ",")) {
+    $normalized = $entry.Trim()
+    if ($normalized) {
+      [void]$seen.Add($normalized)
+    }
+  }
+  $missingLoopback = @(
+    @("localhost", "127.0.0.1", "::1") |
+      Where-Object { -not $seen.Contains($_) }
+  )
+  if ($missingLoopback.Count -gt 0) {
+    $separator = if (-not $existingNoProxy -or $existingNoProxy.EndsWith(",")) { "" } else { "," }
+    $env:NO_PROXY = "${existingNoProxy}${separator}$($missingLoopback -join ',')"
+  }
+  elseif ($existingNoProxy) {
+    $env:NO_PROXY = $existingNoProxy
+  }
+
+  # Node 24 reads the proxy variables above only when environment-proxy mode
+  # is enabled before the Node process starts. With no proxy configured this is
+  # harmless; NO_PROXY remains useful if a parent process adds one later.
+  $env:NODE_USE_ENV_PROXY = "1"
+}
+
 function New-CryptographicToken {
   param(
     [Parameter(Mandatory = $true)]

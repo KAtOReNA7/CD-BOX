@@ -4,7 +4,17 @@ import { Fragment, useMemo, useState, useTransition } from "react";
 import type React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ChevronDown, ChevronRight, ExternalLink, FileText, Search } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  ExternalLink,
+  FileText,
+  LoaderCircle,
+  Search,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,10 +31,28 @@ import {
   removeCandidateIds,
   toggleCandidateId,
 } from "@/lib/ai/release-research-selection";
-import type {
-  AiSearchTaskView,
-  CollectionScopeTarget,
-  ReleaseResearchCandidate,
+import {
+  buildResearchFunnelMetrics,
+  buildResearchOutcomeReasons,
+  buildResearchProgressSteps,
+  buildResearchStageAuditRows,
+  decisiveResearchLedgerEntry,
+  matchesResearchOutcomeReason,
+  researchProgressDetail,
+  researchReasonLabel,
+  researchResolutionLabel,
+  researchStageLabel,
+  selectTrustedFinalReleases,
+  type ResearchOutcomeReason,
+  type ResearchProgressStep,
+  type ResearchStageAuditRow,
+} from "@/lib/ai/research-result-visibility";
+import {
+  DEFAULT_RELEASE_RESEARCH_SCOPE,
+  type AiSearchTaskView,
+  type CollectionScopeTarget,
+  type ReleaseResearchCandidate,
+  type ReleaseResearchCandidateAudit,
 } from "@/lib/ai/release-research-types";
 import type { AiProviderCapabilitySummary as ProviderSummary } from "@/lib/ai/provider-capabilities";
 import { DISCOGS_ATTRIBUTION } from "@/lib/discogs/constants";
@@ -35,6 +63,8 @@ type ActiveOperation = "search" | "structure" | "import" | "navigating";
 
 const categories = ["ALL", "ORIGINAL_ALBUM", "SINGLE", "BEST", "COLLECTION", "LIVE", "REMIX", "BOX", "EP", "OTHER"];
 const EMPTY_RELEASES: ReleaseResearchCandidate[] = [];
+const EMPTY_AUDITS: ReleaseResearchCandidateAudit[] = [];
+const EMPTY_TRUSTED_CANDIDATE_IDS: string[] = [];
 const taskPollIntervalMs = 1_500;
 const maxTaskPolls = 1_200;
 
@@ -51,24 +81,15 @@ function researchModeLabel(rawResult: unknown) {
   return null;
 }
 
-function isSafeByDefault(release: ReleaseResearchCandidate) {
-  return release.verification?.status === "VERIFIED" &&
-    release.verification.aiDecision === "ACCEPT" &&
-    release.confidence === "HIGH" &&
-    !release.isExcludedByDefault &&
-    release.sources.length >= 2 &&
-    Boolean(release.coverImageUrl && release.coverImageSourceUrl);
-}
-
 export function AiSearchClient({ artists, capabilities }: { artists: ArtistOption[]; capabilities: ProviderSummary }) {
   const router = useRouter();
   const [navigationPending, startNavigation] = useTransition();
   const [artistName, setArtistName] = useState("中山美穂");
   const [country, setCountry] = useState("Japan");
-  const [target, setTarget] = useState<CollectionScopeTarget>("ORIGINAL_CD");
-  const [excludeReissues, setExcludeReissues] = useState(true);
-  const [includeCollaborations, setIncludeCollaborations] = useState(true);
-  const [includeLiveRemixBest, setIncludeLiveRemixBest] = useState(true);
+  const [target, setTarget] = useState<CollectionScopeTarget>(DEFAULT_RELEASE_RESEARCH_SCOPE.target);
+  const [excludeReissues, setExcludeReissues] = useState<boolean>(DEFAULT_RELEASE_RESEARCH_SCOPE.excludeReissues);
+  const [includeCollaborations, setIncludeCollaborations] = useState<boolean>(DEFAULT_RELEASE_RESEARCH_SCOPE.includeCollaborations);
+  const [includeLiveRemixBest, setIncludeLiveRemixBest] = useState<boolean>(DEFAULT_RELEASE_RESEARCH_SCOPE.includeLiveRemixBest);
   const [sourceText, setSourceText] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [defaultCoverSourceUrl, setDefaultCoverSourceUrl] = useState("");
@@ -78,11 +99,19 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [auditFilter, setAuditFilter] = useState("PENDING");
+  const [auditReasonFilter, setAuditReasonFilter] = useState<ResearchOutcomeReason | null>(null);
+  const [auditLimit, setAuditLimit] = useState(100);
   const [artistMode, setArtistMode] = useState<"create" | "existing">("create");
   const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
   const [importArtistName, setImportArtistName] = useState("中山美穂");
 
-  const releases = task?.parsedResult?.releases ?? EMPTY_RELEASES;
+  const resultReleases = task?.parsedResult?.releases ?? EMPTY_RELEASES;
+  const trustedFinalCandidateIds = task?.trustedFinalCandidateIds ?? EMPTY_TRUSTED_CANDIDATE_IDS;
+  const releases = useMemo(
+    () => selectTrustedFinalReleases(resultReleases, trustedFinalCandidateIds),
+    [resultReleases, trustedFinalCandidateIds],
+  );
   const visibleReleases = useMemo(
     () =>
       releases.filter((release) => {
@@ -93,7 +122,29 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   const visibleCandidateIds = visibleReleases.map((release) => release.id);
   const visibleSelectedCount = visibleCandidateIds.filter((candidateId) => selectedIds.has(candidateId)).length;
   const verificationSummary = task?.parsedResult?.verificationSummary ?? null;
-  const allResultsVerified = releases.length > 0 && releases.every(isSafeByDefault);
+  const auditSource = task?.parsedResult?.verificationCandidates;
+  const audits = auditSource ?? EMPTY_AUDITS;
+  const funnelMetrics = useMemo(
+    () => buildResearchFunnelMetrics(verificationSummary, auditSource),
+    [auditSource, verificationSummary],
+  );
+  const outcomeReasons = useMemo(() => buildResearchOutcomeReasons(audits), [audits]);
+  const progressSteps = useMemo(() => buildResearchProgressSteps(task?.progress), [task?.progress]);
+  const stageAuditRows = useMemo(
+    () => buildResearchStageAuditRows(task?.stageSummaries ?? []),
+    [task?.stageSummaries],
+  );
+  const filteredAudits = useMemo(() => audits.filter((audit) => {
+    const matchesStatus = auditFilter === "ALL"
+      ? true
+      : auditFilter === "PENDING"
+        ? audit.resolution === "PENDING_EVIDENCE" || audit.resolution === "PENDING_COVER"
+        : audit.resolution === auditFilter;
+    return matchesStatus && (!auditReasonFilter || matchesResearchOutcomeReason(audit, auditReasonFilter));
+  }), [auditFilter, auditReasonFilter, audits]);
+  const visibleAudits = filteredAudits.slice(0, auditLimit);
+  const hasTrustedFinalResults = releases.length > 0;
+  const blockedFinalCandidateCount = Math.max(0, resultReleases.length - releases.length);
   const progressOperation: ActiveOperation | null = navigationPending ? "navigating" : activeOperation;
   const busy = progressOperation !== null;
   const onlineResearchAvailable = capabilities.configurationReady && capabilities.webSearchEnabled;
@@ -117,6 +168,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
       errorMessage: null,
       rawResult: null,
       parsedResult: null,
+      trustedFinalCandidateIds: [],
+      stageSummaries: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -126,11 +179,16 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
     setTask(payload);
     const nextSelected = new Set<string>();
 
-    for (const release of payload.parsedResult?.releases ?? []) {
-      if (isSafeByDefault(release)) nextSelected.add(release.id);
+    for (const release of selectTrustedFinalReleases(
+      payload.parsedResult?.releases ?? EMPTY_RELEASES,
+      payload.trustedFinalCandidateIds ?? EMPTY_TRUSTED_CANDIDATE_IDS,
+    )) {
+      nextSelected.add(release.id);
     }
 
     setSelectedIds(nextSelected);
+    setAuditReasonFilter(null);
+    setAuditLimit(100);
     setImportArtistName(payload.parsedResult?.artist?.name ?? artistName);
   }
 
@@ -230,8 +288,8 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
   async function importCandidates() {
     if (!task || task.id === "pending") return;
     const selected = releases.filter((release) => selectedIds.has(release.id));
-    const skipped = releases.length - selected.length;
-    if (!selected.every(isSafeByDefault)) {
+    const skipped = resultReleases.length - selected.length;
+    if (selected.length !== selectedIds.size) {
       setMessage("仅允许导入已经通过国家书目、跨源、AI 与封面硬门禁的条目。");
       return;
     }
@@ -316,34 +374,37 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
           <Search className="size-4" />
           <AlertTitle>联网研究使用权威公共资料源</AlertTitle>
           <AlertDescription>
-            系统直接查询 MusicBrainz、NDL 国家书目、Discogs 与封面 API，再由 GPT-5.6 只对给定证据做保守终审；不依赖中转站原生 web_search。
+            系统直接查询 MusicBrainz、NDL 国家书目、Discogs 与封面 API，再由当前配置模型只对给定证据做保守终审；不依赖中转站原生 web_search。
           </AlertDescription>
         </Alert>
       ) : null}
 
       {progressOperation ? (
-        <OperationProgress
-          label={
-            progressOperation === "search"
-              ? (task?.stage ?? "正在联网搜索发行资料…")
-              : progressOperation === "structure"
-                ? "正在整理粘贴资料…"
-                : progressOperation === "import"
-                  ? `正在导入 ${selectedIds.size} 条候选…`
-                  : "导入成功，正在打开艺人库…"
-          }
-          detail={
-            progressOperation === "search"
-              ? "正在核对来源、发行信息、原文艺人名与封面，通常需要 1–3 分钟。"
-              : progressOperation === "structure"
-                ? "正在解析字段并执行收藏范围与置信度检查。"
-                : progressOperation === "import"
-                  ? "正在创建发行记录并保存来源，请勿重复提交。"
-                  : "页面即将自动跳转。"
-          }
-          value={progressOperation === "search" ? task?.progress : undefined}
-          max={progressOperation === "search" && task?.progress !== undefined ? 100 : undefined}
-        />
+        <div className="grid gap-2">
+          <OperationProgress
+            label={
+              progressOperation === "search"
+                ? (task?.stage ?? "正在联网搜索发行资料…")
+                : progressOperation === "structure"
+                  ? "正在整理粘贴资料…"
+                  : progressOperation === "import"
+                    ? `正在导入 ${selectedIds.size} 条候选…`
+                    : "导入成功，正在打开艺人库…"
+            }
+            detail={
+              progressOperation === "search"
+                ? researchProgressDetail(task?.progress)
+                : progressOperation === "structure"
+                  ? "正在解析字段并执行收藏范围与置信度检查，完成后会直接显示可核对结果。"
+                  : progressOperation === "import"
+                    ? "正在创建发行记录并保存来源，请勿重复提交；完成后会自动打开艺人库。"
+                    : "记录已保存，页面即将自动跳转。"
+            }
+            value={progressOperation === "search" ? task?.progress : undefined}
+            max={progressOperation === "search" && task?.progress !== undefined ? 100 : undefined}
+          />
+          {progressOperation === "search" ? <ResearchProgressStages steps={progressSteps} /> : null}
+        </div>
       ) : null}
 
       <Tabs defaultValue={onlineResearchAvailable ? "online-search" : "pasted-structure"}>
@@ -482,34 +543,115 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
             </CardContent>
           </Card>
 
-          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-7">
-            <Metric label="原始版本" value={verificationSummary?.rawReleases ?? releases.length} />
-            <Metric label="作品分组" value={verificationSummary?.releaseGroups ?? releases.length} />
-            <Metric label="国家书目" value={verificationSummary?.authoritativeMatches ?? 0} />
-            <Metric label="跨源一致" value={verificationSummary?.crossSourceMatches ?? 0} />
-            <Metric label="AI 通过" value={verificationSummary?.aiAccepted ?? 0} />
-            <Metric label="封面有效" value={releases.length} />
-            <Metric
-              label="自动过滤"
-              value={verificationSummary
-                ? verificationSummary.rejectedByEvidence + verificationSummary.rejectedByAi + verificationSummary.rejectedWithoutCover + verificationSummary.rejectedCoverUnavailable
-                : 0}
-            />
+          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+            {funnelMetrics.map((metric) => (
+              <Metric key={metric.key} label={metric.label} value={metric.value} detail={metric.detail} />
+            ))}
           </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            各列是已保存的阶段快照，不是可以直接相减的单向漏斗：补充来源可能新增版本，作品分组会合并同一作品；“自动过滤”表示未进入最终列表，其中待补证据和待补封面并不等于错误记录。
+          </p>
 
-          {!allResultsVerified ? (
+          {task.parsedResult.globalWarnings.length > 0 ? (
+            <Alert>
+              <AlertCircle className="size-4" />
+              <AlertTitle>全局研究提示</AlertTitle>
+              <AlertDescription>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {task.parsedResult.globalWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {stageAuditRows.length > 0 ? <ResearchStageAudit rows={stageAuditRows} /> : null}
+
+          {!hasTrustedFinalResults ? (
             <Alert variant="destructive">
               <AlertCircle className="size-4" />
               <AlertTitle>结果尚未达到最终收录标准</AlertTitle>
-              <AlertDescription>这些资料只能查看；请使用联网搜索完成国家书目、跨源、AI 与封面核验后再导入。</AlertDescription>
+              <AlertDescription>
+                服务端可信门禁未确认任何可导入条目。这些资料只能在审计账本查看，不能进入最终列表。
+              </AlertDescription>
             </Alert>
           ) : (
             <Alert>
               <Search className="size-4" />
               <AlertTitle>仅显示最终核验结果</AlertTitle>
-              <AlertDescription>未通过国家书目、跨源一致性、AI 证据裁决或封面有效性检查的条目已自动隐藏，无需人工辨别。</AlertDescription>
+              <AlertDescription>
+                最终列表由服务端导入硬门禁生成，只包含策略、方法、状态、AI、权威来源、独立佐证及封面来源绑定全部通过的条目。
+                {blockedFinalCandidateCount > 0
+                  ? ` 另有 ${blockedFinalCandidateCount} 条弱结果已从最终列表隐藏，仍可在审计账本追溯。`
+                  : ""}
+              </AlertDescription>
             </Alert>
           )}
+
+          {outcomeReasons.length > 0 ? (
+            <ResearchOutcomeReasonSummary
+              reasons={outcomeReasons}
+              onSelect={(reason) => {
+                setAuditReasonFilter(reason);
+                setAuditFilter(reason.resolution);
+                setAuditLimit(100);
+              }}
+            />
+          ) : null}
+
+          {audits.length > 0 ? (
+            <Card id="verification-audit">
+              <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg">逐条核验账本</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">每个发现版本都有最终去向，可查看具体阶段、理由、来源和是否会自动重试。</p>
+                </div>
+                <Select value={auditFilter} onValueChange={(value) => {
+                  setAuditFilter(value);
+                  setAuditReasonFilter(null);
+                  setAuditLimit(100);
+                }}>
+                  <SelectTrigger className="w-44" aria-label="核验状态筛选"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PENDING">等待补全</SelectItem>
+                    <SelectItem value="PENDING_EVIDENCE">待补证据</SelectItem>
+                    <SelectItem value="PENDING_COVER">待补封面</SelectItem>
+                    <SelectItem value="REJECTED">明确冲突</SelectItem>
+                    <SelectItem value="OUT_OF_SCOPE">不在收藏范围</SelectItem>
+                    <SelectItem value="VERIFIED">已核验</SelectItem>
+                    <SelectItem value="ALL">全部版本</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {auditReasonFilter ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border bg-stone-50 p-3 text-sm">
+                    <div>
+                      <p className="font-medium">
+                        当前原因：{researchStageLabel(auditReasonFilter.stage)} · {researchReasonLabel(auditReasonFilter.reasonCode)}
+                      </p>
+                      <p className="mt-1 font-mono text-[10px] text-muted-foreground">{auditReasonFilter.reasonCode}</p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setAuditReasonFilter(null)}>
+                      清除原因筛选
+                    </Button>
+                  </div>
+                ) : null}
+                <VerificationAuditTable
+                  audits={visibleAudits}
+                  expandedIds={expandedIds}
+                  toggleExpanded={(id) => toggle(setExpandedIds, id)}
+                />
+                {visibleAudits.length < filteredAudits.length ? (
+                  <Button type="button" variant="outline" onClick={() => setAuditLimit((value) => value + 100)}>
+                    再显示 100 条（尚有 {filteredAudits.length - visibleAudits.length} 条）
+                  </Button>
+                ) : null}
+                {filteredAudits.length === 0 ? <p className="text-sm text-muted-foreground">该状态下没有版本。</p> : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3 border bg-white p-4">
             <div className="flex flex-wrap gap-3">
@@ -539,16 +681,22 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
             </div>
           </div>
 
-          <ReleaseCandidateTable
-            releases={visibleReleases}
-            selectedIds={selectedIds}
-            expandedIds={expandedIds}
-            disabled={busy}
-            toggleSelected={(id) => toggle(setSelectedIds, id)}
-            toggleExpanded={(id) => toggle(setExpandedIds, id)}
-          />
+          {visibleReleases.length > 0 ? (
+            <ReleaseCandidateTable
+              releases={visibleReleases}
+              selectedIds={selectedIds}
+              expandedIds={expandedIds}
+              disabled={busy}
+              toggleSelected={(id) => toggle(setSelectedIds, id)}
+              toggleExpanded={(id) => toggle(setExpandedIds, id)}
+            />
+          ) : (
+            <p className="border bg-white p-4 text-sm text-muted-foreground">
+              当前筛选下没有通过服务端导入硬门禁的最终条目。
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            发行身份必须先通过日本国立国会图书馆国家书目，再由 MusicBrainz 与 Discogs 交叉核对；AI 只比较给定证据并可拒绝冲突项。封面只接受精确 CAA release 或精确 Discogs release 的 primary 图片，并校验真实文件签名与尺寸。{" "}
+            发行身份需要 MusicBrainz 实体版本与至少一个权威目录一致；Discogs 用作独立佐证，AI 只比较已提供证据且不能把资料缺失当成冲突。封面按精确 CAA、Discogs 和 Apple Music 匹配顺序补全，并校验真实文件签名与尺寸。{" "}
             <a href={NDL_SEARCH_ATTRIBUTION.apiTermsUrl} target="_blank" rel="noreferrer" className="underline">
               {NDL_SEARCH_ATTRIBUTION.displayNotice}
             </a>{" "}
@@ -582,7 +730,7 @@ export function AiSearchClient({ artists, capabilities }: { artists: ArtistOptio
                 </Field>
               )}
               <div className="flex items-end">
-                <Button onClick={importCandidates} disabled={busy || selectedIds.size === 0 || !allResultsVerified}>
+                <Button onClick={importCandidates} disabled={busy || selectedIds.size === 0 || !hasTrustedFinalResults}>
                   {activeOperation === "import" || activeOperation === "navigating" ? "正在导入…" : `导入 ${selectedIds.size}`}
                 </Button>
               </div>
@@ -660,11 +808,156 @@ function CheckField({ label, checked, onChange }: { label: string; checked: bool
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function ResearchProgressStages({ steps }: { steps: ResearchProgressStep[] }) {
+  return (
+    <ol className="grid gap-2 border bg-white p-3 sm:grid-cols-2 lg:grid-cols-7" aria-label="联网研究阶段">
+      {steps.map((step) => (
+        <li
+          key={step.key}
+          className="flex items-center gap-2 text-xs"
+          aria-current={step.status === "active" ? "step" : undefined}
+        >
+          {step.status === "complete" ? (
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-700" aria-hidden="true" />
+          ) : step.status === "active" ? (
+            <LoaderCircle className="size-4 shrink-0 animate-spin text-stone-900" aria-hidden="true" />
+          ) : (
+            <Circle className="size-4 shrink-0 text-stone-300" aria-hidden="true" />
+          )}
+          <span className={step.status === "pending" ? "text-muted-foreground" : "font-medium text-foreground"}>
+            {step.label}
+          </span>
+          <span className="sr-only">
+            {step.status === "complete" ? "已完成" : step.status === "active" ? "进行中" : "等待中"}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function StageReasonDetails({ row }: { row: ResearchStageAuditRow }) {
+  if (row.reasons.length === 0) {
+    return <p className="mt-2 text-xs text-muted-foreground">没有保存原因计数。</p>;
+  }
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="cursor-pointer font-medium">查看原因计数（{row.reasons.length} 类）</summary>
+      <ul className="mt-2 grid gap-1 text-muted-foreground">
+        {row.reasons.map((reason) => (
+          <li key={reason.reasonCode} className="flex items-start justify-between gap-3">
+            <span>
+              {reason.label}
+              <span className="ml-2 font-mono text-[10px]">{reason.reasonCode}</span>
+            </span>
+            <span className="shrink-0 tabular-nums">{reason.count}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function StageCount({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border bg-white p-3">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function ResearchStageAudit({ rows }: { rows: ResearchStageAuditRow[] }) {
+  const pipelineRows: ResearchStageAuditRow[] = [];
+  let resolutionRow: ResearchStageAuditRow | null = null;
+  for (const row of rows) {
+    if (row.stage === "RESOLUTION") resolutionRow = row;
+    else pipelineRows.push(row);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="text-lg">七阶段终验审计</CardTitle>
+          <Badge variant="outline">已保存 {pipelineRows.length}/7 阶段</Badge>
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">
+          输入、通过、延后、拒绝、合并与重试均来自服务端持久化摘要；原因计数是阶段决策记录次数，不应用相邻阶段数字推算删除量。
+        </p>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="overflow-x-auto border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-80">阶段与损耗说明</TableHead>
+                <TableHead>输入</TableHead>
+                <TableHead>通过</TableHead>
+                <TableHead>延后</TableHead>
+                <TableHead>拒绝</TableHead>
+                <TableHead>合并</TableHead>
+                <TableHead>重试</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pipelineRows.map((row) => (
+                <TableRow key={`${row.sequence}:${row.stage}`}>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{row.label}</span>
+                      <Badge variant={row.detailsComplete ? "secondary" : "outline"}>
+                        {row.detailsComplete ? "明细完整" : "历史明细不完整"}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{row.explanation}</p>
+                    <StageReasonDetails row={row} />
+                  </TableCell>
+                  <TableCell className="tabular-nums">{row.inputCount}</TableCell>
+                  <TableCell className="tabular-nums">{row.passedCount}</TableCell>
+                  <TableCell className="tabular-nums">{row.deferredCount}</TableCell>
+                  <TableCell className="tabular-nums">{row.rejectedCount}</TableCell>
+                  <TableCell className="tabular-nums">{row.mergedCount}</TableCell>
+                  <TableCell className="tabular-nums">{row.retryCount}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {resolutionRow ? (
+          <section className="border bg-stone-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-medium">最终去向汇总</h3>
+              <Badge variant={resolutionRow.detailsComplete ? "secondary" : "outline"}>
+                {resolutionRow.detailsComplete ? "明细完整" : "历史明细不完整"}
+              </Badge>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{resolutionRow.explanation}</p>
+            <div className="mt-3 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+              <StageCount label="输入" value={resolutionRow.inputCount} />
+              <StageCount label="通过" value={resolutionRow.passedCount} />
+              <StageCount label="延后" value={resolutionRow.deferredCount} />
+              <StageCount label="拒绝" value={resolutionRow.rejectedCount} />
+              <StageCount label="合并" value={resolutionRow.mergedCount} />
+              <StageCount label="重试" value={resolutionRow.retryCount} />
+            </div>
+            <StageReasonDetails row={resolutionRow} />
+          </section>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({ label, value, detail }: { label: string; value: number | null; detail: string }) {
   return (
     <div className="border bg-white p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
+      <p className="mt-2 text-2xl font-semibold tabular-nums">{value ?? "—"}</p>
+      <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+        {value === null ? "历史结果未记录此数据。" : detail}
+      </p>
     </div>
   );
 }
@@ -674,6 +967,164 @@ function Capability({ label, ok }: { label: string; ok: boolean }) {
     <div className="flex items-center justify-between border bg-white p-3 text-sm">
       <span>{label}</span>
       <Badge variant={ok ? "secondary" : "destructive"}>{ok ? "available" : "unavailable"}</Badge>
+    </div>
+  );
+}
+
+function auditBadgeVariant(resolution: ReleaseResearchCandidateAudit["resolution"]) {
+  if (resolution === "VERIFIED") return "secondary" as const;
+  if (resolution === "REJECTED") return "destructive" as const;
+  return "outline" as const;
+}
+
+function ResearchOutcomeReasonSummary({
+  reasons,
+  onSelect,
+}: {
+  reasons: ResearchOutcomeReason[];
+  onSelect: (reason: ResearchOutcomeReason) => void;
+}) {
+  const resolutionOrder: ResearchOutcomeReason["resolution"][] = [
+    "REJECTED",
+    "OUT_OF_SCOPE",
+    "PENDING_EVIDENCE",
+    "PENDING_COVER",
+  ];
+  const groups = resolutionOrder
+    .map((resolution) => ({
+      resolution,
+      reasons: reasons.filter((reason) => reason.resolution === resolution),
+    }))
+    .filter((group) => group.reasons.length > 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">未进入最终列表的阶段与原因</CardTitle>
+        <p className="text-sm leading-6 text-muted-foreground">
+          每个版本只按最终决定原因统计一次。点击任一原因即可在下方账本查看全部对应条目、来源和完整阶段记录。
+        </p>
+      </CardHeader>
+      <CardContent className="grid gap-4 lg:grid-cols-2">
+        {groups.map((group) => (
+          <section key={group.resolution} className="border bg-stone-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-medium">{researchResolutionLabel(group.resolution)}</h3>
+              <Badge variant={group.resolution === "REJECTED" ? "destructive" : "outline"}>
+                {group.reasons.reduce((total, reason) => total + reason.count, 0)} 条
+              </Badge>
+            </div>
+            <div className="mt-3 grid gap-3">
+              {group.reasons.map((reason) => (
+                <div key={`${reason.resolution}:${reason.stage}:${reason.reasonCode}`} className="border bg-white p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {researchStageLabel(reason.stage)} · {researchReasonLabel(reason.reasonCode)}
+                      </p>
+                      <p className="mt-1 font-mono text-[10px] text-muted-foreground">{reason.reasonCode}</p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => onSelect(reason)}>
+                      查看 {reason.count} 条
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{reason.message}</p>
+                  {reason.retryable ? <p className="mt-2 text-xs font-medium text-amber-700">系统会自动重试</p> : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function VerificationAuditTable({
+  audits,
+  expandedIds,
+  toggleExpanded,
+}: {
+  audits: ReleaseResearchCandidateAudit[];
+  expandedIds: Set<string>;
+  toggleExpanded: (id: string) => void;
+}) {
+  if (audits.length === 0) return null;
+  return (
+    <div className="overflow-x-auto border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>状态</TableHead>
+            <TableHead className="min-w-56">作品 / 版本</TableHead>
+            <TableHead>版本发行日</TableHead>
+            <TableHead>品番</TableHead>
+            <TableHead className="min-w-64">当前理由</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {audits.map((audit) => {
+            const expanded = expandedIds.has(`audit:${audit.candidateId}`);
+            const last = decisiveResearchLedgerEntry(audit);
+            return (
+              <Fragment key={`${audit.candidateId}:${audit.editionId}`}>
+                <TableRow className="[contain-intrinsic-size:0_72px] [content-visibility:auto]">
+                  <TableCell><Badge variant={auditBadgeVariant(audit.resolution)}>{researchResolutionLabel(audit.resolution)}</Badge></TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(`audit:${audit.candidateId}`)}
+                      className="flex items-center gap-2 text-left font-medium hover:underline"
+                    >
+                      {expanded ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
+                      {audit.title}
+                    </button>
+                    <p className="mt-1 font-mono text-[10px] text-muted-foreground">work {audit.workId} · edition {audit.editionId}</p>
+                  </TableCell>
+                  <TableCell>{audit.releaseDate ?? "-"}</TableCell>
+                  <TableCell>{audit.catalogNumber ?? "-"}</TableCell>
+                  <TableCell>
+                    <p className="text-xs font-medium">
+                      {last ? `${researchStageLabel(last.stage)} · ${researchReasonLabel(last.reasonCode)}` : "-"}
+                    </p>
+                    {last ? <p className="mt-1 font-mono text-[10px] text-muted-foreground">{last.reasonCode}</p> : null}
+                    <p className="mt-1 text-xs text-muted-foreground">{last?.message ?? "暂无阶段说明"}</p>
+                  </TableCell>
+                </TableRow>
+                {expanded ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="bg-stone-50">
+                      <ol className="grid gap-2">
+                        {audit.ledger.map((entry, index) => (
+                          <li key={`${entry.stage}:${entry.reasonCode}:${index}`} className="border bg-white p-3 text-xs">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline">{researchStageLabel(entry.stage)}</Badge>
+                              <Badge variant={entry.verdict === "REJECT" ? "destructive" : "secondary"}>{entry.verdict}</Badge>
+                              <span className="font-medium">{researchReasonLabel(entry.reasonCode)}</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">{entry.reasonCode}</span>
+                              {entry.retryable ? <span className="text-amber-700">将自动重试</span> : null}
+                            </div>
+                            <p className="mt-2 text-muted-foreground">{entry.message}</p>
+                            {entry.sourceUrls.length > 0 ? (
+                              <div className="mt-2 flex flex-wrap gap-3">
+                                {entry.sourceUrls.map((url) => (
+                                  <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">
+                                    <ExternalLink className="size-3" />来源
+                                  </a>
+                                ))}
+                              </div>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ol>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
